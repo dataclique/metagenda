@@ -31,8 +31,11 @@ precede extraction; runtime cutover needs separate authorization.
 
 ## Development
 
-Tooling is declared in `flake.nix`, including Node 26. Bun manages JavaScript
-dependencies through `bun.lock`; `bun.nix` supplies the Nix builds.
+Tooling is declared in `flake.nix`, including Node 26 and GitButler from the
+pinned [`dataclique/but.nix`](https://github.com/dataclique/but.nix) input. Use
+`but` for version control in the main checkout and plain Git in linked
+worktrees. Bun manages JavaScript dependencies through `bun.lock`; `bun.nix`
+supplies the Nix builds.
 
 From a configured development shell:
 
@@ -56,6 +59,6 @@ tests, and builds. These commands are verification steps, not a claim that all
 checks pass.
 
 The local legacy-bot work, including
-`docs/threat-models/telegram-pi-control.md`, remains staged separately from this
-receiving baseline. That threat model describes the legacy bot, not the planned
-replacement.
+`docs/threat-models/telegram-pi-control.md`, remains uncommitted and separate
+from this receiving baseline. That threat model describes the legacy bot, not
+the planned replacement.

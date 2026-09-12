@@ -40,12 +40,14 @@ cutover requires separate, explicit authorization.
   compiler error is useful evidence but is not a failing behavior test.
 - Keep changes small and reviewable. Fix the cause of failures; do not weaken
   checks, add unsafe casts, or suppress diagnostics to obtain a green result.
-- Preserve unrelated changes and the existing index. Work in the assigned
-  checkout. Use isolated workers only for a concrete concurrency requirement,
-  and clean up agent-created worktrees and verification artifacts.
-- Use plain Git in an unmanaged or non-main checkout. Use GitButler only in an
-  already managed main checkout after verifying topology. Do not initialize or
-  migrate a VCS workflow just to perform this task.
+- Preserve unrelated changes and staged work; never sweep them into another
+  task's commit. Work in the assigned checkout. Use isolated workers only for a
+  concrete concurrency requirement, and clean up agent-created worktrees and
+  verification artifacts.
+- Use GitButler in the main checkout, supplied by the pinned
+  `dataclique/but.nix` flake input. Verify topology before setup or use. Use
+  plain Git in non-main worktrees; never initialize GitButler there. Repository
+  setup must retain existing branches and uncommitted work.
 - PR titles are lowercase, imperative, and outcome-focused. Descriptions use
   `## Motivation` and `## Solution`, with relevant issue links and honest check
   results. Do not add generated-by footers.

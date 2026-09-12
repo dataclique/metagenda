@@ -16,6 +16,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.systems.follows = "systems";
     };
+    but = {
+      url = "github:dataclique/but.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-utils.follows = "flake-utils";
+    };
     devenv = {
       url = "github:cachix/devenv";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -72,6 +77,7 @@
               {
                 # https://devenv.sh/reference/options/
                 packages = with pkgs; [
+                  inputs.but.packages.${system}.gitbutler-cli
                   pkgs.bun2nix
                   deno
                   nil

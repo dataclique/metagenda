@@ -146,8 +146,9 @@ messages must not mirror private owner or agent traffic.
 ### Packaging and workstation integration
 
 Nix supplies the toolchain and reproducible packages; Bun manages the JavaScript
-workspace. Exact versions live in manifests and generated locks, not in this
-specification.
+workspace. The main checkout uses GitButler from the shared `dataclique/but.nix`
+input; linked worktrees use plain Git. Exact versions live in manifests and
+generated locks, not in this specification.
 
 Shared packages must not depend on a particular user's home directory,
 workstation launcher, or private configuration. Keep portable code and Nix

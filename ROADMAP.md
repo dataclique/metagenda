@@ -17,7 +17,8 @@ dependencies rather than silently replacing existing tracker history.
 
 ## 1. Establish the receiving baseline
 
-**Tracking:** [Issue #3](https://github.com/dataclique/metagenda/issues/3).
+**Tracking:** [Issue #3](https://github.com/dataclique/metagenda/issues/3),
+[draft PR #4](https://github.com/dataclique/metagenda/pull/4).
 
 **Goal:** A reproducible, documented repository that does not carry the obsolete
 web stack into the migration.
@@ -28,12 +29,15 @@ web stack into the migration.
       and npm lock; retain CLI recording and playback.
 - [ ] Align applicable dependencies, Node declarations, Bun, and Nix inputs with
       the current team stack and verified peer contracts.
+- [ ] Pin GitButler through `dataclique/but.nix`, verify the development-shell
+      package, and manage the main checkout with `but` while retaining existing
+      branches and uncommitted work.
 - [ ] Regenerate and reconcile `bun.lock` and `bun.nix`; verify a clean install,
       workspace typechecks, lint, tests, and the affected Nix derivations.
 - [ ] Keep test discovery limited to repository tests, and isolate all tests
       from personal configuration and live services.
 - [ ] Land removal of the superseded bot from active workspaces, builds, tests,
-      and Nix outputs while preserving its existing staged source.
+      and Nix outputs while preserving the existing legacy work.
 - [ ] Reconcile the older
       [cleanup PR #1](https://github.com/dataclique/metagenda/pull/1) and
       current upstream changes rather than merging or duplicating stale scope.

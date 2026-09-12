@@ -26,6 +26,29 @@
         "type": "github"
       }
     },
+    "but": {
+      "inputs": {
+        "flake-utils": [
+          "flake-utils"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1785658433,
+        "narHash": "sha256-P/o/AEOTklxL1qXDtvxgID0YYfSPEs9JbUQN5eZO2q8=",
+        "owner": "dataclique",
+        "repo": "but.nix",
+        "rev": "a193504a5e5f5f30d5e07a832c8ca484b8cd18fe",
+        "type": "github"
+      },
+      "original": {
+        "owner": "dataclique",
+        "repo": "but.nix",
+        "type": "github"
+      }
+    },
     "cachix": {
       "inputs": {
         "devenv": [
@@ -324,6 +347,7 @@
     "root": {
       "inputs": {
         "bun2nix": "bun2nix",
+        "but": "but",
         "devenv": "devenv",
         "flake-utils": "flake-utils",
         "nixpkgs": "nixpkgs",
