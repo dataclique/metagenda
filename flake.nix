@@ -61,9 +61,14 @@
         packages = {
           devenv-up = self.devShells.${system}.default.config.procfileScript;
           default = pkgs.callPackage ./default.nix { };
+          fj = pkgs.callPackage ./tooling/fj { };
         };
 
         apps = {
+          fj = {
+            type = "app";
+            program = "${packages.fj}/bin/fj";
+          };
           default = {
             type = "app";
             program = "${packages.default}/bin/metagenda";
@@ -82,6 +87,7 @@
                   deno
                   nil
                   nixfmt
+                  nushell
                   obs-cmd
                 ];
 
@@ -113,6 +119,7 @@
         };
 
         checks = {
+          fj = packages.fj;
           pre-commit = pre-commit-hooks.lib.${system}.run {
             src = ./.;
             inherit hooks;
