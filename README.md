@@ -19,15 +19,36 @@ dashboard, Telegram, and selected shared tooling—not rebuild them here.
 
 - `cli/`: task parsing, planning, work sessions, and asciinema
   recording/playback.
+- `tooling/fj/`: portable repository status and GitHub issue/PR list/view,
+  imported from reviewed dotconfig source. No mutation or host commands.
 
-`bot/` is no longer an active workspace, build, or test target. Its staged
+`bot/` is no longer an active workspace, build, or test target. Its uncommitted
 source is preserved, but dotconfig's Telegram capabilities fully supersede it.
 Do not maintain the legacy package.
 
 The obsolete React web workspace and browser-extension shell have been removed.
-CLI recording remains. `fj`, the shared dashboard, and the replacement Telegram
-service have not yet been imported. Source review, checks, and master merge must
-precede extraction; runtime cutover needs separate authorization.
+CLI recording remains. The first `fj` slice is imported locally; its receiving
+package builds and review must pass before delivery is complete. The dashboard
+and replacement Telegram service have not been imported. Runtime cutover needs
+separate authorization.
+
+## Portable fj
+
+`nix run .#fj -- help` selects the additive `fj` app; the default app remains
+Metagenda. `nix build .#fj` builds the package, including isolated Nu tests. The
+package exposes `bin/fj` and `share/nushell/fj/mod.nu` with sibling modules. For
+local tests use `bun run test:fj` (Nu from the development shell).
+
+Commands: default repository status, `help`, `issue list`, `issue view`,
+`pr list`, and `pr view`. List forwards gh flags; view supports `--comments` and
+explicit browser-opening `--web`. Omitted PR IDs use the caller's current
+branch. Repository context is never changed to the installation directory. But
+is optional on PATH, used only for default status in a main worktree with the
+source's `gitbutler/*` branch heuristic. Missing/failing But is an error there;
+linked and unmanaged worktrees use Git. This heuristic is not authority.
+
+See [source provenance and contracts](docs/migrations/dotconfig-intake.md). No
+live consumer has been switched by this extraction.
 
 ## Development
 

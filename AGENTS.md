@@ -16,6 +16,11 @@ Agent integration and the shared `fj` CLI are central to that direction. Use
 first-party tools to maintain shared work rather than recreate their workflows
 with ad-hoc commands. Inspect actual usage and source before adding interfaces.
 
+The first portable `fj` package lives in `tooling/fj/`; run its isolated Nu
+contracts with `bun run test:fj`. Keep imported-source provenance and its MIT
+notice, preserve the restricted executable surface, and verify each claimed
+package platform independently. No test may invoke a live gh/But service.
+
 The existing CLI remains supported. The React prototype is retired; do not
 restore it or port it into a new frontend. Dotconfig's Telegram capabilities
 supersede `bot/`. Preserve its existing staged source, but exclude it from

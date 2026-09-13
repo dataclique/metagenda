@@ -5,8 +5,9 @@ This document defines the product direction and contracts.
 engineering workflow; [README.md](./README.md) describes the current packages
 and commands.
 
-The shared-tooling sections describe a target, not completed extraction,
-deployment, or multi-user access.
+The first portable `fj` slice is extracted locally under the contract below;
+receiving verification and delivery are separate gates. Other shared-tooling
+sections describe targets, not deployment or multi-user access.
 
 ## 1. Purpose
 
@@ -95,6 +96,21 @@ and delivery outcomes.
 `fj clanker search` is a proposed interface, not an approved API. Any search
 interface must have credential-safe scope and exclusions by default. It cannot
 bypass execution policy or broaden access to personal state.
+
+### First portable fj slice
+
+The additive `packages.<system>.fj` and `apps.<system>.fj` preserve the existing
+default CLI. `bin/fj` and `share/nushell/fj/mod.nu` expose default repository
+status, help, and issue/PR list/view. List flags and view comments/browser modes
+preserve gh behavior and caller context. No generic mutation passthrough,
+host/session helpers, service or state export is included.
+
+The four selected pure routing helpers preserve private translation tables;
+routing data does not authorize execution. Default status invokes But only in
+verified main-worktree topology with the source's branch-name heuristic.
+Linked/unmanaged worktrees use Git; failed topology or selected But must not
+silently become successful fallback results. Receiving JSON validation and Nu
+compatibility adaptations are documented in the intake manifest.
 
 ### Protocol and durable state
 

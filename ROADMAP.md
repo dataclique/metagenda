@@ -53,8 +53,11 @@ proceed before it is complete.
 
 The [import manifest](./docs/migrations/dotconfig-intake.md) records inspected
 paths, dependencies, exclusions, and proposed downstream export requirements.
-The source revision, final export contract, and complete stateful dependency
-closure remain unconfirmed.
+The first portable `fj` source revision is landed at dotconfig master
+`d68a19c60bb263a19810fe6554a9761dd435e5e8`; source merge and CI evidence are
+recorded in that manifest. The first portable CLI's installed export contract is
+agreed; the local first-slice implementation is under receiving verification.
+The complete stateful dependency closure remains unconfirmed.
 
 - [ ] Confirm the nominated source baseline has passed its review loop and
       checks and merged to dotconfig `master` before importing code.
@@ -75,6 +78,12 @@ verified source gates, explicit exclusions, testable interfaces, and no implicit
 runtime cutover. Unrelated source changes and research do not broaden the plan.
 
 ## 3. Extract the shared CLI and agent interfaces
+
+**Tracking:** [Issue #6](https://github.com/dataclique/metagenda/issues/6).
+
+**Current slice:** `tooling/fj/` contains local status/help/issue/PR inspection,
+selected pure routing and isolated tests from the nominated source. Receiving
+review, package builds and publication are still pending. No runtime cutover.
 
 **Depends on:** Theme 2. `fj` is selected migration scope, not a speculative
 later add-on. Choose the first import from existing source and its dependency
