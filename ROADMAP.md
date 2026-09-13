@@ -79,11 +79,13 @@ runtime cutover. Unrelated source changes and research do not broaden the plan.
 
 ## 3. Extract the shared CLI and agent interfaces
 
-**Tracking:** [Issue #6](https://github.com/dataclique/metagenda/issues/6).
+**Tracking:** [Issue #6](https://github.com/dataclique/metagenda/issues/6),
+[draft PR #7](https://github.com/dataclique/metagenda/pull/7).
 
-**Current slice:** `tooling/fj/` contains local status/help/issue/PR inspection,
-selected pure routing and isolated tests from the nominated source. Receiving
-review, package builds and publication are still pending. No runtime cutover.
+**Current slice:** `tooling/fj/` provides status/help/issue/PR inspection,
+selected pure routing and isolated tests from the nominated source. The draft is
+published after local tests and fix re-review; package and full CLI verification
+remain gated on current CI. No runtime cutover.
 
 **Depends on:** Theme 2. `fj` is selected migration scope, not a speculative
 later add-on. Choose the first import from existing source and its dependency
