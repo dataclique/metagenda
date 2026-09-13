@@ -4,20 +4,32 @@
   "version": "0.1.0",
   "author": "Data Clique Software Design FZCO",
   "scripts": {
-    "build": "npm run -w web build && npm run -w cli build",
-    "lint": "npm run -w cli lint"
+    "build": "bun run --filter '*' build",
+    "cli:dev": "bun run --cwd cli dev",
+    "test": "vitest --run",
+    "typecheck": "bun run --filter '*' typecheck",
+    "lint": "bun run --filter '*' lint",
+    "lint:fix": "bun run --filter '*' lint:fix",
+    "verify": "bun run typecheck && bun run lint && bun run test && bun run build"
   },
   "devDependencies": {
-    "prettier": "3.2.5",
-    "typescript": "^5.4",
-    "vitest": "^1.6.0"
+    "@effect/language-service": "^0.87.2",
+    "@types/ws": "^8.18.1",
+    "prettier": "3.9.6",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@effect/experimental": "0.61.1",
+    "@effect/workflow": "0.19.1"
+  },
   "prettier": {
     "tabWidth": 2,
     "semi": false,
     "quoteProps": "consistent",
     "arrowParens": "avoid"
   },
-  "workspaces": ["bot", "cli", "web"]
+  "workspaces": [
+    "cli"
+  ]
 }

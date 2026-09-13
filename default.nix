@@ -1,14 +1,13 @@
-{ lib, buildNpmPackage, importNpmLock }:
+{ bun2nix }:
 
-buildNpmPackage rec {
-  pname = "metagenda-cli";
+bun2nix.mkDerivation {
+  pname = "metagenda";
   version = "0.1.0";
   src = ./.;
 
-  # The prepack script runs the build script, which we'd rather do in the build phase.
-  npmPackFlags = [ "--ignore-scripts" ];
-  NODE_OPTIONS = "--openssl-legacy-provider";
-  npmDeps = importNpmLock { npmRoot = ./.; };
-  npmConfigHook = importNpmLock.npmConfigHook;
-  npmWorkspace = "cli";
+  bunDeps = bun2nix.fetchBunDeps {
+    bunNix = ./bun.nix;
+  };
+
+  module = "cli/src/index.ts";
 }

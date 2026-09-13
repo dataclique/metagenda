@@ -8,7 +8,7 @@ export const Action = (input: string | undefined): Action | undefined => {
     if (!input) return undefined
 
     const actionRegex = /\s!\w+/
-    switch (input.match(actionRegex)?.[0].trim()) {
+    switch (actionRegex.exec(input)?.[0].trim()) {
         case "!afk":
         case "afk":
             return "afk"
@@ -37,7 +37,7 @@ export const Priority = (priority: number | string) => {
             case "medium":
             case "low":
             case "lowest":
-                return priority as Priority
+                return priority
             default:
                 return undefined
         }
@@ -111,7 +111,7 @@ export type LineOfWork = string & Brand.Brand<"LineOfWork">
 
 export const LineOfWork = (path: string): LineOfWork =>
     Brand.refined<LineOfWork>(
-        path => path.match(/[a-zA-Z0-9\-_/]+/) !== null,
+        path => /[a-zA-Z0-9\-_/]+/.test(path),
         path => Brand.error(`Invalid LineOfWork path format: ${path}`),
     )(path.trim())
 

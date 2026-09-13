@@ -1,28 +1,50 @@
 {
   inputs = {
     # Nix
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     systems.url = "github:nix-systems/default";
     flake-utils = {
       url = "github:numtide/flake-utils";
       inputs.systems.follows = "systems";
     };
     pre-commit-hooks = {
-      url = "github:cachix/pre-commit-hooks.nix";
+      url = "github:cachix/git-hooks.nix";
       inputs.nixpkgs.follows = "nixpkgs";
+    };
+    bun2nix = {
+      url = "github:nix-community/bun2nix/2.1.2";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.systems.follows = "systems";
+    };
+    but = {
+      url = "github:dataclique/but.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-utils.follows = "flake-utils";
     };
     devenv = {
       url = "github:cachix/devenv";
       inputs.nixpkgs.follows = "nixpkgs";
-      inputs.pre-commit-hooks.follows = "pre-commit-hooks";
+      inputs.git-hooks.follows = "pre-commit-hooks";
     };
   };
 
-  outputs = { self, nixpkgs, systems, flake-utils, pre-commit-hooks, devenv
-    , fenix, ... }@inputs:
-    flake-utils.lib.eachDefaultSystem (system:
+  outputs =
+    inputs@{
+      self,
+      nixpkgs,
+      flake-utils,
+      pre-commit-hooks,
+      bun2nix,
+      devenv,
+      ...
+    }:
+    flake-utils.lib.eachDefaultSystem (
+      system:
       let
-        pkgs = import nixpkgs { inherit system; };
+        pkgs = import nixpkgs {
+          inherit system;
+          overlays = [ bun2nix.overlays.default ];
+        };
 
         hooks = {
           actionlint.enable = true;
@@ -30,27 +52,15 @@
           check-added-large-files.enable = true;
           eslint.enable = true;
           nil.enable = true;
-          nixfmt = {
-            enable = true;
-            package = pkgs.nixfmt-classic;
-          };
+          nixfmt.enable = true;
           shellcheck.enable = false;
         };
 
-        deps = with pkgs; [
-          slides
-          asciinema
-          asciinema-agg
-          asciinema-scenario
-          uutils-coreutils-noprefix
-          terminal-notifier
-        ];
-
-      in rec {
+      in
+      rec {
         packages = {
           devenv-up = self.devShells.${system}.default.config.procfileScript;
-          default =
-            import ./. { inherit (pkgs) lib buildNpmPackage importNpmLock; };
+          default = pkgs.callPackage ./default.nix { };
         };
 
         apps = {
@@ -63,37 +73,42 @@
         devShells = {
           default = devenv.lib.mkShell {
             inherit inputs pkgs;
-            modules = [{
-              # https://devenv.sh/reference/options/
-              packages = with pkgs; [
-                nil
-                nixfmt-classic
-                obs-cmd
-                prefetch-npm-deps
-              ];
+            modules = [
+              {
+                # https://devenv.sh/reference/options/
+                packages = with pkgs; [
+                  inputs.but.packages.${system}.gitbutler-cli
+                  pkgs.bun2nix
+                  deno
+                  nil
+                  nixfmt
+                  obs-cmd
+                ];
 
-              languages = {
-                nix.enable = true;
-                typescript.enable = true;
-                javascript = {
-                  enable = true;
-                  npm.enable = true;
-                  npm.install.enable = true;
-                };
-                python = {
-                  enable = true;
-                  venv = {
-                    quiet = true;
-                    requirements = "auto-editor";
+                languages = {
+                  nix.enable = true;
+                  typescript.enable = true;
+                  javascript = {
+                    enable = true;
+                    package = pkgs.nodejs_26;
+                    bun.enable = true;
+                    bun.install.enable = true;
+                  };
+                  python = {
+                    enable = true;
+                    venv = {
+                      quiet = true;
+                      requirements = "auto-editor";
+                    };
                   };
                 };
-              };
 
-              delta.enable = true;
-              dotenv.disableHint = true;
-              difftastic.enable = true;
-              pre-commit.hooks = hooks;
-            }];
+                delta.enable = true;
+                dotenv.disableHint = true;
+                difftastic.enable = true;
+                git-hooks.hooks = hooks;
+              }
+            ];
           };
         };
 
@@ -103,11 +118,11 @@
             inherit hooks;
           };
         };
-      });
+      }
+    );
 
   nixConfig = {
-    extra-trusted-public-keys =
-      "devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw=";
+    extra-trusted-public-keys = "devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw=";
     extra-substituters = "https://devenv.cachix.org";
   };
 }
