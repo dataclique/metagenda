@@ -5,7 +5,7 @@ import { cfgFx } from "./cfg"
 import { $, std, sh } from "./sys"
 import { playbackFx } from "./cast"
 import { announceFx } from "./time"
-import { LineOfWork, Progress, Todo } from "./todo"
+import { LineOfWork, Todo } from "./todo"
 import { Fromd, updMdFx } from "./md"
 
 // TODO: interface ProgressChecker
@@ -14,17 +14,18 @@ const completionPromptFx = (task: string) =>
         const { display, readInput } = yield* _(platform.Terminal.Terminal)
         console.clear()
         yield* _(display(task))
+        const inputs = yield* _(readInput)
 
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         while (true) {
             yield* _(display("\nHas the task been completed? [y/n] "))
-            const { input: answer } = yield* _(readInput)
+            const { input: answer } = yield* _(inputs.take)
             yield* _(display("\n"))
 
             if (Option.contains("y")(answer)) return true
             if (Option.contains("n")(answer)) return false
         }
-    })
+    }).pipe(Effect.scoped)
 
 export const planFx = (lineOfWork: LineOfWork) =>
     Effect.gen(function* () {
@@ -46,18 +47,21 @@ export const journalFx = (todo: Todo, fromd?: Fromd) =>
             console.clear()
             const { display, readInput } = yield* _(platform.Terminal.Terminal)
             yield* _(display("Press any key to continue..."))
-            yield* _(readInput)
+            yield* _(readInput.pipe(
+                Effect.flatMap(inputs => inputs.take),
+                Effect.scoped,
+            ))
 
             return
         }
 
         const done = yield* completionPromptFx(fromd.raw)
         const progress = Match.value({ before: todo.progress, done }).pipe(
-            Match.when({ done: true }, () => "done" as Progress),
-            Match.when({ before: "done" }, () => "doing" as Progress),
-            Match.when({ before: "doing" }, () => "overrun" as Progress),
-            Match.when({ before: "todo" }, () => "doing" as Progress),
-            Match.when({ before: "overrun" }, () => "overrun" as Progress),
+            Match.when({ done: true }, () => "done" as const),
+            Match.when({ before: "done" }, () => "doing" as const),
+            Match.when({ before: "doing" }, () => "overrun" as const),
+            Match.when({ before: "todo" }, () => "doing" as const),
+            Match.when({ before: "overrun" }, () => "overrun" as const),
             Match.exhaustive,
         )
 

@@ -273,7 +273,7 @@ export const fileTodosFx = (path: string) =>
                 return urgency(b.priority) - urgency(a.priority)
             })
 
-        return vaultodos as MdTodo[]
+        return vaultodos
     })
 
 export const vaultodosFx = (filter?: (todo: MdTodo) => boolean) =>
@@ -391,7 +391,8 @@ export const compareFx = (todoA: Todo, todoB: Todo) =>
     Effect.gen(function* (_) {
         const term = yield* _(platform.Terminal.Terminal)
         const println = (msg: string) => _(term.display(`${msg}\n`))
-        const input = _(term.readInput).pipe(Effect.map(({ input }) => input))
+        const inputs = yield* _(term.readInput)
+        const input = inputs.take.pipe(Effect.map(({ input }) => input))
 
         yield* println("# Task A")
         yield* println(todoA.description)
@@ -407,4 +408,4 @@ export const compareFx = (todoA: Todo, todoB: Todo) =>
             if (Option.contains("a")(answer)) return true
             if (Option.contains("b")(answer)) return false
         }
-    })
+    }).pipe(Effect.scoped)

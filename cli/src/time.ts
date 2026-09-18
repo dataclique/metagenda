@@ -24,12 +24,12 @@ export const announceFx = (duration: DurationInput, msg: string) => {
         yield* _(terminal.display("\n"))
         yield* _(terminal.display(" ".repeat(pad)))
 
-        for (const word of [...`${msg}${separator}`.repeat(perLine - 1)]) {
+        for (const word of `${msg}${separator}`.repeat(perLine - 1)) {
           yield* _(terminal.display(word))
           yield* Effect.sleep(delay)
         }
 
-        for (const word of [...msg]) {
+        for (const word of msg) {
           yield* _(terminal.display(word))
           yield* Effect.sleep(delay)
         }

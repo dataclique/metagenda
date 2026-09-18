@@ -57,7 +57,7 @@ const exportInfo = (span: ReadableSpan) => {
             attributes: span.resource.attributes,
         },
         traceId: span.spanContext().traceId,
-        parentId: span.parentSpanId,
+        parentId: span.parentSpanContext?.spanId,
         traceState: span.spanContext().traceState?.serialize(),
         name: span.name,
         id: span.spanContext().spanId,

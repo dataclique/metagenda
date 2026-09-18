@@ -4,7 +4,8 @@
                 "outDir": "./dist",
                 "rootDir": "./src",
 
-                "target": "es6",
+                "target": "es2022",
+                "types": ["node"],
                 "module": "commonjs",
                 "moduleResolution": "node",
                 "plugins": [{ "name": "@effect/language-service" }],
