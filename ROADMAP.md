@@ -11,11 +11,22 @@ does not depend on a blocked gate may proceed independently. Checkboxes
 represent delivery gates, not the presence of a draft or a passing command in an
 older checkout.
 
+**Owner direction reaffirmed 2026-09-19:** the deployment destination is one
+instance shared with Moneymentum and Yielduck, with infrastructure owned by
+[dataclique/infra](https://github.com/dataclique/infra). This is a delivery
+target, not speculative expansion. Metagenda still owns its portable packages,
+state and identity contracts, and receiving verification. Reviewed source gates
+remain prerequisites for the capabilities being moved; runtime cutover and
+employee control retain their existing authorization boundaries.
+
+Tracking: [#22](https://github.com/dataclique/metagenda/issues/22) and
+[infra #6](https://github.com/dataclique/infra/issues/6).
+
 Use GitHub issues for actionable work and link the corresponding PRs here. Do
 not invent issue IDs. Migration intake must preserve source links, status, and
 dependencies rather than silently replacing existing tracker history.
 
-## 1. Establish the receiving baseline
+## Establish the receiving baseline
 
 **Tracking:** [Issue #3](https://github.com/dataclique/metagenda/issues/3),
 [merged PR #4](https://github.com/dataclique/metagenda/pull/4).
@@ -46,10 +57,10 @@ web stack into the migration.
 upstream. Every claimed check applies to that change, and preserved work has a
 clear disposition. A partial test pass does not complete the baseline.
 
-## 2. Lock the migration contract with dotconfig
+## Lock the migration contract with dotconfig
 
-**Depends on:** Theme 1 for readiness; source inspection and boundary design can
-proceed before it is complete.
+**Depends on:** the receiving baseline for readiness; source inspection and
+boundary design can proceed before it is complete.
 
 The [import manifest](./docs/migrations/dotconfig-intake.md) records inspected
 paths, dependencies, exclusions, and proposed downstream export requirements.
@@ -79,7 +90,7 @@ are complete. The complete stateful dependency closure remains unconfirmed.
 verified source gates, explicit exclusions, testable interfaces, and no implicit
 runtime cutover. Unrelated source changes and research do not broaden the plan.
 
-## 3. Extract the shared CLI and agent interfaces
+## Extract the shared CLI and agent interfaces
 
 **Tracking:** [Issue #6](https://github.com/dataclique/metagenda/issues/6),
 [PR #7](https://github.com/dataclique/metagenda/pull/7).
@@ -90,9 +101,9 @@ selected pure routing and isolated tests from the nominated source.
 passed package builds, installed smoke tests and full CLI verification on all
 four native platforms at `a0d40b7`. No runtime cutover.
 
-**Depends on:** Theme 2. `fj` is selected migration scope, not a speculative
-later add-on. Choose the first import from existing source and its dependency
-closure, rather than inventing a replacement CLI.
+**Depends on:** the migration contract. `fj` is selected migration scope, not a
+speculative later add-on. Choose the first import from existing source and its
+dependency closure, rather than inventing a replacement CLI.
 
 - [ ] Inventory repeated human/agent operations and map them to existing `fj`
       commands before proposing new interfaces.
@@ -110,10 +121,10 @@ source revision and usable by both humans and agents through tested contracts.
 New command names, hosting, and runtime adoption are not approved by
 implication.
 
-## 4. Extract the observational dashboard
+## Extract the observational dashboard
 
-**Depends on:** Theme 2. May proceed independently of the Telegram
-implementation once their shared contracts are fixed.
+**Depends on:** the migration contract. May proceed independently of the
+Telegram implementation once their shared contracts are fixed.
 
 - [ ] Extract the applicable SolidJS/Dockview UI and its domain dependencies.
 - [ ] Preserve health, agent, job, backlog, and usage observations behind typed
@@ -128,9 +139,10 @@ implementation once their shared contracts are fixed.
 reads the intended contracts, and remains observational. Public exposure and
 write controls are separate work.
 
-## 5. Extract the shared Telegram capability
+## Extract the shared Telegram capability
 
-**Depends on:** Theme 2 and its protocol/storage compatibility contract.
+**Depends on:** the migration contract and its protocol/storage compatibility
+contract.
 
 - [ ] Extract selected Piece of Pi transport, routing, presentation, question,
       and delivery behavior without importing personal-only features or runtime
@@ -148,12 +160,27 @@ write controls are separate work.
 tests, is reproducibly packaged, and has a reviewed operator configuration
 contract. This does not enable employee control or switch the running service.
 
-## 6. Deliver and retire through an explicit cutover
+## Deliver on the shared instance and retire through an explicit cutover
 
-**Depends on:** Themes 3–5 for the capabilities being switched.
+**Depends on:** the CLI, dashboard, and Telegram export gates for the
+capabilities being switched, plus Infra's receiving host contract. Infra host
+preparation can proceed in parallel with those exports.
+
+Deliver supported Linux packages to Infra for the instance shared with
+Moneymentum and Yielduck. Machine provisioning and activation belong in Infra;
+Metagenda supplies its package, service, state, and identity contracts.
 
 - [ ] Complete receiving review and current verification; publish changes
       through the repository's authorized delivery workflow.
+- [ ] Verify the supported Linux package/service exports and their state,
+      restart, and identity contracts --
+      [#22](https://github.com/dataclique/metagenda/issues/22), with existing
+      migration work tracked by
+      [#3](https://github.com/dataclique/metagenda/issues/3) and
+      [#6](https://github.com/dataclique/metagenda/issues/6).
+- [ ] Wire those exports into Infra's shared host without copying the personal
+      dotconfig runtime --
+      [infra #6](https://github.com/dataclique/infra/issues/6).
 - [ ] Update consuming configuration through its owning repository and role.
 - [ ] Obtain explicit authorization for the runtime switch and any state
       migration.
@@ -162,11 +189,12 @@ contract. This does not enable employee control or switch the running service.
       and valuable legacy work is recoverable.
 - [ ] Reconcile source and receiving docs and trackers with what actually moved.
 
-**Exit gate:** The operator has verified the new runtime, consumers no longer
-require the retired path, and rollback remains defined. A merged PR alone is not
-completion evidence.
+**Exit gate:** The operator has verified the supported Metagenda runtime on the
+instance shared with Moneymentum and Yielduck, consumers no longer require the
+retired path, and rollback remains defined. A merged PR or verified package
+alone is not deployment evidence.
 
-## 7. Expand shared tooling deliberately
+## Expand shared tooling deliberately
 
 These are candidates, not commitments or permission to import all of dotconfig.
 Each needs a scoped issue and acceptance criteria before implementation.
@@ -176,8 +204,9 @@ Each needs a scoped issue and acceptance criteria before implementation.
 - [ ] Extract reusable Nix packages separately from host configuration.
 - [ ] Define shared planning and read-only team views without leaking private
       owner traffic or creating a competing backlog.
-- [ ] Design remote hosting, cross-machine claims, tenant boundaries, and
-      employee authorization before adding multi-user control.
+- [ ] Design cross-machine claims, tenant boundaries, and employee authorization
+      before adding multi-user control. The approved shared-host destination is
+      tracked in the delivery epic above.
 - [ ] Evaluate orchestration research on its merits; do not treat an example
       project or a model experiment as an adopted architecture.
 
