@@ -6,7 +6,8 @@
   "scripts": {
     "build": "bun run --filter '*' build",
     "cli:dev": "bun run --cwd cli dev",
-    "test": "vitest --run && bun run test:fj",
+    "test": "vitest --run && bun run test:fj && bun run --cwd packages/work-core test && bun run test:work-core-consumer",
+    "test:work-core-consumer": "bun run --cwd packages/work-core build && nu --no-config-file --no-history packages/work-core/test-consumer.nu .tmp/work-core-tests",
     "test:fj": "nu --no-config-file --no-history tooling/fj/tests/run.nu .tmp/fj-tests",
     "typecheck": "bun run --filter '*' typecheck",
     "lint": "bun run --filter '*' lint",
@@ -31,6 +32,7 @@
     "arrowParens": "avoid"
   },
   "workspaces": [
-    "cli"
+    "cli",
+    "packages/work-core"
   ]
 }

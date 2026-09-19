@@ -1,0 +1,37 @@
+{
+  "name": "@metagenda/work-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./canonical-backlog": {
+      "types": "./dist/canonical-backlog.d.ts",
+      "default": "./dist/canonical-backlog.js"
+    },
+    "./backlog-normalization": {
+      "types": "./dist/backlog-normalization.d.ts",
+      "default": "./dist/backlog-normalization.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "PROVENANCE.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node --test src/canonical-backlog.test.ts src/backlog-normalization.test.ts test/package.test.ts test/normalization.test.ts test/control-characters.test.ts",
+    "lint": "eslint src test --max-warnings=0"
+  },
+  "dependencies": {
+    "effect": "3.22.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "26.1.1",
+    "eslint": "^10.10.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "^8.70.0"
+  }
+}
