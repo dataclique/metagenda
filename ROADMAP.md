@@ -30,10 +30,16 @@ fragment alone does not authorize execution.
 
 The canonical-backlog prerequisite for #15 is published in
 [draft PR #25](https://github.com/dataclique/metagenda/pull/25). Its `0de61d4`
-head passed source tests, strict compiled-only consumers, local checks, and six
-native CI jobs, including four-platform package/receiving verification and both
-Linux default-package builds. Reconciliation with newer master needs fresh
-verification. This does not complete planning or the shared Pi harness.
+head passed local type/lint checks, Effect behavior and source-worker tests,
+emitted declarations and isolated consumer checks using the fixed dependency
+closure, Apple Silicon Nix/default CLI builds, targeted source/packaging
+reviews, and six native CI jobs including four-platform package/receiving
+verification and both Linux default-package builds. The two production modules
+and their source tests retain MIT provenance and existing API semantics from
+[dotconfig PR #82](https://github.com/0xgleb/dotconfig/pull/82), revision
+`31a31a2218d9fef19f401c8d5ee86250b42cb867`. No live consumer was switched.
+Reconciliation with newer master needs fresh verification. This does not
+complete planning or the shared Pi harness.
 [Package provenance](./packages/work-core/PROVENANCE.md) records the source
 revision, MIT notice, adaptations, and verification boundaries.
 

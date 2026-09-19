@@ -33,10 +33,12 @@ Telegram planning and orchestration workflow remains in development.
   open a browser through gh.
 - `packages/work-core/`: private ESM canonical-backlog decoder and normalizers,
   source tests, and strict compiled-only consumer checks. Published in
-  [draft PR #25](https://github.com/dataclique/metagenda/pull/25) at `0de61d4`;
-  that head passed four-platform package and receiving checks plus both Linux
-  default-package builds. Workspace reconciliation with newer master requires
-  fresh verification. This is a prerequisite of
+  [draft PR #25](https://github.com/dataclique/metagenda/pull/25) at `0de61d4`.
+  That head passed local type/lint/tests, Apple Silicon Nix checks and the
+  default CLI build, targeted source/packaging reviews, four-platform package
+  and receiving checks, and both Linux default-package builds. Workspace
+  reconciliation with newer master requires fresh verification. This is a
+  prerequisite of
   [planning #15](https://github.com/dataclique/metagenda/issues/15), not an
   implemented planner, complete Pi integration, or runtime switch.
 

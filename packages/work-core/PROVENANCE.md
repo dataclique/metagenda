@@ -22,12 +22,21 @@ Node 26 / TypeScript 5.9, strict typechecking and all 37 source/receiving tests
 pass, including the bounded worker. Receiving valid-input regressions failed
 against typed prerequisites before the nominated implementations were imported.
 
-The package now participates in root workspace verification. The current
-Nix-provided `bun run verify` passes typechecking, lint, CLI and fj regressions,
-core tests, compiled-consumer checks and builds. The consumer harness copies
-emitted package files and a fixed dependency closure into disposable scratch.
-Independent review, Nix build verification and publication remain pending. No
-runtime has switched.
+The package participates in root workspace verification. Published
+[draft PR #25](https://github.com/dataclique/metagenda/pull/25) at `0de61d4`
+passed Nix-provided `bun run verify`: typechecking, lint, CLI and fj
+regressions, core tests, compiled-consumer checks and builds. The consumer
+harness copies emitted package files and a fixed dependency closure into
+disposable scratch; compiler and runtime filesystem permissions restrict reads
+to that fixture. The Apple Silicon Nix core check and default CLI build passed,
+as did targeted source and packaging reviews. Receiving CI verified the core
+package and full workspace on four native platforms in
+[run 35491985558](https://github.com/dataclique/metagenda/actions/runs/35491985558),
+and both Linux default-package builds in
+[run 35491985547](https://github.com/dataclique/metagenda/actions/runs/35491985547).
+These results apply to that published head, not the later reconciliation with
+master. The reconciled revision requires fresh verification. No runtime has
+switched.
 
 ## Receiving adaptations
 

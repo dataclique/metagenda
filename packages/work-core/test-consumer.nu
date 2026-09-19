@@ -1,7 +1,16 @@
+# Locate one fixed dependency relative to its declared parent, including Bun's
+# isolated linker. Resolve links before following a dependency's own dependencies.
+def dependency-root [parent: path, name: string] {
+  let candidate = ($parent | path join node_modules $name)
+  if ($candidate | path exists) { return ($candidate | path expand) }
+  let ancestor = ($parent | path dirname)
+  if $ancestor == $parent { error make {msg: $"Missing declared dependency: ($name)"} }
+  dependency-root $ancestor $name
+}
+
 # Validate the emitted package without copying source or using workspace links.
 def main [scratch: path] {
   let package = ($env.CURRENT_FILE | path dirname)
-  let root = ($package | path join ../.. | path expand)
   let fixture = ($scratch | path expand | path join $"consumer-(random uuid)")
   mkdir $fixture
   try {
@@ -11,17 +20,23 @@ def main [scratch: path] {
     cp ($package | path join package.json) ($destination | path join package.json)
     cp -r ($package | path join dist) ($destination | path join dist)
     cp ($package | path join fixtures/compiled-consumer.mts) ($fixture | path join consumer.mts)
-    # Fixed declared runtime closure; do not discover dependencies from imports.
-    for name in [effect fast-check pure-rand @standard-schema/spec] {
-      let target = ($modules | path join $name)
+    # Fixed declared closures, not dependencies inferred from arbitrary imports.
+    let effect = (dependency-root $package effect)
+    let fast_check = (dependency-root $effect fast-check)
+    let node_types = (dependency-root $package @types/node)
+    let dependencies = [
+      {name: effect, source: $effect}
+      {name: fast-check, source: $fast_check}
+      {name: pure-rand, source: (dependency-root $fast_check pure-rand)}
+      {name: @standard-schema/spec, source: (dependency-root $effect @standard-schema/spec)}
+      {name: typescript, source: (dependency-root $package typescript)}
+      {name: @types/node, source: $node_types}
+      {name: undici-types, source: (dependency-root $node_types undici-types)}
+    ]
+    for dependency in $dependencies {
+      let target = ($modules | path join $dependency.name)
       mkdir ($target | path dirname)
-      cp -r ($root | path join node_modules $name | path expand) $target
-    }
-    # Type tooling is fixture-local too; preserve its declared dependency closure.
-    for name in [typescript @types/node undici-types] {
-      let target = ($modules | path join $name)
-      mkdir ($target | path dirname)
-      cp -r ($root | path join node_modules $name | path expand) $target
+      cp -r $dependency.source $target
     }
     let config = {
       compilerOptions: {
