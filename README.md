@@ -27,10 +27,11 @@ source is preserved, but dotconfig's Telegram capabilities fully supersede it.
 Do not maintain the legacy package.
 
 The obsolete React web workspace and browser-extension shell have been removed.
-CLI recording remains. The first `fj` slice is imported locally; its receiving
-package builds and review must pass before delivery is complete. The dashboard
-and replacement Telegram service have not been imported. Runtime cutover needs
-separate authorization.
+CLI recording remains. The first `fj` slice is implemented and reviewed;
+[receiving CI](https://github.com/dataclique/metagenda/actions/runs/35313027613)
+verified package builds and CLI checks on all four declared native platforms.
+The dashboard and replacement Telegram service have not been imported. Runtime
+cutover needs separate authorization.
 
 ## Portable fj
 

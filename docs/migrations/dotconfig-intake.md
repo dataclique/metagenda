@@ -16,12 +16,13 @@ not proof of package support, receiving verification, or runtime adoption.
 Selected source paths were re-inspected at this immutable revision.
 
 Earlier baseline preparation passed CLI checks and Apple Silicon packaging; that
-historical result does not verify this import. Current imported Nu contracts
-pass locally, while receiving package builds and full Bun test/build commands
-remain blocked locally by the disk-reserve guard. The new four-system CI must
-provide current package and CLI verification after publication. No receiving
-package-build success is claimed here. The superseded bot is inactive; its
-uncommitted source remains preserved.
+historical result is separate from import verification. Receiving
+[run 35313027613](https://github.com/dataclique/metagenda/actions/runs/35313027613)
+at `a0d40b7` passed fj package builds with isolated tests, installed-entry
+smoke, frozen Bun installation and full CLI verification on native x86_64-linux,
+aarch64-linux, aarch64-darwin and x86_64-darwin runners. Local full builds were
+blocked by disk reserve; CI supplies the receiving build evidence. The
+superseded bot is inactive, and its uncommitted source remains preserved.
 
 ## First slice: a portable first-party CLI
 

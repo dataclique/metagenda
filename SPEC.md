@@ -5,9 +5,10 @@ This document defines the product direction and contracts.
 engineering workflow; [README.md](./README.md) describes the current packages
 and commands.
 
-The first portable `fj` slice is extracted locally under the contract below;
-receiving verification and delivery are separate gates. Other shared-tooling
-sections describe targets, not deployment or multi-user access.
+The first portable `fj` slice is implemented under the contract below, with
+receiving package builds and CLI checks verified on four native platforms.
+Landing and runtime adoption remain distinct from verification. Other
+shared-tooling sections describe targets, not deployment or multi-user access.
 
 ## 1. Purpose
 
