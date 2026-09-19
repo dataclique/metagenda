@@ -43,6 +43,15 @@ def main [] {
   assert (not (protected-push-blocked (fj-route) git master))
   let empty = (try { resolve-stack {tool: stack, args: []} git; "no error" } catch {|e| $e.msg})
   assert ($empty | str contains "empty stack route") $empty
-  assert equal (fj-complete | get completions.value) [help "issue list" "issue view" "pr list" "pr view"]
+  assert equal (fj-complete | get completions.value) [help issue pr]
+  for context in ["fj " "fj i" "mod p" "  fj\t"] {
+    assert equal (fj-complete $context | get completions.value) [help issue pr] $context
+  }
+  for context in ["fj issue " "fj issue l" "fj pr " "fj pr v" "  mod\tpr\t"] {
+    assert equal (fj-complete $context | get completions.value) [list view] $context
+  }
+  for context in ["fj issue list " "fj pr view 7 " "fj push " "fj help "] {
+    assert equal (fj-complete $context | get completions) [] $context
+  }
   print "PASS pure routing and completion contracts"
 }

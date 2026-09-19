@@ -103,8 +103,10 @@ bypass execution policy or broaden access to personal state.
 The additive `packages.<system>.fj` and `apps.<system>.fj` preserve the existing
 default CLI. `bin/fj` and `share/nushell/fj/mod.nu` expose default repository
 status, help, and issue/PR list/view. List flags and view comments/browser modes
-preserve gh behavior and caller context. No generic mutation passthrough,
-host/session helpers, service or state export is included.
+preserve gh behavior and caller context. Completions suggest one argument at a
+time: `help`, `issue`, or `pr`, then `list` or `view` for tracker commands. No
+generic mutation passthrough, host/session helpers, service or state export is
+included.
 
 The four selected pure routing helpers preserve private translation tables;
 routing data does not authorize execution. Default status invokes But only in

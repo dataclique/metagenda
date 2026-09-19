@@ -67,7 +67,10 @@ wrappers validate response fields before formatting; nullable body and author
 fields retain their source display behavior. The receiving module uses
 `str downcase` for Nu 0.112.2 rather than the source's `str lowercase` spelling.
 The MIT notice is preserved at `tooling/fj/LICENSE`; the Nix package installs it
-under `share/licenses/fj/`.
+under `share/licenses/fj/`. Context-aware completions return single arguments,
+not quoted multiword commands. Tracker contract cases assert each gh
+invocation's route and flags; failed valid-JSON responses must produce no
+formatted output.
 
 The new entry point uses checked Git discovery and NUL-delimited worktree
 records, restricts execution to the agreed commands, and does not silently fall

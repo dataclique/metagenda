@@ -59,8 +59,10 @@ recorded in that manifest. The first portable CLI's installed export contract is
 agreed; the first-slice implementation and four-platform receiving verification
 are complete. The complete stateful dependency closure remains unconfirmed.
 
-- [ ] Confirm the nominated source baseline has passed its review loop and
-      checks and merged to dotconfig `master` before importing code.
+- [x] Confirm the first portable `fj` source baseline passed review and checks
+      and merged to dotconfig `master` before importing it.
+- [ ] Confirm the remaining dashboard/Telegram source baselines pass review and
+      checks and merge before importing their complete stateful closure.
 - [ ] Inventory selected `fj`, dashboard, Telegram, protocol, storage, build,
       and configuration dependencies at exact source revisions.
 - [ ] Identify shared code, personal-only code, runtime state, and deployment

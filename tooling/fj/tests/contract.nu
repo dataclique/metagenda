@@ -36,22 +36,22 @@ def main [root: path, --cli] {
     {name: "unlisted topology", args: [], scenario: unlisted-topology, branch: "gitbutler/linked", linked: true, ok: false, text: "topology", tool: git}
     {name: "missing But", args: [], scenario: missing-but, branch: "gitbutler/workspace", linked: false, ok: false, text: "but", tool: git}
     {name: "no But fallback", args: [], scenario: but-fail, branch: "gitbutler/workspace", linked: false, ok: false, text: "but status failed", tool: but}
-    {name: "issue format", args: [issue view "7"], scenario: normal, branch: main, linked: false, ok: true, text: "# Synthetic item", tool: gh}
-    {name: "current PR", args: [pr view], scenario: normal, branch: main, linked: false, ok: true, text: "pr: #7", tool: gh}
-    {name: "list flags", args: [issue list --repo example/project --limit "3"], scenario: normal, branch: main, linked: false, ok: true, text: GH_PASSTHROUGH, tool: gh}
-    {name: "comments", args: [pr view --comments], scenario: normal, branch: main, linked: false, ok: true, text: GH_PASSTHROUGH, tool: gh}
-    {name: "web precedence", args: [issue view "7" --comments --web], scenario: normal, branch: main, linked: false, ok: true, text: GH_PASSTHROUGH, tool: gh}
-    {name: "failed valid JSON", args: [issue view "7"], scenario: gh-fail, branch: main, linked: false, ok: false, text: "tracker failed", tool: gh}
-    {name: "bad JSON", args: [pr view], scenario: bad-json, branch: main, linked: false, ok: false, text: "", tool: gh}
-    {name: "bad shape", args: [pr view], scenario: bad-shape, branch: main, linked: false, ok: false, text: "", tool: gh}
-    {name: "invalid number", args: [issue view "7"], scenario: invalid-number, branch: main, linked: false, ok: false, text: "invalid tracker", tool: gh}
-    {name: "invalid review", args: [pr view], scenario: bad-review, branch: main, linked: false, ok: false, text: "invalid tracker review", tool: gh}
-    {name: "invalid author", args: [pr view], scenario: bad-author, branch: main, linked: false, ok: false, text: "invalid tracker author", tool: gh}
-    {name: "null authors", args: [pr view], scenario: null-author, branch: main, linked: false, ok: true, text: "unknown", tool: gh}
-    {name: "failed PR JSON", args: [pr view], scenario: gh-fail, branch: main, linked: false, ok: false, text: "tracker failed", tool: gh}
-    {name: "failed list", args: [pr list], scenario: gh-fail, branch: main, linked: false, ok: false, text: "tracker failed", tool: gh}
-    {name: "failed comments", args: [pr view --comments], scenario: gh-fail, branch: main, linked: false, ok: false, text: "tracker failed", tool: gh}
-    {name: "failed web", args: [pr view --web], scenario: gh-fail, branch: main, linked: false, ok: false, text: "tracker failed", tool: gh}
+    {name: "issue format", args: [issue view "7"], scenario: normal, branch: main, linked: false, ok: true, text: "# Synthetic item", tool: gh, expected: [issue view "7" --json], json: true}
+    {name: "current PR", args: [pr view], scenario: normal, branch: main, linked: false, ok: true, text: "pr: #7", tool: gh, expected: [pr view --json], json: true}
+    {name: "list flags", args: [issue list --repo example/project --limit "3"], scenario: normal, branch: main, linked: false, ok: true, text: GH_PASSTHROUGH, tool: gh, expected: [issue list --repo example/project --limit "3"]}
+    {name: "comments", args: [pr view --comments], scenario: normal, branch: main, linked: false, ok: true, text: GH_PASSTHROUGH, tool: gh, expected: [pr view --comments]}
+    {name: "web precedence", args: [issue view "7" --comments --web], scenario: normal, branch: main, linked: false, ok: true, text: GH_PASSTHROUGH, tool: gh, expected: [issue view "7" --web]}
+    {name: "failed valid JSON", args: [issue view "7"], scenario: gh-fail, branch: main, linked: false, ok: false, text: "tracker failed", tool: gh, expected: [issue view "7" --json], json: true}
+    {name: "bad JSON", args: [pr view], scenario: bad-json, branch: main, linked: false, ok: false, text: "", tool: gh, expected: [pr view --json], json: true}
+    {name: "bad shape", args: [pr view], scenario: bad-shape, branch: main, linked: false, ok: false, text: "", tool: gh, expected: [pr view --json], json: true}
+    {name: "invalid number", args: [issue view "7"], scenario: invalid-number, branch: main, linked: false, ok: false, text: "invalid tracker", tool: gh, expected: [issue view "7" --json], json: true}
+    {name: "invalid review", args: [pr view], scenario: bad-review, branch: main, linked: false, ok: false, text: "invalid tracker review", tool: gh, expected: [pr view --json], json: true}
+    {name: "invalid author", args: [pr view], scenario: bad-author, branch: main, linked: false, ok: false, text: "invalid tracker author", tool: gh, expected: [pr view --json], json: true}
+    {name: "null authors", args: [pr view], scenario: null-author, branch: main, linked: false, ok: true, text: "unknown", tool: gh, expected: [pr view --json], json: true}
+    {name: "failed PR JSON", args: [pr view], scenario: gh-fail, branch: main, linked: false, ok: false, text: "tracker failed", tool: gh, expected: [pr view --json], json: true}
+    {name: "failed list", args: [pr list], scenario: gh-fail, branch: main, linked: false, ok: false, text: "tracker failed", tool: gh, expected: [pr list]}
+    {name: "failed comments", args: [pr view --comments], scenario: gh-fail, branch: main, linked: false, ok: false, text: "tracker failed", tool: gh, expected: [pr view --comments]}
+    {name: "failed web", args: [pr view --web], scenario: gh-fail, branch: main, linked: false, ok: false, text: "tracker failed", tool: gh, expected: [pr view --web]}
   ]
   let invalid_topologies = ([extra-nul no-head bad-head duplicate-head no-branch bad-branch duplicate-branch duplicate-worktree detached-branch duplicate-detached bare-current bare-head duplicate-path] | each {|scenario|
     {name: $scenario, args: [], scenario: $scenario, branch: "gitbutler/workspace", linked: false, ok: false, text: "topology", tool: git}
@@ -96,12 +96,17 @@ def main [root: path, --cli] {
         }
       }
     }
-    if $case.name == "current PR" {
-      assert equal ($invoked | last | get args | first 3) [pr view --json]
-      assert equal ($invoked | last | get args | length) 4
+    if $case.tool == "gh" {
+      assert equal ($invoked | length) 1 $case.name
+      let actual = ($invoked | last | get args)
+      if $case.json? == true {
+        # The formatter owns the field list, but not the route or omitted ID.
+        assert equal ($actual | first ($case.expected | length)) $case.expected $case.name
+        assert equal ($actual | length) (($case.expected | length) + 1) $case.name
+      } else {
+        assert equal $actual $case.expected $case.name
+      }
     }
-    if $case.name == "list flags" { assert equal ($invoked | last | get args) [issue list --repo example/project --limit "3"] }
-    if $case.name == "web precedence" { assert equal ($invoked | last | get args) [issue view "7" --web] }
     print $"PASS ($case.name)"
   }
   print $"Passed ($cases | length) contract cases"

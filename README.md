@@ -20,7 +20,8 @@ dashboard, Telegram, and selected shared tooling—not rebuild them here.
 - `cli/`: task parsing, planning, work sessions, and asciinema
   recording/playback.
 - `tooling/fj/`: portable repository status and GitHub issue/PR list/view,
-  imported from reviewed dotconfig source. No mutation or host commands.
+  imported from reviewed dotconfig source. No mutation or host/session
+  management commands; explicit view `--web` may open a browser through gh.
 
 `bot/` is no longer an active workspace, build, or test target. Its uncommitted
 source is preserved, but dotconfig's Telegram capabilities fully supersede it.
