@@ -18,25 +18,25 @@ dependencies rather than silently replacing existing tracker history.
 ## 1. Establish the receiving baseline
 
 **Tracking:** [Issue #3](https://github.com/dataclique/metagenda/issues/3),
-[draft PR #4](https://github.com/dataclique/metagenda/pull/4).
+[merged PR #4](https://github.com/dataclique/metagenda/pull/4).
 
 **Goal:** A reproducible, documented repository that does not carry the obsolete
 web stack into the migration.
 
-- [ ] Land canonical `AGENTS.md`, `SPEC.md`, and `ROADMAP.md`, with an accurate
+- [x] Land canonical `AGENTS.md`, `SPEC.md`, and `ROADMAP.md`, with an accurate
       README and no competing status narrative.
-- [ ] Complete removal of the React prototype, browser shell, orphan configs,
+- [x] Complete removal of the React prototype, browser shell, orphan configs,
       and npm lock; retain CLI recording and playback.
-- [ ] Align applicable dependencies, Node declarations, Bun, and Nix inputs with
+- [x] Align applicable dependencies, Node declarations, Bun, and Nix inputs with
       the current team stack and verified peer contracts.
-- [ ] Pin GitButler through `dataclique/but.nix`, verify the development-shell
+- [x] Pin GitButler through `dataclique/but.nix`, verify the development-shell
       package, and manage the main checkout with `but` while retaining existing
       branches and uncommitted work.
-- [ ] Regenerate and reconcile `bun.lock` and `bun.nix`; verify a clean install,
+- [x] Regenerate and reconcile `bun.lock` and `bun.nix`; verify a clean install,
       workspace typechecks, lint, tests, and the affected Nix derivations.
-- [ ] Keep test discovery limited to repository tests, and isolate all tests
+- [x] Keep test discovery limited to repository tests, and isolate all tests
       from personal configuration and live services.
-- [ ] Land removal of the superseded bot from active workspaces, builds, tests,
+- [x] Land removal of the superseded bot from active workspaces, builds, tests,
       and Nix outputs while preserving the existing legacy work.
 - [ ] Reconcile the older
       [cleanup PR #1](https://github.com/dataclique/metagenda/pull/1) and
@@ -53,11 +53,16 @@ proceed before it is complete.
 
 The [import manifest](./docs/migrations/dotconfig-intake.md) records inspected
 paths, dependencies, exclusions, and proposed downstream export requirements.
-The source revision, final export contract, and complete stateful dependency
-closure remain unconfirmed.
+The first portable `fj` source revision is landed at dotconfig master
+`d68a19c60bb263a19810fe6554a9761dd435e5e8`; source merge and CI evidence are
+recorded in that manifest. The first portable CLI's installed export contract is
+agreed; the first-slice implementation and four-platform receiving verification
+are complete. The complete stateful dependency closure remains unconfirmed.
 
-- [ ] Confirm the nominated source baseline has passed its review loop and
-      checks and merged to dotconfig `master` before importing code.
+- [x] Confirm the first portable `fj` source baseline passed review and checks
+      and merged to dotconfig `master` before importing it.
+- [ ] Confirm the remaining dashboard/Telegram source baselines pass review and
+      checks and merge before importing their complete stateful closure.
 - [ ] Inventory selected `fj`, dashboard, Telegram, protocol, storage, build,
       and configuration dependencies at exact source revisions.
 - [ ] Identify shared code, personal-only code, runtime state, and deployment
@@ -75,6 +80,15 @@ verified source gates, explicit exclusions, testable interfaces, and no implicit
 runtime cutover. Unrelated source changes and research do not broaden the plan.
 
 ## 3. Extract the shared CLI and agent interfaces
+
+**Tracking:** [Issue #6](https://github.com/dataclique/metagenda/issues/6),
+[PR #7](https://github.com/dataclique/metagenda/pull/7).
+
+**Current slice:** `tooling/fj/` provides status/help/issue/PR inspection,
+selected pure routing and isolated tests from the nominated source.
+[Receiving CI](https://github.com/dataclique/metagenda/actions/runs/35313027613)
+passed package builds, installed smoke tests and full CLI verification on all
+four native platforms at `a0d40b7`. No runtime cutover.
 
 **Depends on:** Theme 2. `fj` is selected migration scope, not a speculative
 later add-on. Choose the first import from existing source and its dependency

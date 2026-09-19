@@ -2,23 +2,49 @@
 
 ## Status and gate
 
-This is a receiving manifest, not an import or runtime cutover. The source paths
-below were inspected in dotconfig's working tree. The nominated master commit,
-review-loop result, and checks are still awaiting confirmation from the source
-owner. Recheck every selected path against that exact commit before extraction.
-Do not use a moving checkout as the import baseline.
+This records the first local import, not a completed receiving release or
+runtime cutover. GitHub confirms
+[source PR #81](https://github.com/0xgleb/dotconfig/pull/81) merged on September
+13, 2026 as `d68a19c60bb263a19810fe6554a9761dd435e5e8`; the source master ref
+matched that commit when checked. Both `check` and `build-nixos` succeeded in
+[run 34732038189](https://github.com/0xgleb/dotconfig/actions/runs/34732038189)
+on head `5b6d4ca8e18b120de741477d34a43c51e9930c13`.
 
-The receiving CLI passes Node 26 typecheck, lint, seven tests, build, and the
-Apple Silicon Nix package build. Those checks cover preparation, not imported
-code. The superseded bot is inactive; its staged source remains preserved.
+The source root license at that immutable revision is MIT and must accompany any
+extraction. The first-slice technical export agreement is recorded below; it is
+not proof of package support, receiving verification, or runtime adoption.
+Selected source paths were re-inspected at this immutable revision.
+
+Earlier baseline preparation passed CLI checks and Apple Silicon packaging; that
+historical result is separate from import verification. Receiving
+[run 35313027613](https://github.com/dataclique/metagenda/actions/runs/35313027613)
+at `a0d40b7` passed fj package builds with isolated tests, installed-entry
+smoke, frozen Bun installation and full CLI verification on native x86_64-linux,
+aarch64-linux, aarch64-darwin and x86_64-darwin runners. Local full builds were
+blocked by disk reserve; CI supplies the receiving build evidence. The
+superseded bot is inactive, and its uncommitted source remains preserved.
 
 ## First slice: a portable first-party CLI
 
 `fj` belongs in Metagenda and must serve humans and agents. Start with existing
 repository/tracker inspection and routing contracts, without importing host
-activation or rebuilding capabilities that already exist. The proposed receiving
-root is `tooling/fj/`; confirm that package boundary with the source owner
-before copying. Preserve source revisions, licenses, and relevant tests.
+activation or rebuilding capabilities that already exist. The receiving source
+layout is `tooling/fj/`, with isolated tests in `tooling/fj/tests/`. This local
+layout keeps Nu outside the existing Bun CLI workspace; the agreed installed
+package boundary is below. Preserve source revisions, licenses, and relevant
+tests.
+
+The public routing helpers are `fj-route`, `vcs-backend`, `resolve-stack`, and
+`protected-push-blocked`. Their command/translation tables stay private. Exclude
+session-name and clanker helpers. The four `gh.nu` list/view helpers retain
+their private formatters and field constants; no extra renderer is needed.
+
+The executable surface is default repository status, help, and selected issue/PR
+list/view. Preserve list flags, view `--comments`/`--web`, and omitted PR-ID
+current-branch lookup. `--web` explicitly opens the caller's browser. Keep
+caller cwd/repository context; never invent repository or organization defaults.
+Reject raw Git/stack commands and generic issue/PR passthrough before external
+calls. Pure mutation translations remain data, not executable commands.
 
 | Source path under dotconfig                       | Proposed receiving path         | Dependencies and required split                                                                                                                                                             |
 | ------------------------------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -33,6 +59,25 @@ only to a verified managed main worktree. The routing model must not make tool
 availability into authority. Mutating verbs require a separately selected,
 tested command surface; preserving their pure routing tests does not authorize
 executing them.
+
+## Receiving adaptations
+
+The selected routing module rejects an empty stack route explicitly. The GitHub
+wrappers validate response fields before formatting; nullable body and author
+fields retain their source display behavior. The receiving module uses
+`str downcase` for Nu 0.112.2 rather than the source's `str lowercase` spelling.
+The MIT notice is preserved at `tooling/fj/LICENSE`; the Nix package installs it
+under `share/licenses/fj/`. Context-aware completions return single arguments,
+not quoted multiword commands. Tracker contract cases assert each gh
+invocation's route and flags; failed valid-JSON responses must produce no
+formatted output.
+
+The new entry point uses checked Git discovery and NUL-delimited worktree
+records, restricts execution to the agreed commands, and does not silently fall
+back after But failure. The test runner covers module/CLI argument handling and
+synthetic real Git topology, and removes invocation-owned scratch on success or
+test failure. Package builds and receiving review are separate from source
+checks; no live consumer switch follows from local extraction.
 
 ## Planning and orchestration dependencies
 
@@ -63,11 +108,27 @@ Dotconfig will consume a pinned, landed Metagenda revision. It will wire and
 validate that dependency in its own repository after landing, not against an
 unpublished branch or a guessed export.
 
-Agree the export contract before implementation: supported systems, flake
-package attributes, Nushell module paths, executable names, protocol versions,
-and any configuration options. Preserve the existing CLI package. A named `fj`
-package and explicit shared-tooling outputs are proposed; their final attributes
-and layout are not established by this manifest.
+The agreed additive contract is `packages.<system>.fj` and `apps.<system>.fj`,
+with executable `bin/fj` and importable `share/nushell/fj/mod.nu`, alongside
+`routing.nu`, `gh.nu`, `help.nu`, and `completions.nu`. Target the four declared
+flake systems: `aarch64-darwin`, `x86_64-darwin`, `aarch64-linux`, and
+`x86_64-linux`. Report actual checks separately per platform; target declaration
+is not verification. Preserve `packages.default`, `apps.default`, and the
+existing Metagenda CLI.
+
+Supply Nu, Git, and `gh`. Optional caller-PATH But may run only for default
+status in verified main-worktree topology with the source's `gitbutler/*` branch
+heuristic. That heuristic is not a verified GitButler state database or an
+authorization grant. Never probe or invoke But in linked/unmanaged worktrees.
+Missing/failing But in the selected managed-main case is an explicit error, not
+the source's silent Git fallback; this is an agreed adapter difference.
+Propagate topology, external-command, and JSON failures without invented
+defaults.
+
+No host integration module, service, state, or runtime export belongs to this
+slice. It does not replace or retire dotconfig's running commands. New receiving
+regression tests must isolate configuration and use fake tracker/But
+executables.
 
 Keep package exports separate from host activation. A Darwin module, if needed,
 must have explicit configuration and state paths, no personal defaults, and no

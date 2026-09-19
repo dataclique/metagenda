@@ -6,7 +6,8 @@
   "scripts": {
     "build": "bun run --filter '*' build",
     "cli:dev": "bun run --cwd cli dev",
-    "test": "vitest --run",
+    "test": "vitest --run && bun run test:fj",
+    "test:fj": "nu --no-config-file --no-history tooling/fj/tests/run.nu .tmp/fj-tests",
     "typecheck": "bun run --filter '*' typecheck",
     "lint": "bun run --filter '*' lint",
     "lint:fix": "bun run --filter '*' lint:fix",
