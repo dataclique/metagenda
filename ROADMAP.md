@@ -115,11 +115,16 @@ dependency closure, rather than inventing a replacement CLI.
       define scope and exclusions without bypassing execution policy.
 - [ ] Package and test the selected commands without personal configuration,
       runtime state, workstation launchers, or live services.
+- [ ] Verify the selected commands through the installed `packages.<system>.fj`
+      and `apps.<system>.fj` exports, including `bin/fj` and
+      `share/nushell/fj/mod.nu`, against the argument, routing, and platform
+      compatibility contract in the
+      [import manifest](./docs/migrations/dotconfig-intake.md#downstream-consumer-dotconfig-nix-darwin).
 
 **Exit gate:** The selected existing commands are imported from the verified
 source revision and usable by both humans and agents through tested contracts.
-New command names, hosting, and runtime adoption are not approved by
-implication.
+New command names and runtime adoption are not approved by implication. The
+shared-host destination is recorded in the delivery epic below.
 
 ## Extract the observational dashboard
 
@@ -134,6 +139,12 @@ Telegram implementation once their shared contracts are fixed.
       workspace packaging; do not revive the CSV prototype.
 - [ ] Verify malformed responses, unavailable data, layout restoration, and the
       absence of unauthorized mutation paths.
+- [ ] Before extraction, record the dashboard's receiving package boundary,
+      named Nix build artifact, server interface, and supported Linux platforms
+      in the [import manifest](./docs/migrations/dotconfig-intake.md). Verify
+      the installed artifact against its observational API and layout/state
+      compatibility contract before Infra consumes it --
+      [#22](https://github.com/dataclique/metagenda/issues/22).
 
 **Exit gate:** The dashboard builds and runs in an isolated development setup,
 reads the intended contracts, and remains observational. Public exposure and
@@ -155,6 +166,13 @@ contract.
       and isolated stores, not the live bridge.
 - [ ] Test private-versus-team-visible output boundaries and reject unsupported
       senders or delivery capabilities without acquiring additional authority.
+- [ ] Before extraction, record the Telegram service's receiving package
+      boundary, named Nix artifact, entrypoint, configuration/state interface,
+      and supported Linux platforms in the
+      [import manifest](./docs/migrations/dotconfig-intake.md). Verify the
+      installed artifact against protocol, identity, durable-delivery, and
+      restart compatibility tests before Infra consumes it --
+      [#22](https://github.com/dataclique/metagenda/issues/22).
 
 **Exit gate:** The selected behavior passes realistic contract and recovery
 tests, is reproducibly packaged, and has a reviewed operator configuration
@@ -162,9 +180,15 @@ contract. This does not enable employee control or switch the running service.
 
 ## Deliver on the shared instance and retire through an explicit cutover
 
-**Depends on:** the CLI, dashboard, and Telegram export gates for the
-capabilities being switched, plus Infra's receiving host contract. Infra host
-preparation can proceed in parallel with those exports.
+**Depends on:** the installed-export checklists in
+[CLI](#extract-the-shared-cli-and-agent-interfaces),
+[dashboard](#extract-the-observational-dashboard), and
+[Telegram](#extract-the-shared-telegram-capability) for the capabilities being
+switched, plus Infra's receiving host contract. Infra host preparation can
+proceed in parallel with those exports. Dashboard and Telegram artifact names
+remain to be selected under the
+[SPEC migration gates](./SPEC.md#6-migration-gates); they are not existing
+exports.
 
 Deliver supported Linux packages to Infra for the instance shared with
 Moneymentum and Yielduck. Machine provisioning and activation belong in Infra;
@@ -178,21 +202,28 @@ Metagenda supplies its package, service, state, and identity contracts.
       migration work tracked by
       [#3](https://github.com/dataclique/metagenda/issues/3) and
       [#6](https://github.com/dataclique/metagenda/issues/6).
-- [ ] Wire those exports into Infra's shared host without copying the personal
-      dotconfig runtime --
+- [ ] Prepare non-activating host wiring for those exports in Infra without
+      copying the personal dotconfig runtime. Preparation must not start
+      services, move live state, or change live routing before the separately
+      authorized runtime switch --
       [infra #6](https://github.com/dataclique/infra/issues/6).
 - [ ] Update consuming configuration through its owning repository and role.
 - [ ] Obtain explicit authorization for the runtime switch and any state
       migration.
 - [ ] Verify the running version, routing, recovery, and rollback procedure.
+- [ ] Verify product isolation on the shared host: Metagenda service privileges,
+      state paths, credentials, and routing cannot expose or overwrite the
+      Moneymentum or Yielduck equivalents --
+      [#22](https://github.com/dataclique/metagenda/issues/22) and
+      [infra #6](https://github.com/dataclique/infra/issues/6).
 - [ ] Retire old packages and launchers only after consumers are accounted for
       and valuable legacy work is recoverable.
 - [ ] Reconcile source and receiving docs and trackers with what actually moved.
 
 **Exit gate:** The operator has verified the supported Metagenda runtime on the
 instance shared with Moneymentum and Yielduck, consumers no longer require the
-retired path, and rollback remains defined. A merged PR or verified package
-alone is not deployment evidence.
+retired path, product isolation holds, and rollback remains defined. A merged PR
+or verified package alone is not deployment evidence.
 
 ## Expand shared tooling deliberately
 
