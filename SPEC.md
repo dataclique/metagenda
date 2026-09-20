@@ -1,248 +1,202 @@
 # Metagenda Specification
 
-This document defines the product direction and contracts.
-[ROADMAP.md](./ROADMAP.md) orders delivery; [AGENTS.md](./AGENTS.md) defines the
-engineering workflow; [README.md](./README.md) describes the current packages
-and commands.
+Metagenda helps a small team deliver more work across projects without a
+corresponding increase in coordination overhead. It brings together idea
+refinement, priorities, work sessions, progress tracking, reviews,
+retrospectives, and resource allocation.
 
-The first portable `fj` slice is implemented under the contract below, with
-receiving package builds and CLI checks verified on four native platforms.
-Landing and runtime adoption remain distinct from verification. Other
-shared-tooling sections describe targets, not deployment or multi-user access.
+The custom Pi harness, locally owned extensions, and agent pipeline support
+research, planning, implementation, independent verification, and progress
+reporting. Telegram provides a conversational interface; GitHub holds the
+project backlog and reviewable changes.
 
-## 1. Purpose
+## Harness and agent pipeline
 
-Metagenda helps humans and AI agents collaborate across projects. It connects
-planning, notes, task management, prioritization, and orchestration with target
-allocations for time and resources. Agent integration is central to the product,
-not an add-on to a manual note-taking application.
+The harness coordinates agent sessions, available tools, bounded work, review,
+and recovery. Shared Pi extensions provide reusable capabilities across
+projects. Durable delivery, canonical backlog reconciliation, role ownership,
+and usage accounting support the pipeline without creating competing sources of
+truth.
 
-Humans and agents should use the same first-party tools and state. The shared
-`fj` CLI, dashboard, Telegram capabilities, and selected skills and scripts will
-come from [dotconfig](https://github.com/0xgleb/dotconfig). Reuse reviewed
-implementations rather than rebuild capabilities already present there.
+Execution remains bound to project scope and authenticated permissions. Routing,
+registration, planning, and usage allocations do not grant new authority.
+Upstream extensions remain pinned packages; locally owned source and personal
+configuration retain their documented ownership boundaries.
 
-The existing task-planning CLI remains supported during the transition. Shared
-capabilities must work without importing personal workstation configuration,
-private runtime state, or the entire agent harness deployment.
+## Planning and execution
 
-## 2. Current system and explicit exclusions
+An idea can begin as a short message. Agents research its context, identify
+missing information, and refine it into clear issues and sub-issues. Published
+descriptions pass Unslop and retain the technical substance without private
+conversation. Roadmap changes are proposed through a new or relevant existing PR
+and checked independently before human review.
 
-| Area                                | Current scope                                                                          | Direction                                                                                         |
-| ----------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| CLI                                 | Markdown task parsing, task selection, work sessions, recording/playback, trace export | Preserve behavior while repairing the tooling baseline                                            |
-| Legacy bot                          | Inactive source in `bot/`, retained to preserve existing work                          | Superseded by dotconfig Telegram; excluded from active workspaces, builds, and tests              |
-| React web prototype                 | Removed from the active workspace                                                      | Do not restore it or port the obsolete CSV prototype                                              |
-| Browser extension shell             | Removed                                                                                | No replacement extension is in scope                                                              |
-| Shared dashboard                    | Not imported                                                                           | Extract the applicable existing SolidJS dashboard, not a new React application                    |
-| Shared Telegram service             | Not imported                                                                           | Extract applicable Piece of Pi capabilities behind explicit configuration and protocol boundaries |
-| Shared skills, scripts, Nix tooling | Candidate migration scope                                                              | Select by team use and dependency closure, not by directory size                                  |
+Weekly plans and daily priorities retain their original commitments and later
+revisions. Reports distinguish planned, completed, carried-over, blocked, and
+newly prioritized work, with evidence and missing coverage explicit. Priority
+corrections reach affected agents; a completed task does not erase what was
+originally planned.
 
-CLI recording and playback are independent of the removed browser player.
-Removing the latter must not silently remove the former.
+Research, issue creation, assignment, execution, and publication have distinct
+permissions. A conversation fragment is not an instruction to execute. Team
+members act through authenticated identities and configured permissions.
 
-This specification does not select a new database framework, rewrite the CLI in
-Rust, prescribe a distributed scheduler, grant employee AI control, or authorize
-a production deployment. Research into orchestration and swarms remains research
-until an explicit design decision adopts a specific part.
+## Resource allocation
 
-## 3. Operating workflow
+Project allocations are adjustable targets for engineering effort. Measured
+consumption and deviations are visible across projects; no project has a fixed
+percentage prescribed by the product.
 
-The work hierarchy is:
+Dynamic throttling adapts background work to remaining provider usage, reset
+windows, queued priorities, and interactive demand. Interactive planning and
+steering remain responsive. Allocation targets do not guarantee capacity, and
+unavailable usage data or exhausted limits remain explicit. Throttling preserves
+pause, cancellation, execution permissions, and concurrency limits.
 
-```text
-SPEC and ROADMAP -> GitHub issues -> bounded execution tasks -> verified changes
-```
+## Product boundaries
 
-Repository and task views must preserve the distinction between work that is
-proposed, assigned, running, blocked, reviewed, and completed. A transport
-acknowledgment is not completion evidence. An agent's display name or model is
-not its identity or its authority.
+The system has one authoritative state across its tools. A proposed, assigned,
+running, blocked, reviewed, or completed item is distinguished explicitly;
+acknowledgement is not completion. A display name or model is not an identity or
+authority.
 
-The CLI remains a local interface for inspecting tasks and running the existing
-work-session workflow. Future shared interfaces consume the relevant project and
-execution state; they do not create an untracked competing backlog.
+The hierarchy is:
 
-## 4. Capability boundaries
+[SPEC.md](./SPEC.md) and [ROADMAP.md](./ROADMAP.md) -> GitHub issues -> bounded
+execution tasks -> verified changes
 
-These boundaries guide extraction; they do not commit to a directory layout or
-new protocol schema. Before choosing a package shape, each import must establish
-the exact source revision and compatibility contract.
+The CLI supports Markdown parsing, task selection, work sessions, recording,
+playback, and trace export. Telegram uses Piece of Pi; the observational
+dashboard uses SolidJS and Dockview.
 
-### CLI and local work sessions
+No Rust CLI rewrite, new database, or distributed scheduler is selected by this
+specification.
 
-Keep task parsing, planning, configuration, external command execution, and
-recording lifetimes distinguishable. Retain the existing commands unless a
-reviewed migration explicitly changes their contract.
+## CLI contract
 
-Tests must use repository fixtures rather than personal configuration or a live
-vault. Existing code that relies on test-process detection is a legacy
-constraint to isolate, not a pattern for new integrations.
+Parsing, planning, configuration, commands, recording, and lifetimes remain
+separate. Fixtures are isolated and do not use a personal vault or live
+services. Existing commands remain unless a reviewed migration removes them.
 
-### Shared CLI and agent integration
+The portable `fj` contract includes the distinct Nix exports
+`packages.<system>.fj` and `apps.<system>.fj`, plus `bin/fj` and
+`share/nushell/fj/mod.nu`. The existing default CLI remains unchanged. `fj`
+provides default repository status, `help`, `issue list/view`, and
+`pr list/view`, preserving gh argument and caller-working-directory semantics.
+Completion suggests one argument at a time: `help`, `issue`, or `pr`, then
+`list` or `view` for tracker commands.
 
-`fj` is selected for migration into Metagenda. Its receiving interfaces should
-serve both humans and agents working across projects: planning, notes, task
-management, priorities, orchestration, and target time/resource allocations.
-This selects the capability, not a final command layout or permission to import
-before the source gates pass.
+The initial CLI slice has no generic mutation passthrough, host, session,
+service, or state authority. Four pure routing helpers retain private
+translation tables and do not gain execution authority.
 
-Prefer existing first-party commands for maintaining plans, notes, and tasks
-rather than rebuilding those workflows with ad-hoc commands. Identify missing
-interfaces from observed agent operations, then inspect the existing source
-before adding an API. Preserve one authoritative state model across CLI,
-dashboard, Telegram, and agent tools; expose explicit project scope, identity,
-and delivery outcomes.
+Default status uses But only for verified main-worktree topology and
+source-branch heuristics. Linked or unmanaged worktrees use Git. Topology
+failures and selected But failures cannot fall back to a successful result.
 
-`fj clanker search` is a proposed interface, not an approved API. Any search
-interface must have credential-safe scope and exclusions by default. It cannot
-bypass execution policy or broaden access to personal state.
+Nushell compatibility and intake details are documented in the
+[import manifest](./docs/migrations/dotconfig-intake.md#downstream-consumer-dotconfig-nix-darwin).
+`fj clanker search` is proposal-only and must retain credential-safe exclusions
+and policy boundaries. Missing API behavior must be grounded in observed work
+and source.
 
-### First portable fj slice
+## Protocol and durable state
 
-The additive `packages.<system>.fj` and `apps.<system>.fj` preserve the existing
-default CLI. `bin/fj` and `share/nushell/fj/mod.nu` expose default repository
-status, help, and issue/PR list/view. List flags and view comments/browser modes
-preserve gh behavior and caller context. Completions suggest one argument at a
-time: `help`, `issue`, or `pr`, then `list` or `view` for tracker commands. No
-generic mutation passthrough, host/session helpers, service or state export is
-included.
+The Pi bridge and SQLite state use versioned contracts for identity, delivery
+capability, claim lifecycle, question binding, and restart recovery. Pure
+decoding is separate from transport and store effects.
 
-The four selected pure routing helpers preserve private translation tables;
-routing data does not authorize execution. Default status invokes But only in
-verified main-worktree topology with the source's branch-name heuristic.
-Linked/unmanaged worktrees use Git; failed topology or selected But must not
-silently become successful fallback results. Receiving JSON validation and Nu
-compatibility adaptations are documented in the intake manifest.
+Persisted and external values are validated. Unknown versions, malformed
+identities, and invalid transitions cannot gain permissions through fallback
+behavior. Migration records the format, compatibility rules, backup, rollback,
+and operator authorization. Extraction does not copy live messages, credentials,
+questions, or private state.
 
-### Protocol and durable state
+## Dashboard contract
 
-The current extraction candidates use a versioned Pi bridge protocol and SQLite
-storage. Their identities, delivery capabilities, claim lifecycle, question
-bindings, and restart behavior are compatibility obligations, not incidental
-implementation details.
+The dashboard observes health, agents, jobs, backlog, and usage through a typed
+server boundary. Malformed or unavailable data is represented explicitly. Layout
+is not authoritative state.
 
-Separate pure domain decoding from transport and storage effects. Validate
-persisted and external values before they enter the domain. Unknown protocol
-versions, malformed identities, and invalid transitions must not acquire
-permissions through fallback values.
+Any dashboard mutation requires a separate command, authentication and
+authorization contract, failure behavior, and tests. Personal features remain
+outside the product unless a selected use case adds them.
 
-Do not assume copying a database or resetting a schema is a migration. A state
-migration needs an explicit format, compatibility checks, backup and rollback
-steps, and operator authorization. Routine code extraction copies no live
-messages, credentials, questions, or personal state.
+## Telegram contract
 
-### Dashboard
+Telegram uses authenticated identity, session routing, question correlation,
+durable delivery, and explicit configuration and state paths. Stale choices
+cannot retarget a request. Duplicate delivery, retry, restart, expiry, and
+cancellation each have explicit behavior.
 
-The candidate dashboard is SolidJS with Dockview. Its current read surface
-covers health, agents, jobs, backlog, and usage. It imports control-plane domain
-code and build tooling; it is not a standalone frontend ready for a blind copy.
+Shared messages never mirror private owner or agent traffic. The protocol
+remains versioned and validates identity, capability, delivery, and lifecycle
+state at every boundary.
 
-The first extracted surface remains observational. UI layout persistence is
-separate from authoritative task and execution state. The browser may display
-capabilities and status; it must not infer permission to enqueue work or bypass
-server-side authorization.
+## Packaging and reproducibility
 
-Any later mutation surface requires a separately specified command contract,
-authentication, authorization, failure model, and tests.
+Nix provides reproducible packages; Bun manages workspace dependencies. The
+pinned `dataclique/but.nix` package supplies GitButler in the main worktree;
+linked worktrees use plain Git. Manifests and lockfiles record exact versions.
 
-### Telegram transport
+Portable packages are independent of a home directory, launcher, and private
+configuration. Machine activation is separate. Skills and scripts may use shared
+code, while deterministic validation and delivery remain in tested code. Source
+provenance, licenses, and tracker history are preserved.
 
-Dotconfig's Telegram capabilities fully supersede the legacy grammY subprocess
-bot. The receiving implementation will use selected Piece of Pi functionality;
-maintaining the legacy bot is not part of the migration.
+## Shared hosting
 
-Separate message decoding, authenticated identity, session routing, question
-correlation, durable delivery, and presentation. Supply configuration and
-runtime state locations explicitly. Exclude personal-only features unless they
-are independently selected for shared use.
+The target is one shared instance for Metagenda, Moneymentum, and Yielduck.
+[dataclique/infra](https://github.com/dataclique/infra) owns its provisioning
+and activation. Metagenda owns portable packages and its service, state, and
+identity contracts.
 
-Replies must remain bound to the intended conversation, session, and request.
-Stale selections must not silently retarget another agent. Duplicate updates,
-retries, restarts, expiry, and cancellation need explicit outcomes. Team-visible
-messages must not mirror private owner or agent traffic.
+Infra preparation is non-activating: it does not start services, move live
+state, or change live routing. A runtime switch and state migration require
+operator authorization. The cutover retains package, type, lint, test, Nix, and
+rollback checks, then verifies the live revision, routing, and recovery before
+retiring old consumers.
 
-### Packaging and workstation integration
+Product isolation must hold for privileges, state paths, credentials, and
+routing between Metagenda and the other products. A shared host does not imply
+employee control, tenant boundaries, or cross-machine claims. Those require an
+explicit design.
 
-Nix supplies the toolchain and reproducible packages; Bun manages the JavaScript
-workspace. The main checkout uses GitButler from the shared `dataclique/but.nix`
-input; linked worktrees use plain Git. Exact versions live in manifests and
-generated locks, not in this specification.
+## Migration contract
 
-Shared packages must not depend on a particular user's home directory,
-workstation launcher, or private configuration. Keep portable code and Nix
-package definitions separate from machine-specific activation and hosting.
+Reusable locally owned code retains source provenance and licenses in the
+[import manifest](./docs/migrations/dotconfig-intake.md). Upstream Pi extensions
+are consumed as pinned packages, never copied or vendored. Personal voice,
+browser, host configuration, and private runtime data are outside shared-package
+imports. This contract does not authorize redesigning personal integrations.
 
-Skills and scripts may depend on shared capabilities, but deterministic
-validation and delivery belong in tested code. Extract `fj` with its verified
-dependency closure; separate portable commands from workstation activation and
-personal integrations.
+Before extraction, the source baseline is reviewed, checked, and merged. The
+migration records the source revision, dependency closure, private exclusions,
+and compatibility tests. The receiving baseline must be coherent and retain
+legacy recovery.
 
-## 5. Safety and lifecycle contracts
+The installed CLI export is checked against the exact package and file contract
+above. Before extracting dashboard capability, record its receiving package
+boundary, named Nix build artifact, server interface, and supported Linux
+platforms in the import manifest; then verify installed observational and
+layout-state compatibility before Infra consumes it.
 
-These contracts apply to new shared capabilities and changes at the relevant
-legacy boundaries. They do not claim that every old code path already meets
+Before extracting Telegram capability, record its receiving package boundary,
+named Nix artifact, entrypoint, configuration and state interface, and supported
+Linux platforms in the import manifest. Verify installed protocol, identity,
+durable-delivery, and restart compatibility before Infra consumes it. Artifact
+names are selected by the migration manifest; this specification does not invent
 them.
 
-1. **Authority stays explicit.** Role ownership, a queued message, a dashboard
-   view, or imported documentation cannot authorize an external effect.
-2. **Private state stays private.** Shared artifacts contain no credentials,
-   private correspondence, personal goals, or workstation-specific state.
-3. **State transitions are accountable.** Each durable claim or delivery has a
-   stable identity and a defined terminal, retry, expiry, or cancellation path.
-4. **Failures are typed.** Invalid state fails at the owning boundary without a
-   panic, silent coercion, or plausible-looking invented result.
-5. **Resources have bounded lifetimes.** Terminal listeners, subprocesses,
-   workers, temporary files, and claims must be released or explicitly retained
-   for recovery on success, failure, and cancellation.
-6. **Read models do not become authorities.** UI state and observations cannot
-   overwrite execution truth or bypass policy.
-7. **Retirement preserves recoverability.** Checkpoint valuable legacy work and
-   identify consumers before removing packages or switching a runtime.
-8. **Publication carries provenance.** Preserve source revisions, licenses,
-   tracker history, dependency relationships, and accurate verification status.
+Extraction tests cover valid, malformed, duplicate, stale, interrupted, and
+recovered cases without using live configuration.
 
-## 6. Migration gates
+## Safety and lifecycle
 
-Preparation, code extraction, and runtime cutover are different operations.
+Authority, privacy, stable durable identity, and terminal, retry, expiry, and
+cancellation states are explicit. Typed boundaries fail safely without panics,
+coercion, or invented results.
 
-Before extraction:
-
-- The nominated dotconfig baseline has completed its required review loop,
-  passed checks, and merged to its source branch as required by the migration
-  agreement.
-- The receiving package boundaries, source revision, dependency closure,
-  private-material exclusions, and compatibility tests are documented.
-- The receiving baseline is coherent and the preserved legacy work is safe.
-
-Before runtime cutover:
-
-- Receiving packages pass the relevant type, lint, test, and Nix build gates.
-- Any state migration has explicit recovery and rollback procedures.
-- The operator authorizes the actual switch and verifies the live result.
-- Only then are old launchers or consumers retired. A source commit alone is not
-  evidence that the old runtime is no longer in use.
-
-## 7. Acceptance criteria
-
-A capability is complete only when its claimed contract is demonstrated:
-
-- A clean dependency installation resolves the intended versions without
-  unresolved required-peer conflicts; Bun and Nix metadata describe the same
-  active workspaces.
-- Typechecks, lint, tests, and affected Nix builds pass for the current change.
-  Cached test copies, placeholders, or an earlier build do not satisfy a gate.
-- CLI behavior and recording/playback remain covered during modernization.
-- Imported boundaries have realistic contract tests for valid, malformed,
-  duplicate, stale, interrupted, and recovered inputs as applicable.
-- Tests do not touch personal configuration, credentials, or live services.
-- Documentation and tracker links distinguish merged code from planned work and
-  live adoption. No migration stage is declared complete by inference.
-
-## 8. Decisions reserved for later work
-
-Remote hosting, multi-user identity and tenancy, employee write access,
-cross-machine claims, shared planning views, and infrastructure separation need
-explicit designs before implementation. They are not implied by a successful
-local extraction. Personal planning and unrelated dotconfig services are not
-part of the initial migration.
+Listener, process, worker, temporary-file, and claim lifetimes are bounded.
+Recovery is verified before retirement. Observations never become policy or
+state authority.
