@@ -100,6 +100,27 @@ Nushell compatibility and intake details are documented in the
 and policy boundaries. Missing API behavior must be grounded in observed work
 and source.
 
+## Canonical backlog core
+
+The private `packages/work-core/` ESM workspace imports the canonical decoder,
+tracker/document normalizers and source tests from reviewed dotconfig revision
+`31a31a2218d9fef19f401c8d5ee86250b42cb867`, preserving MIT provenance. Exports
+are `./canonical-backlog` and `./backlog-normalization`; runtime dependencies
+are Node path/crypto and Effect. Source tests and strict compiled-only consumer
+checks remain separate gates.
+
+Preserve the unversioned snapshot, `partial`/`complete` coverage, canonical
+absolute project paths, source-qualified identities and revision hashes. The
+decoder returns `undefined` for invalid input; normalizers retain typed Effect
+errors. Absolute paths are not legacy CLI logical project identities.
+
+This package does not collect data, persist plans, authorize execution, or
+switch consumers. It is a prerequisite of
+[planning #15](https://github.com/dataclique/metagenda/issues/15), not a
+completed planner or shared Pi integration. Current delivery evidence belongs in
+the [roadmap](./ROADMAP.md) and
+[package provenance](./packages/work-core/PROVENANCE.md).
+
 ## Protocol and durable state
 
 The Pi bridge and SQLite state use versioned contracts for identity, delivery

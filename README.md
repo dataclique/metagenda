@@ -36,9 +36,10 @@ Telegram planning and orchestration workflow remains in development.
   [draft PR #25](https://github.com/dataclique/metagenda/pull/25) at `0de61d4`.
   That head passed local type/lint/tests, Apple Silicon Nix checks and the
   default CLI build, targeted source/packaging reviews, four-platform package
-  and receiving checks, and both Linux default-package builds. Workspace
-  reconciliation with newer master requires fresh verification. This is a
-  prerequisite of
+  and receiving checks, and both Linux default-package builds. After rebasing
+  onto master `1371ce9`, local revision `e3d7a3c` passed `bun run verify`,
+  before subsequent documentation-only edits. Publication and CI/native Nix
+  checks of the revised branch remain pending. This is a prerequisite of
   [planning #15](https://github.com/dataclique/metagenda/issues/15), not an
   implemented planner, complete Pi integration, or runtime switch.
 

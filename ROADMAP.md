@@ -37,8 +37,10 @@ reviews, and six native CI jobs including four-platform package/receiving
 verification and both Linux default-package builds. The two production modules
 and their source tests retain MIT provenance and existing API semantics from
 [dotconfig PR #82](https://github.com/0xgleb/dotconfig/pull/82), revision
-`31a31a2218d9fef19f401c8d5ee86250b42cb867`. No live consumer was switched.
-Reconciliation with newer master needs fresh verification. This does not
+`31a31a2218d9fef19f401c8d5ee86250b42cb867`. No live consumer was switched. After
+rebasing onto master `1371ce9`, `bun run verify` passed at local branch revision
+`e3d7a3c`, before the subsequent documentation-only edits. Publication and
+CI/native Nix verification of the revised branch remain pending. This does not
 complete planning or the shared Pi harness.
 [Package provenance](./packages/work-core/PROVENANCE.md) records the source
 revision, MIT notice, adaptations, and verification boundaries.

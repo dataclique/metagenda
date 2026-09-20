@@ -17,10 +17,13 @@ The allowlist under `ai/pi/extensions/shared/` is:
 
 ## Receiving status
 
-The two production modules and their two nominated source tests are imported. On
-Node 26 / TypeScript 5.9, strict typechecking and all 37 source/receiving tests
-pass, including the bounded worker. Receiving valid-input regressions failed
-against typed prerequisites before the nominated implementations were imported.
+The two production modules and their two nominated source tests are imported. At
+local revision `e3d7a3c`, rebased onto master `1371ce9`, `bun run verify` passed
+typechecking, lint, tests and builds before subsequent documentation-only edits.
+This includes all 37 source/receiving tests, the bounded worker, and the strict
+compiled-only consumer on Node 26 / TypeScript 5.9. Receiving valid-input
+regressions failed against typed prerequisites before the nominated
+implementations were imported.
 
 The package participates in root workspace verification. Published
 [draft PR #25](https://github.com/dataclique/metagenda/pull/25) at `0de61d4`
@@ -34,9 +37,9 @@ package and full workspace on four native platforms in
 [run 35491985558](https://github.com/dataclique/metagenda/actions/runs/35491985558),
 and both Linux default-package builds in
 [run 35491985547](https://github.com/dataclique/metagenda/actions/runs/35491985547).
-These results apply to that published head, not the later reconciliation with
-master. The reconciled revision requires fresh verification. No runtime has
-switched.
+The CI and native Nix results apply to published head `0de61d4`, not the later
+reconciliation with master. Publication and CI/native Nix checks of the revised
+branch remain pending. No runtime has switched.
 
 ## Receiving adaptations
 
