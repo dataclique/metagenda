@@ -1,12 +1,13 @@
 # Metagenda Roadmap
 
-Metagenda brings the custom Pi harness, shared extensions, and agent pipeline
-into one system for work across projects. It connects research, planning,
-implementation, verification, and resource allocation. Telegram is a
-conversational interface. [SPEC.md](./SPEC.md) defines target behavior; GitHub
-issues hold acceptance criteria and implementation work.
+Metagenda automates planning, coordination, and improvement across projects. The
+roadmap connects idea refinement and priorities with execution, reviews,
+retrospectives, and resource allocation. The Pi harness and shared extensions
+support these workflows; Telegram provides a conversational interface.
+[SPEC.md](./SPEC.md) defines target behavior; GitHub issues hold acceptance
+criteria and implementation work.
 
-## Carry ideas through the agent pipeline
+## Turn ideas into coordinated work
 
 Develop ideas into researched, tracked work, then coordinate implementation and
 independent verification. Telegram intake is one entry point; a conversation

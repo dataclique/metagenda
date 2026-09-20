@@ -1,15 +1,18 @@
 # Metagenda
 
-Metagenda is the shared agent system for work across DataClique projects. Its
-target includes the custom Pi harness, locally owned Pi extensions, and the
-pipeline for research, planning, implementation, independent checks, and
-progress reporting. Telegram is one interface to this system.
+Metagenda helps a small team deliver more work across projects without a
+corresponding increase in coordination overhead. It brings together idea
+refinement, priorities, work sessions, progress tracking, reviews,
+retrospectives, and resource allocation.
 
-The workflow turns ideas into researched GitHub issues and sub-issues, keeps
-roadmap PRs and agents aligned with priorities, and manages human time and AI
-usage across projects. Adjustable resource allocations and dynamic throttling
-keep background work within usage limits while preserving responsive interactive
-sessions.
+AI supports this work through a custom Pi harness, locally owned extensions, and
+a pipeline for research, implementation, independent checks, and reporting.
+Telegram provides a conversational interface. GitHub issues, sub-issues, and
+roadmap PRs connect plans to delivery; human time and AI usage are managed
+against project priorities.
+
+Adjustable resource allocations and dynamic throttling keep background work
+within usage limits while preserving responsive interactive sessions.
 
 The current TypeScript CLI supports task planning and work sessions. The
 portable `fj` package provides repository and tracker inspection. The broader

@@ -1,10 +1,14 @@
 # Metagenda Specification
 
-Metagenda is the shared agent system for work across projects. It owns the
-custom Pi harness, locally owned extensions, and the agent pipeline from
-research and planning through implementation, independent verification, and
-progress reporting. Telegram provides a conversational interface; GitHub holds
-the project backlog and reviewable changes.
+Metagenda helps a small team deliver more work across projects without a
+corresponding increase in coordination overhead. It brings together idea
+refinement, priorities, work sessions, progress tracking, reviews,
+retrospectives, and resource allocation.
+
+The custom Pi harness, locally owned extensions, and agent pipeline support
+research, planning, implementation, independent verification, and progress
+reporting. Telegram provides a conversational interface; GitHub holds the
+project backlog and reviewable changes.
 
 ## Harness and agent pipeline
 
