@@ -10,11 +10,14 @@ Read [SPEC.md](./SPEC.md) for behavior and boundaries,
 [README.md](./README.md) for package status and commands before changing code.
 Keep all four accurate in every change.
 
-Metagenda supports human and AI-agent collaboration across projects: planning,
-notes, tasks, priorities, orchestration, and target time/resource allocations.
-Agent integration and the shared `fj` CLI are central to that direction. Use
-first-party tools to maintain shared work rather than recreate their workflows
-with ad-hoc commands. Inspect actual usage and source before adding interfaces.
+Metagenda's target is the shared Pi harness, locally owned extensions, and agent
+pipeline for research, planning, implementation, independent verification, and
+progress reporting across projects. Telegram is one interface. Keep GitHub
+issues and sub-issues, roadmap PRs, agent work, human time, and AI usage aligned
+with priorities. Project allocations and provider throttling are separate
+controls; interactive use must remain responsive. Use first-party tools to
+maintain shared work rather than recreate their workflows with ad-hoc commands.
+Inspect actual usage and source before adding interfaces.
 
 The first portable `fj` package lives in `tooling/fj/`; run its isolated Nu
 contracts with `bun run test:fj`. Keep imported-source provenance and its MIT

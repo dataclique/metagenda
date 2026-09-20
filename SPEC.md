@@ -1,17 +1,31 @@
 # Metagenda Specification
 
-Metagenda is a Pi-based automation layer for team planning and execution across
-projects. Telegram is the team's conversational interface for ideas, research,
-refinement, priorities, agent coordination, and progress. GitHub holds the
-project backlog and reviewable changes.
+Metagenda is the shared agent system for work across projects. It owns the
+custom Pi harness, locally owned extensions, and the agent pipeline from
+research and planning through implementation, independent verification, and
+progress reporting. Telegram provides a conversational interface; GitHub holds
+the project backlog and reviewable changes.
+
+## Harness and agent pipeline
+
+The harness coordinates agent sessions, available tools, bounded work, review,
+and recovery. Shared Pi extensions provide reusable capabilities across
+projects. Durable delivery, canonical backlog reconciliation, role ownership,
+and usage accounting support the pipeline without creating competing sources of
+truth.
+
+Execution remains bound to project scope and authenticated permissions. Routing,
+registration, planning, and usage allocations do not grant new authority.
+Upstream extensions remain pinned packages; locally owned source and personal
+configuration retain their documented ownership boundaries.
 
 ## Planning and execution
 
 An idea can begin as a short message. Agents research its context, identify
 missing information, and refine it into clear issues and sub-issues. Published
 descriptions pass Unslop and retain the technical substance without private
-conversation. Roadmap changes are proposed through a new or relevant existing
-PR and checked independently before human review.
+conversation. Roadmap changes are proposed through a new or relevant existing PR
+and checked independently before human review.
 
 Weekly plans and daily priorities retain their original commitments and later
 revisions. Reports distinguish planned, completed, carried-over, blocked, and
