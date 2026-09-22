@@ -284,7 +284,7 @@ sequenceDiagram
     else Valid issue, not urgent
         O->>B: File issue within authorized scope
     else Concern not substantiated
-        Note over O: Retain assessment; continue monitoring
+        Note over O: Retain assessment and continue monitoring
     end
 ```
 
