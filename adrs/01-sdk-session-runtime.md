@@ -22,6 +22,12 @@ delivery, process lifecycles, and durable execution state. The manager handles
 conversation and judgment through the same authorized operations as other
 clients.
 
+Use the same SDK session host for the manager and task workers, with separate
+conversation state and role-specific tools, permissions, and memory policies.
+Persistence is a session policy, not a reason to give the manager a different
+transport. This avoids maintaining two implementations of session observation,
+steering, cancellation, and recovery in the target system.
+
 The SDK is preferred for direct composition of per-task tools, resource loaders,
 extension factories, and session replacement in the TypeScript host. This is an
 integration tradeoff, not a claim that RPC cannot support custom clients,

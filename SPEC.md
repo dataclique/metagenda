@@ -47,6 +47,12 @@ lifecycles. Clients interact with sessions through authenticated commands and
 observe their events; no native Pi terminal must stay open. The manager is a
 resumable session, not the process that keeps the rest of the system alive.
 
+The manager and task workers use the same SDK session host. They differ in
+tools, permissions, retained history, and memory policy. A persistent manager
+conversation does not require a separate RPC implementation. Shared session
+hosting keeps event delivery, steering, cancellation, and recovery consistent;
+it does not require sessions to share a process or conversation context.
+
 RPC-controlled Pi subprocesses may serve as a transitional adapter while SDK
 integration is developed. Existing interactive sessions can remain usable during
 that transition. Both adapters must preserve task identity, authorization,
