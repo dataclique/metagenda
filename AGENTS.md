@@ -19,12 +19,6 @@ interactive use must remain responsive. Use first-party tools to maintain shared
 work instead of recreating their workflows with ad hoc commands. Inspect actual
 usage and source before adding interfaces.
 
-The target uses supervised Pi SDK sessions with an independent coordinator; RPC
-subprocesses may be used during transition. Follow the
-[runtime ADR](./adrs/01-sdk-session-runtime.md) and specification for live
-inspection, direct stop controls, and retained task ownership. These documents
-define target behavior, not deployed capabilities or runtime-cutover authority.
-
 The first portable `fj` package lives in `tooling/fj/`; run its isolated Nu
 contracts with `bun run test:fj`. Keep imported-source provenance and its MIT
 notice, preserve the restricted executable surface, and verify each claimed

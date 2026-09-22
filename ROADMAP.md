@@ -13,20 +13,6 @@ Develop ideas into researched, tracked work, then coordinate implementation and
 independent verification. Telegram intake is one entry point; a conversation
 fragment alone does not authorize execution.
 
-- [ ] Provide one manager conversation across clients and coordinate shared
-      worker capacity —
-      [#33](https://github.com/dataclique/metagenda/issues/33).
-- [ ] Retain engineering ownership through review, corrections, and verified
-      delivery — [#32](https://github.com/dataclique/metagenda/issues/32),
-      [#34](https://github.com/dataclique/metagenda/issues/34).
-- [ ] Expose live execution evidence and direct stop controls with explicit
-      cancellation and recovery outcomes —
-      [#16](https://github.com/dataclique/metagenda/issues/16).
-- [ ] Preserve delegated instruction authority and resolve worker-auditor
-      disputes without widening permissions —
-      [#39](https://github.com/dataclique/metagenda/issues/39),
-      [#35](https://github.com/dataclique/metagenda/issues/35).
-
 - [ ] Connect harness execution, cancellation, bounded concurrency, and recovery
       to planned work —
       [#16](https://github.com/dataclique/metagenda/issues/16).

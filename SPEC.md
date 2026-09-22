@@ -61,29 +61,61 @@ The service manager supervises the coordinator, which supervises Pi workers. The
 coordinator starts automatically at user login on a workstation or at boot on an
 unattended host, under an account with only its required privileges. Workers
 launch on demand after authorization and capacity checks. Service restart
-preserves durable task state and does not resume explicitly stopped work. The
-[runtime ADR](./adrs/01-sdk-session-runtime.md) records the architecture and
-alternatives.
+preserves durable task state and does not resume explicitly stopped work.
+
+### Component boundaries
+
+These are responsibility boundaries, not package names or a build plan.
+
+| Component    | Owns                                                                                   | Boundary                                                                                                 |
+| ------------ | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Clients      | Voice, text conversation, task inspection, and direct controls                         | Submit authenticated commands and display observations; do not schedule work or enforce execution policy |
+| Coordination | Task ownership, message delivery, authorization, priorities, budgets, and cancellation | Accept commands, authorize dispatch, reconcile execution events, and retain durable work state           |
+| Execution    | Pi SDK sessions, model turns, tools, and session events                                | Execute scoped assignments and report evidence; cannot grant authority or allocate itself capacity       |
+| Persistence  | Work records, session history, and artifacts                                           | Retain distinct records for recovery and inspection; a transcript is not task completion authority       |
+
+```mermaid
+flowchart LR
+    subgraph Clients[Clients]
+        UI[Conversation and dashboard]
+    end
+    subgraph Coordination[Coordination]
+        Control[Authority, tasks, and capacity]
+    end
+    subgraph Execution[Execution]
+        Sessions[Manager and task SDK hosts]
+    end
+    subgraph Persistence[Persistence]
+        WorkState[Work records]
+        Evidence[Session history and artifacts]
+    end
+    UI <-->|Commands and observations| Control
+    Control <-->|Assignments, requests, and events| Sessions
+    Control <--> WorkState
+    Sessions <--> Evidence
+```
+
+The manager belongs to execution: it is a session with coordination tools, not
+the component that schedules work or owns authority. A direct Stop command
+reaches coordination without a manager turn. Work state, conversation history,
+and artifacts have separate responsibilities; the diagram does not require
+separate database products.
+
+### Process supervision
 
 ```mermaid
 flowchart TD
-    Voice[Menu-bar voice client] --> Commands[Authenticated commands]
-    Telegram[Telegram client] --> Commands
-    Dashboard[Dashboard and direct Stop] --> Commands
-    OS[launchd or systemd] --> Coordinator[Coordinator]
-    Commands --> Coordinator
-    Coordinator --> Manager[Manager SDK session]
-    Coordinator --> Workers[Task SDK sessions]
-    Manager --> Commands
-    Workers --> Commands
-    Manager --> Events[Harness events and retained evidence]
-    Workers --> Events
-    Events --> Dashboard
-    Coordinator <--> State[Durable task and session state]
+    OS[launchd or systemd] -->|Supervises| Coordinator[Coordinator service process]
+    Coordinator -->|Supervises| ManagerHost[Manager SDK host process]
+    Coordinator -->|Supervises| WorkerHosts[Task SDK host processes]
+    Clients[Client processes] -->|Authenticated commands| Coordinator
 ```
 
-Commands and events cross authenticated runtime boundaries. Session boxes
-represent separate contexts, not necessarily one process per box.
+Process boundaries isolate the coordinator from model execution. Manager and
+task hosts use the same SDK integration with separate session state. A task host
+may be reused for another assignment only after releasing the previous
+assignment's tools, context, and execution resources. Process supervision does
+not replace task ownership or completion checks.
 
 ## Planning and execution
 
@@ -128,32 +160,31 @@ permissions and satisfied checks and approvals. Merge conflicts and integration
 changes return to verification before release.
 
 ```mermaid
-flowchart TD
-    Plan[Approved priorities] --> Work[Owned engineering assignment]
-    Work --> Help[Linked research or assistance]
-    Help --> Work
-    Work --> Review[Review current revision]
-    Review --> Fix[Address findings]
-    Fix --> Review
-    Feedback[Automated and human feedback] --> Fix
-    Review --> Dispute[Arbitration when disputed]
-    Dispute --> Fix
-    Dispute --> Human[Human final decision]
-    Human --> Review
-    Review --> Accepted[Required findings resolved]
-    Accepted --> Merge[Merge checks and authorization]
-    Merge --> Done[Merged]
-    Merge --> Conflict[Conflict or integration change]
-    Conflict --> Review
-    Stop[Direct Stop] --> Stopping[Block dispatch and cancel active execution]
-    Stopping --> Paused[Stopped assignment with evidence]
-    Work -.-> Paused
-    Paused --> Resume[Authorized corrections and resume]
-    Resume --> Work
+stateDiagram-v2
+    direction LR
+    [*] --> Assigned
+    Assigned --> Owned: Start authorized work
+    state "Engineering retains ownership" as Owned {
+        [*] --> Implementing
+        Implementing --> Reviewing: Submit current revision
+        Reviewing --> Implementing: Findings or changed code
+        Reviewing --> Disputed: Review disagreement
+        Disputed --> Reviewing: Resolution
+        Reviewing --> [*]: Accepted current revision
+    }
+    Owned --> Release: Required findings resolved
+    state "Release gate" as Release {
+        [*] --> Checking
+        Checking --> Merged: Authorized and checks pass
+    }
+    Release --> Owned: Conflict, new feedback, or revision
 ```
 
-These are dependencies and completion gates. Assistance and arbitration are
-conditional; they are not mandatory stages in a fixed workflow.
+The grouped states show ownership and acceptance gates. Parallel assistance is
+part of the assignment, not a mandatory stage. Pausing or stopping execution
+preserves the assignment's place in this lifecycle; resumption does not restart
+the work or discard its review history. Cancellation behavior is defined under
+dashboard controls.
 
 ### Operations and urgent work
 
@@ -162,6 +193,46 @@ validated independently with fresh context before it takes priority over planned
 work. If capacity is full, preemption saves the interrupted assignment and its
 artifacts, starts the urgent assignment with separate context, and permits later
 resumption without mixing project state.
+
+Operator and engineering assignments have separate contexts, permissions, and
+execution capacity. Watchdog incident responses bypass application-imposed
+pacing. Incident priority follows the response through independent validation,
+engineering, review, and authorized release; a handoff must not place it back in
+the ordinary background queue. Other urgent work receives reduced or no pacing
+according to its priority. Ordinary work slows or pauses to compensate for the
+capacity consumed. Urgency changes scheduling, not authority or acceptance
+criteria, and provider-enforced limits still apply.
+
+```mermaid
+sequenceDiagram
+    box Operations
+        participant O as Operator
+    end
+    box Coordination
+        participant C as Coordinator
+    end
+    box Response assignments
+        participant V as Validator
+        participant E as Engineer
+        participant R as Review and release
+    end
+    O->>C: Incident evidence
+    Note over C,R: Incident priority applies throughout the response
+    C->>C: Reserve capacity and reduce ordinary work
+    C->>V: Independent validation
+    V-->>C: Validated hotfix need
+    C->>E: Urgent engineering assignment
+    E->>R: Submit current revision
+    loop Until required findings are addressed
+        R-->>E: Findings
+        E->>R: Corrected revision
+    end
+    Note over R: Release only with required checks and authority
+```
+
+This sequence shows a validated incident requiring a hotfix. A rejected
+diagnosis does not enter engineering. Review and release are grouped to keep the
+handoff visible; they retain separate permissions and acceptance checks.
 
 Optional operator capabilities include emergency shutdown or other mitigation
 while humans are unavailable. Each requires explicit authorization, bounded
@@ -194,6 +265,13 @@ turns; analysis requiring more reasoning is delegated to workers. Manager usage
 still counts against the shared allowance, and provider-enforced limits remain
 visible. Background budgets protect interactive headroom rather than treating
 manager consumption as free or unlimited.
+
+Task configurations select model capability and reasoning effort to match the
+work. Configurable tiers distinguish high-capability analysis, balanced work,
+and fast economical tasks without prescribing model names. Tier assignments
+require task-relevant quality checks; a cheaper model is suitable only when its
+results meet the task's acceptance criteria. The manager's low-reasoning policy
+does not constrain the reasoning effort of its delegated workers.
 
 ## Product boundaries
 

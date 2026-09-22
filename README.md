@@ -14,12 +14,6 @@ against project priorities.
 Adjustable resource allocations and dynamic throttling keep background work
 within usage limits while preserving responsive interactive sessions.
 
-The [specification](./SPEC.md#agent-coordination) describes shared worker
-capacity, one manager conversation across clients, and live inspection with
-direct stop controls. The target uses supervised Pi SDK sessions, with RPC
-available during transition. The voice client remains to be implemented; these
-requirements do not describe a deployed orchestration system.
-
 The current TypeScript CLI supports task planning and work sessions. The
 portable `fj` package provides repository and tracker inspection. The broader
 Telegram planning and orchestration workflow remains in development.
