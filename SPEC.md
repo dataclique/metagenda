@@ -77,8 +77,8 @@ These are responsibility boundaries, not package names or a build plan.
 ```mermaid
 flowchart TB
     Human[Human]
-    subgraph Interfaces[Interfaces used by humans]
-        Telegram[Telegram text chat]
+    subgraph Interfaces[Human interfaces]
+        Telegram[Telegram bot]
         Voice[Menu-bar voice and live transcript]
         Dashboard[Live work dashboard]
     end
