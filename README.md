@@ -31,11 +31,25 @@ Telegram planning and orchestration workflow remains in development.
 - `tooling/fj/`: portable repository status and GitHub issue/PR list/view. It
   has no mutation or host/session management commands; explicit view `--web` may
   open a browser through gh.
+- `packages/work-core/`: private ESM canonical-backlog decoder and normalizers,
+  source tests, and strict compiled-only consumer checks. Published in
+  [draft PR #25](https://github.com/dataclique/metagenda/pull/25) at `0de61d4`.
+  That head passed local type/lint/tests, Apple Silicon Nix checks and the
+  default CLI build, targeted source/packaging reviews, four-platform package
+  and receiving checks, and both Linux default-package builds. After rebasing
+  onto master `1371ce9`, local revision `e3d7a3c` passed `bun run verify`,
+  before subsequent documentation-only edits. Publication and CI/native Nix
+  checks of the revised branch remain pending. This is a prerequisite of
+  [planning #15](https://github.com/dataclique/metagenda/issues/15), not an
+  implemented planner, complete Pi integration, or runtime switch.
 
-The legacy bot is no longer an active workspace, build, or test target. The
-obsolete React web workspace and browser-extension shell have been removed; CLI
-recording remains. The dashboard and replacement Telegram service have not yet
-been imported. Runtime cutover requires separate authorization.
+`bot/` is no longer an active workspace, build, or test target. Its uncommitted
+source is preserved, but dotconfig's Telegram capabilities fully supersede it.
+Do not maintain the legacy package.
+
+The obsolete React web workspace and browser-extension shell have been removed;
+CLI recording remains. The dashboard and replacement Telegram service have not
+yet been imported. Runtime cutover requires separate authorization.
 
 ## Portable fj
 
@@ -54,7 +68,8 @@ with the `gitbutler/*` branch heuristic. Missing or failing But is an error
 there; linked and unmanaged worktrees use Git. This heuristic grants no
 authority.
 
-The first `fj` slice is implemented and reviewed.
+The first `fj` slice is implemented, reviewed and
+[merged](https://github.com/dataclique/metagenda/pull/7).
 [Receiving CI](https://github.com/dataclique/metagenda/actions/runs/35313027613)
 verified package builds and CLI checks on all four declared native platforms.
 [Source provenance and compatibility contracts](docs/migrations/dotconfig-intake.md)
@@ -83,7 +98,7 @@ before building with Nix:
 bun2nix --lock-file bun.lock --output-file bun.nix
 ```
 
-`bun run lint` checks the CLI without changing files; `bun run lint:fix` applies
-fixes explicitly. The aggregate `verify` script runs typechecking, linting,
-tests, and builds. These commands describe verification steps; they do not claim
-that all checks pass.
+`bun run lint` checks active workspaces without changing files;
+`bun run lint:fix` applies fixes explicitly. The aggregate `verify` script runs
+typechecking, linting, tests, and builds. These commands describe verification
+steps; they do not claim that all checks pass.

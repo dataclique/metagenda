@@ -79,6 +79,80 @@ synthetic real Git topology, and removes invocation-owned scratch on success or
 test failure. Package builds and receiving review are separate from source
 checks; no live consumer switch follows from local extraction.
 
+## Shared Pi receiving contract
+
+The harness and shared extensions are active migration scope under
+[#16](https://github.com/dataclique/metagenda/issues/16) and
+[#22](https://github.com/dataclique/metagenda/issues/22). The backlog package is
+one prerequisite, not a substitute for this integration. Source landing gates
+code imports; it does not prevent receiving contract and test preparation.
+
+### Goal and child-process protocol
+
+The source owner nominated `LICENSE` and
+`ai/pi/extensions/classified-workflows/{goal.ts,goal.test.ts,protocol.ts,protocol.test.ts}`
+at `5689c9fe5404f37588e8d826b6d47cef48306245`. All four TypeScript files have
+been inspected. This feature revision is not a cleared import baseline: source
+master remains `31a31a2218d9fef19f401c8d5ee86250b42cb867` at the latest check.
+No nominated goal/process-protocol code has been copied into Metagenda.
+
+The proposed receiving boundary is a private ESM workspace
+`packages/pi-workflows/`, named `@metagenda/pi-workflows`, with `./goal` and
+`./process-protocol` emitted JavaScript/declaration subpaths. These are proposed
+exports, not available packages or an agreed downstream pin. Keeping them
+separate from `work-core` avoids coupling canonical planning records to child
+process diagnostics; expanding `work-core` would save a manifest but blur that
+ownership boundary. Preserve source filenames internally and existing exported
+types, functions, and error behavior; do not add pass-through wrappers.
+
+- `parseGoalCommand` returns `Effect<GoalCommand, GoalCommandError>`;
+  `parseStoredGoal` returns `GoalState | undefined`. Retain evaluation,
+  recovery, todo projection, compaction, and usage helpers without changing
+  stored shapes.
+- `summarizePiJsonLines` returns `PiProcessSummary`; `boundedDiagnosticTail`
+  returns `Effect<string, ProcessProtocolError>`. Retain JSONL usage/progress
+  and diagnostic-redaction helpers. This protocol is **not** the remote-control
+  bridge's versioned protocol.
+- Production imports are Effect only. Source tests use Node built-ins, including
+  `node:vm` for cross-realm error compatibility. No Pi SDK, store, transport,
+  personal configuration, or process-launch dependency belongs in this slice.
+- Preserve the 18 goal and 8 process-protocol test cases. They have been read,
+  not executed in the receiving checkout. Cover strict JSON evaluation, active
+  versus terminal goals, legacy recovery, pending-task completion guards, latest
+  todo corrections, assistant-only usage, bounded diagnostics, redaction, and
+  cross-realm errors. Source behavior is a compatibility baseline, not a claim
+  that all future harness safety obligations are already met.
+
+After source review, checks, and landing, begin with callable types and a
+failing receiving behavior test, then import the nominated files with MIT
+provenance. Use Node 26 source tests separately from a strict emitted-only
+consumer. The consumer must resolve only declared dependencies and emitted
+files, using the existing work-core fixture-isolation approach. Account for
+`findLast` and `toReversed` in the TypeScript library contract rather than
+suppressing errors. Root checks and native Nix validation must include the new
+workspace without changing existing CLI, `fj`, or canonical-backlog exports.
+Removing the unconsumed additive workspace is the rollback; no live state moves
+with it.
+
+### Engine, durable bridge, and host adapters
+
+The source owner retains mechanical engine extraction. Its nomination identifies
+`core.ts` ranges 42–148 and 981–1664 at the feature revision, with Node `vm`,
+Effect, and `shared/memory-capacity.ts`. These are extraction candidates, not an
+existing portable engine package. Preserve the injected `availableMemoryBytes`
+seam: the memory helper uses OS/child-process probing and is not pure. Preserve
+legacy core exports and audit consumers; keep personal classifier policy, duty
+strings, voice, browser control, and host configuration outside the import.
+
+Bridge/registry and control-plane slices require their own exact source
+closures, version compatibility, identity, fencing, cancellation, and restart
+tests. Do not confuse an archived subset or pure decoder with a complete
+service. Dashboard and Telegram still require the artifact, entrypoint, server,
+configuration/state, and Linux contracts required by the specification before
+extraction. No service artifact name or live switch is established by the
+proposed goal/process-protocol workspace. Upstream extensions remain pinned
+packages, not locally owned imports.
+
 ## Planning and orchestration dependencies
 
 These are observed source dependencies, not a complete portable package closure.

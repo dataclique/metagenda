@@ -16,7 +16,6 @@ fragment alone does not authorize execution.
 - [ ] Connect harness execution, cancellation, bounded concurrency, and recovery
       to planned work —
       [#16](https://github.com/dataclique/metagenda/issues/16).
-
 - [ ] Connect idea intake, research, refinement, and issue creation to durable
       cross-project planning —
       [#15](https://github.com/dataclique/metagenda/issues/15).
@@ -28,6 +27,23 @@ fragment alone does not authorize execution.
       [#15](https://github.com/dataclique/metagenda/issues/15).
 - [ ] Keep unreconciled conversation separate from actionable work —
       [#13](https://github.com/dataclique/metagenda/issues/13).
+
+The canonical-backlog prerequisite for #15 is published in
+[draft PR #25](https://github.com/dataclique/metagenda/pull/25). Its `0de61d4`
+head passed local type/lint checks, Effect behavior and source-worker tests,
+emitted declarations and isolated consumer checks using the fixed dependency
+closure, Apple Silicon Nix/default CLI builds, targeted source/packaging
+reviews, and six native CI jobs including four-platform package/receiving
+verification and both Linux default-package builds. The two production modules
+and their source tests retain MIT provenance and existing API semantics from
+[dotconfig PR #82](https://github.com/0xgleb/dotconfig/pull/82), revision
+`31a31a2218d9fef19f401c8d5ee86250b42cb867`. No live consumer was switched. After
+rebasing onto master `1371ce9`, `bun run verify` passed at local branch revision
+`e3d7a3c`, before the subsequent documentation-only edits. Publication and
+CI/native Nix verification of the revised branch remain pending. This does not
+complete planning or the shared Pi harness.
+[Package provenance](./packages/work-core/PROVENANCE.md) records the source
+revision, MIT notice, adaptations, and verification boundaries.
 
 ## Keep plans and agent work aligned
 
@@ -90,6 +106,11 @@ verified exports; product refinement does not depend on completing every
 migration task. Source provenance belongs in implementation records, not the
 product's purpose.
 
+The first portable `fj` slice landed in
+[PR #7](https://github.com/dataclique/metagenda/pull/7) at `919209d`, with
+four-platform receiving verification. Broader harness and service exports remain
+separate work; neither `fj` nor the backlog package supplies a complete runtime.
+
 ## Improve shared development tools
 
 - [ ] Finish shared tooling correctness and diagnostics —
@@ -101,5 +122,7 @@ product's purpose.
       [#19](https://github.com/dataclique/metagenda/issues/19).
 
 Repository preparation and import history remain in
-[#3](https://github.com/dataclique/metagenda/issues/3). They do not define the
-product roadmap.
+[#3](https://github.com/dataclique/metagenda/issues/3), including
+[merged baseline PR #4](https://github.com/dataclique/metagenda/pull/4) and
+[superseded, closed PR #1](https://github.com/dataclique/metagenda/pull/1). They
+do not define the product roadmap.

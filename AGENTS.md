@@ -24,6 +24,12 @@ contracts with `bun run test:fj`. Keep imported-source provenance and its MIT
 notice, preserve the restricted executable surface, and verify each claimed
 package platform independently. No test may invoke a live gh/But service.
 
+For the canonical-backlog extraction, preserve the nominated module APIs and MIT
+provenance. Keep source Node tests (including their bounded worker) separate
+from strict compiled-only consumer checks. Do not add host SDK, configuration,
+storage, or transport dependencies, or treat package extraction as planner
+implementation or runtime adoption.
+
 The existing CLI remains supported. The React prototype is retired; do not
 restore it or port it into a new frontend. Dotconfig's Telegram capabilities
 supersede `bot/`. Preserve its existing staged source, but exclude it from
