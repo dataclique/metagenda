@@ -62,6 +62,7 @@
           devenv-up = self.devShells.${system}.default.config.procfileScript;
           default = pkgs.callPackage ./default.nix { };
           fj = pkgs.callPackage ./tooling/fj { };
+          pi-skills = pkgs.callPackage ./pi/skills.nix { };
         };
 
         apps = {

@@ -38,18 +38,30 @@ Telegram planning and orchestration workflow remains in development.
   default CLI build, targeted source/packaging reviews, four-platform package
   and receiving checks, and both Linux default-package builds. After rebasing
   onto master `1371ce9`, local revision `e3d7a3c` passed `bun run verify`,
-  before subsequent documentation-only edits. Publication and CI/native Nix
-  checks of the revised branch remain pending. This is a prerequisite of
+  before subsequent documentation-only edits. Revised head `963a8a0` is now
+  published in that draft and passed all six native CI jobs. Those results do
+  not verify later uncommitted Pi integration work. This is a prerequisite of
   [planning #15](https://github.com/dataclique/metagenda/issues/15), not an
   implemented planner, complete Pi integration, or runtime switch.
+- `pi/skills.nix`: the additive `packages.<system>.pi-skills` output packages
+  all 46 public skill documents and five support files, with pinned source
+  hashes and preserved MIT attribution. Its Apple Silicon Nix build and
+  installed-file checks pass. Native CI includes all four target platforms, but
+  results for this new package are still pending.
+  [The skills provenance record](./pi/SKILLS-PROVENANCE.md) documents the
+  source, package layout, and host-specific instruction assumptions. No
+  extensions or services are activated. Full shared Pi runtime integration
+  remains unfinished, so this package does not authorize retiring the temporary
+  Dotconfig runtime.
 
 `bot/` is no longer an active workspace, build, or test target. Its uncommitted
 source is preserved, but dotconfig's Telegram capabilities fully supersede it.
 Do not maintain the legacy package.
 
 The obsolete React web workspace and browser-extension shell have been removed;
-CLI recording remains. The dashboard and replacement Telegram service have not
-yet been imported. Runtime cutover requires separate authorization.
+CLI recording remains. The shared Pi runtime and services are not yet packaged
+or deployed. Personal Telegram clients remain outside the selected shared
+package. Runtime cutover requires separate authorization.
 
 ## Portable fj
 

@@ -165,6 +165,14 @@ configuration. Machine activation is separate. Skills and scripts may use shared
 code, while deterministic validation and delivery remain in tested code. Source
 provenance, licenses, and tracker history are preserved.
 
+`packages.<system>.pi-skills` installs the pinned public skills and support
+files at `$out/share/metagenda/pi-skills/skills/`. Its manifest explicitly lists
+skill directories and enrolls no extensions. Source bytes, attribution, and
+relative support-file layout are preserved. Host-specific examples remain
+documented assumptions, not permission to access personal configuration or proof
+of portable command execution. Packaging never activates skills or host
+settings.
+
 ## Shared hosting
 
 The target is one shared instance for Metagenda, Moneymentum, and Yielduck.
