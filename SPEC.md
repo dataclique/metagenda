@@ -76,23 +76,50 @@ These are responsibility boundaries, not package names or a build plan.
 
 ```mermaid
 flowchart LR
-    subgraph Clients[Clients]
-        UI[Conversation and dashboard]
+    Human[Human]
+    subgraph Interfaces[Interfaces used by humans]
+        Telegram[Telegram text chat]
+        Voice[Menu-bar voice and live transcript]
+        Dashboard[Live work dashboard]
     end
-    subgraph Coordination[Coordination]
-        Control[Authority, tasks, and capacity]
+    subgraph Runtime[Metagenda runtime]
+        Manager[Manager Pi SDK session]
+        Coordinator[Coordinator service]
+        Workers[Engineering, research, and review SDK sessions]
     end
-    subgraph Execution[Execution]
-        Sessions[Manager and task SDK hosts]
+    Human -->|Send messages| Telegram
+    Human -->|Speak and correct transcription| Voice
+    Telegram -->|Deliver to the same conversation| Manager
+    Voice -->|Deliver to the same conversation| Manager
+    Manager -->|Request assignments or corrected runs| Coordinator
+    Coordinator -->|Authorize, schedule, and start runs| Workers
+    Workers -->|Report results and questions| Manager
+    Human -->|Inspect work or press Stop| Dashboard
+    Workers -->|Stream tool activity, results, and usage| Dashboard
+    Dashboard -->|Stop selected run directly| Coordinator
+    Coordinator -->|Cancel execution and block retries| Workers
+```
+
+Arrows show the action and its destination; session messages and dashboard
+events pass through authenticated runtime delivery. The manager does not have to
+interpret a Stop request. The following view separates retained records from the
+processes using them.
+
+```mermaid
+flowchart LR
+    subgraph Runtime[Runtime components]
+        Coordinator[Coordinator service]
+        Manager[Manager SDK session]
+        Workers[Task SDK sessions]
     end
-    subgraph Persistence[Persistence]
-        WorkState[Work records]
-        Evidence[Session history and artifacts]
+    subgraph Records[Retained records]
+        WorkState[Assignments, ownership, and run status]
+        Memory[Manager conversation and decisions]
+        Evidence[Task transcripts, diffs, and check results]
     end
-    UI <-->|Commands and observations| Control
-    Control <-->|Assignments, requests, and events| Sessions
-    Control <--> WorkState
-    Sessions <--> Evidence
+    Coordinator -->|Record task transitions| WorkState
+    Manager -->|Retain conversation across restarts| Memory
+    Workers -->|Retain evidence for review and resumption| Evidence
 ```
 
 The manager belongs to execution: it is a session with coordination tools, not
@@ -160,31 +187,72 @@ permissions and satisfied checks and approvals. Merge conflicts and integration
 changes return to verification before release.
 
 ```mermaid
-stateDiagram-v2
-    direction LR
-    [*] --> Assigned
-    Assigned --> Owned: Start authorized work
-    state "Engineering retains ownership" as Owned {
-        [*] --> Implementing
-        Implementing --> Reviewing: Submit current revision
-        Reviewing --> Implementing: Findings or changed code
-        Reviewing --> Disputed: Review disagreement
-        Disputed --> Reviewing: Resolution
-        Reviewing --> [*]: Accepted current revision
-    }
-    Owned --> Release: Required findings resolved
-    state "Release gate" as Release {
-        [*] --> Checking
-        Checking --> Merged: Authorized and checks pass
-    }
-    Release --> Owned: Conflict, new feedback, or revision
+flowchart TD
+    subgraph Planning[Human direction and allocation]
+        Product[Product-owner agent proposes priorities]
+        Owner[Human approves priorities]
+        Assign[Allocate authorized work]
+        Product --> Owner --> Assign
+    end
+    subgraph Engineering[Engineering assignment retains ownership through corrections]
+        Engineer[Engineering worker implements changes]
+        Research[Research workers investigate linked questions]
+        Draft[Publish draft PR early]
+        Ready[Mark PR ready at first agent-review submission]
+        Engineer -->|Request parallel help when needed| Research
+        Research -->|Return findings| Engineer
+        Engineer --> Draft --> Ready
+    end
+    subgraph Review[Review current PR revision]
+        AgentReview[Review agent]
+        BotReview[CodeRabbit where configured]
+        HumanReview[Human PR reviewer]
+        Corrections[Findings requiring correction]
+        AgentReview -->|Findings| Corrections
+        BotReview -->|Findings| Corrections
+        HumanReview -->|Feedback| Corrections
+    end
+    subgraph Release[Release management]
+        Gate[Check current-revision acceptance, required approvals, CI, and merge permission]
+        Merge[Merge PR]
+        Gate -->|All requirements satisfied| Merge
+    end
+    Assign --> Engineer
+    Ready --> AgentReview
+    Ready --> BotReview
+    Ready --> HumanReview
+    Corrections -->|Fix and resubmit changed revision| Engineer
+    AgentReview -->|Agent acceptance| Gate
+    BotReview -->|Required findings addressed| Gate
+    HumanReview -->|Human verdict and required approval| Gate
+    Gate -->|Conflict or integration changes| Engineer
 ```
 
-The grouped states show ownership and acceptance gates. Parallel assistance is
-part of the assignment, not a mandatory stage. Pausing or stopping execution
-preserves the assignment's place in this lifecycle; resumption does not restart
-the work or discard its review history. Cancellation behavior is defined under
-dashboard controls.
+The groups separate planning, engineering, review, and release responsibilities.
+Reviewers may respond at different times; every changed revision returns to the
+applicable checks. Human approval requirements follow project policy. Pausing
+execution preserves assignment ownership and review history.
+
+```mermaid
+flowchart LR
+    subgraph Agents[Agents needing a decision]
+        Question[Worker needs clarification]
+        Dispute[Worker and auditor disagree]
+        ReviewDispute[Engineer and reviewer disagree]
+        Manager[Manager examines evidence]
+        Arbitrator[Optional arbitration agent]
+    end
+    subgraph Humans[Human decisions]
+        Telegram[Human answers through Telegram]
+        Final[Human resolves outstanding dispute]
+    end
+    Question -->|Ask directly| Telegram
+    Dispute --> Manager
+    Manager -->|Unresolved disagreement| Final
+    ReviewDispute --> Arbitrator
+    ReviewDispute -->|Direct human arbitration| Final
+    Arbitrator -->|Unresolved disagreement| Final
+```
 
 ### Operations and urgent work
 
@@ -205,17 +273,15 @@ criteria, and provider-enforced limits still apply.
 
 ```mermaid
 sequenceDiagram
-    box Operations
-        participant O as Operator
+    participant C as Coordinator service (runtime code)
+    box Agent sessions
+        participant O as Watchdog agent
+        participant V as Independent validation agent
+        participant E as Engineering agent
+        participant R as Review agent
+        participant L as Release-management agent
     end
-    box Coordination
-        participant C as Coordinator
-    end
-    box Response assignments
-        participant V as Validator
-        participant E as Engineer
-        participant R as Review and release
-    end
+    actor H as Human PR reviewer
     O->>C: Incident evidence
     Note over C,R: Incident priority applies throughout the response
     C->>C: Reserve capacity and reduce ordinary work
@@ -225,14 +291,17 @@ sequenceDiagram
     E->>R: Submit current revision
     loop Until required findings are addressed
         R-->>E: Findings
+        H-->>E: Human feedback
         E->>R: Corrected revision
     end
-    Note over R: Release only with required checks and authority
+    R->>L: Current revision accepted
+    H->>L: Required human approval
+    Note over L: Release only with required checks and authority
 ```
 
 This sequence shows a validated incident requiring a hotfix. A rejected
-diagnosis does not enter engineering. Review and release are grouped to keep the
-handoff visible; they retain separate permissions and acceptance checks.
+diagnosis does not enter engineering. Human review follows project policy;
+unavailable required approval blocks release even during an incident.
 
 Optional operator capabilities include emergency shutdown or other mitigation
 while humans are unavailable. Each requires explicit authorization, bounded
