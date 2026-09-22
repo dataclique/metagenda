@@ -45,9 +45,12 @@ Telegram planning and orchestration workflow remains in development.
   implemented planner, complete Pi integration, or runtime switch.
 - `pi/skills.nix`: the additive `packages.<system>.pi-skills` output packages
   all 46 public skill documents and five support files, with pinned source
-  hashes and preserved MIT attribution. Its Apple Silicon Nix build and
-  installed-file checks pass. Native CI includes all four target platforms, but
-  results for this new package are still pending.
+  hashes and preserved MIT attribution.
+  [PR #46](https://github.com/dataclique/metagenda/pull/46) proposes this
+  package;
+  [four-platform native CI](https://github.com/dataclique/metagenda/actions/runs/35763232021)
+  passed at `76f8b4043da97e1100c23bc38336b16ac3629770`. CodeRabbit review and
+  gated landing remain pending.
   [The skills provenance record](./pi/SKILLS-PROVENANCE.md) documents the
   source, package layout, and host-specific instruction assumptions. No
   extensions or services are activated. Full shared Pi runtime integration

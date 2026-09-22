@@ -75,13 +75,17 @@ permission to invoke them. Source attribution remains unchanged.
 explicit 46-resource manifest and installs the source inventory, MIT notice, and
 this record.
 
-The real Apple Silicon flake output built successfully, and its installed
-hash/resource test passed. Metadata tests also pass. The post-documentation
-build emitted a segmentation fault in Nix's temporary-path audit subprocess,
-then completed its install check and exited zero. The artifact check passed; the
-upstream audit warning remains unresolved. Four-platform CI has not yet produced
-results for this change.
+[PR #46](https://github.com/dataclique/metagenda/pull/46) proposes the complete
+package of 46 skills and five support files. At head
+`76f8b4043da97e1100c23bc38336b16ac3629770`,
+[native CI](https://github.com/dataclique/metagenda/actions/runs/35763232021)
+passed on aarch64-darwin, x86_64-darwin, aarch64-linux, and x86_64-linux,
+including checks of installed SHA256 and Git-blob values and rejection of
+invalid blob IDs or a missing required support path.
+[Both Linux default-package jobs](https://github.com/dataclique/metagenda/actions/runs/35763232220)
+also passed. This verifies the skills package, not the full shared Pi runtime or
+live adoption. CodeRabbit review and gated landing remain pending.
 
-The three initial local copies remain preserved; they are not Nix package
-inputs. Publication, other-platform verification, and full shared Pi runtime
-integration remain unfinished.
+Later local rebuilds did not reproduce the earlier Nix temporary-path audit
+subprocess crash; its cause remains unresolved. The three initial local copies
+remain preserved; they are not Nix package inputs.
