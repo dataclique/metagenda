@@ -184,50 +184,50 @@ changes return to verification before release.
 
 ```mermaid
 flowchart TD
-    subgraph Planning[Human direction and allocation]
+    subgraph Planning[Planning]
         Product[Product-owner agent proposes priorities]
         Owner[Human approves priorities]
         Assign[Allocate authorized work]
         Product --> Owner --> Assign
     end
-    subgraph Engineering[Engineering assignment retains ownership through corrections]
+    subgraph Engineering[Implementation]
         Engineer[Engineering worker implements changes]
         Research[Research workers investigate linked questions]
         Draft[Publish draft PR early]
-        Ready[Mark PR ready at first agent-review submission]
         Engineer -->|Request parallel help when needed| Research
         Research -->|Return findings| Engineer
-        Engineer --> Draft --> Ready
+        Engineer --> Draft
     end
-    subgraph Review[Review current PR revision]
+    Assign --> Engineer
+```
+
+```mermaid
+flowchart TD
+    Ready[Mark PR ready at first agent-review submission]
+    subgraph Reviewers[Reviewers of the current revision]
         AgentReview[Review agent]
         BotReview[CodeRabbit where configured]
         HumanReview[Human PR reviewer]
-        Corrections[Findings requiring correction]
-        AgentReview -->|Findings| Corrections
-        BotReview -->|Findings| Corrections
-        HumanReview -->|Feedback| Corrections
     end
-    subgraph Release[Release management]
-        Gate[Check current-revision acceptance, required approvals, CI, and merge permission]
-        Merge[Merge PR]
-        Gate -->|All requirements satisfied| Merge
-    end
-    Assign --> Engineer
     Ready --> AgentReview
     Ready --> BotReview
     Ready --> HumanReview
-    Corrections -->|Fix and resubmit changed revision| Engineer
-    AgentReview -->|Agent acceptance| Gate
-    BotReview -->|Required findings addressed| Gate
-    HumanReview -->|Human verdict and required approval| Gate
-    Gate -->|Conflict or integration changes| Engineer
+    AgentReview -->|Findings or acceptance| Assessment{Required corrections?}
+    BotReview -->|Automated review results| Assessment
+    HumanReview -->|Feedback and human verdict| Assessment
+    Assessment -->|Yes| Fix[Engineering worker fixes changes]
+    Fix -->|Resubmit current revision| Ready
+    Assessment -->|No| Gate{Current acceptance, approvals,<br/>CI, and merge permission satisfied?}
+    Gate -->|Yes| Merge[Release manager merges PR]
+    Gate -->|Awaiting checks or approval| Wait[Keep PR open]
+    Gate -->|Conflict or integration changes| Fix
 ```
 
-The groups separate planning, engineering, review, and release responsibilities.
-Reviewers may respond at different times; every changed revision returns to the
-applicable checks. Human approval requirements follow project policy. Pausing
-execution preserves assignment ownership and review history.
+The first view covers planning and implementation; the second follows the PR
+from its first review submission through corrections and release. Reviewers may
+respond at different times; every changed revision returns to the applicable
+checks. Human approval requirements follow project policy. Pausing execution
+preserves assignment ownership and review history.
 
 ```mermaid
 flowchart LR
