@@ -410,7 +410,11 @@ and activation. Metagenda owns portable packages and its service, state, and
 identity contracts.
 
 Service activation and changes to live state or routing require operator
-authorization. Services expose their revision, health, and recovery state.
+authorization. Authorizing service enablement permits subsequent automatic
+starts and supervised restarts under the same configuration until that
+authorization is revoked. Restarting the coordinator grants no new task
+authority and does not resume explicitly stopped work. Services expose their
+revision, health, and recovery state.
 
 Product isolation must hold for privileges, state paths, credentials, and
 routing between Metagenda and the other products. A shared host does not imply
