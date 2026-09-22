@@ -109,30 +109,19 @@ flowchart TB
 
 Arrows show the action and its destination; session messages and dashboard
 events pass through authenticated runtime delivery. The manager does not have to
-interpret a Stop request. The following view separates retained records from the
-processes using them.
+interpret a Stop request. The following table separates retained records from
+the processes using them.
 
-```mermaid
-flowchart LR
-    subgraph Runtime[Runtime components]
-        Coordinator[Coordinator service]
-        Manager[Manager SDK session]
-        Workers[Task SDK sessions]
-    end
-    subgraph Records[Retained records]
-        WorkState[Assignments, ownership, and run status]
-        Memory[Manager conversation and decisions]
-        Evidence[Task transcripts, diffs, and check results]
-    end
-    Coordinator -->|Record task transitions| WorkState
-    Manager -->|Retain conversation across restarts| Memory
-    Workers -->|Retain evidence for review and resumption| Evidence
-```
+| Component           | Retained records                       | Purpose                          |
+| ------------------- | -------------------------------------- | -------------------------------- |
+| Metagenda runtime   | Assignments, ownership, and run status | Track task transitions           |
+| Manager SDK session | Conversation and decisions             | Preserve context across restarts |
+| Task SDK sessions   | Transcripts, diffs, and check results  | Support review and resumption    |
 
 The manager belongs to execution: it is a session with coordination tools, not
 the component that schedules work or owns authority. A direct Stop command
 reaches coordination without a manager turn. Work state, conversation history,
-and artifacts have separate responsibilities; the diagram does not require
+and artifacts have separate responsibilities; these records do not require
 separate database products.
 
 ### Process supervision
