@@ -210,44 +210,38 @@ deduplication when messages arrive concurrently.
 A personal macOS menu-bar client can provide voice access from any application,
 with a compact default view and an expandable live transcript. It should allow
 inspection of transcription and explicit corrections to submitted instructions.
-This is a client integration target, not a requirement to move personal voice
-code into the shared package. A terminal may remain available for direct work
-and debugging without being required for routine supervision.
+Personal voice clients remain separate from the shared package. A terminal may
+remain available for direct work and debugging without being required for
+routine supervision.
 
 The manager retains conversation history and durable decisions across compaction
 and restart. Retrieved memory records its source and revisions; a summary cannot
 replace the original authorization evidence. Task runs receive relevant project
 context and retain their transcripts and artifacts for review or resumption.
 They do not require a general personal memory shared across unrelated tasks. The
-memory package and client implementation remain open choices.
+memory and client packages must satisfy these contracts.
 
 ## CLI contract
 
 Parsing, planning, configuration, commands, recording, and lifetimes remain
 separate. Fixtures are isolated and do not use a personal vault or live
-services. Existing commands remain unless a reviewed migration removes them.
+services. Public command compatibility is maintained through versioned
+contracts.
 
 The portable `fj` contract includes the distinct Nix exports
 `packages.<system>.fj` and `apps.<system>.fj`, plus `bin/fj` and
-`share/nushell/fj/mod.nu`. The existing default CLI remains unchanged. `fj`
+`share/nushell/fj/mod.nu`. The default app provides the Metagenda CLI. `fj`
 provides default repository status, `help`, `issue list/view`, and
 `pr list/view`, preserving gh argument and caller-working-directory semantics.
 Completion suggests one argument at a time: `help`, `issue`, or `pr`, then
 `list` or `view` for tracker commands.
 
-The initial CLI slice has no generic mutation passthrough, host, session,
-service, or state authority. Four pure routing helpers retain private
-translation tables and do not gain execution authority.
+Repository inspection commands grant no host, session, service, or state
+authority. Routing helpers do not gain execution authority.
 
 Default status uses But only for verified main-worktree topology and
 source-branch heuristics. Linked or unmanaged worktrees use Git. Topology
 failures and selected But failures cannot fall back to a successful result.
-
-Nushell compatibility and intake details are documented in the
-[import manifest](./docs/migrations/dotconfig-intake.md#downstream-consumer-dotconfig-nix-darwin).
-`fj clanker search` is proposal-only and must retain credential-safe exclusions
-and policy boundaries. Missing API behavior must be grounded in observed work
-and source.
 
 ## Protocol and durable state
 
