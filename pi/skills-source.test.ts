@@ -35,4 +35,14 @@ test("public skill source pins use unique bounded paths and immutable digests", 
     paths.add(file.path)
   }
   assert.equal([...paths].filter(path => path.endsWith("/SKILL.md")).length, 46)
+  assert.deepEqual(
+    [...paths].filter(path => !path.endsWith("/SKILL.md")).sort(),
+    [
+      "eod/scripts/collect.nu",
+      "eod/scripts/evidence.nu",
+      "gitbutler/references/concepts.md",
+      "gitbutler/references/examples.md",
+      "gitbutler/references/reference.md",
+    ],
+  )
 })

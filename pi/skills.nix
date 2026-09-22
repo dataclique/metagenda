@@ -3,6 +3,7 @@
   stdenvNoCC,
   fetchurl,
   nodejs_26,
+  nushell,
 }:
 
 let
@@ -29,11 +30,15 @@ stdenvNoCC.mkDerivation {
   version = "0.1.0";
   dontUnpack = true;
   dontBuild = true;
-  nativeBuildInputs = [ nodejs_26 ];
+  nativeBuildInputs = [
+    nodejs_26
+    nushell
+  ];
   doInstallCheck = true;
   installCheckPhase = ''
     runHook preInstallCheck
-    node ${./skills-installed.test.ts} "$out/share/metagenda/pi-skills"
+    nu --no-config-file --no-history ${./test-skills-verifier.nu} \
+      "$out/share/metagenda/pi-skills" ${./skills-installed.test.ts} "$TMPDIR"
     runHook postInstallCheck
   '';
   installPhase = ''

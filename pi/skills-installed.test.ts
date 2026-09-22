@@ -30,6 +30,8 @@ test("installed skills retain every pinned source file and explicit Pi resource"
     assert.ok(isRecord(file))
     assert.ok(typeof file.path === "string")
     assert.ok(typeof file.sha256 === "string")
+    assert.ok(typeof file.gitBlob === "string")
+    assert.match(file.gitBlob, /^[a-f0-9]{40}$/)
     assert.match(
       file.path,
       /^[a-z-]+\/(?:SKILL\.md|references\/[a-z-]+\.md|scripts\/[a-z-]+\.nu)$/,
@@ -39,9 +41,18 @@ test("installed skills retain every pinned source file and explicit Pi resource"
     paths.add(file.path)
     const installed = join(root, "skills", file.path)
     assert.ok(lstatSync(installed).isFile(), file.path)
+    const bytes = readFileSync(installed)
     assert.equal(
-      createHash("sha256").update(readFileSync(installed)).digest("hex"),
+      createHash("sha256").update(bytes).digest("hex"),
       file.sha256,
+      file.path,
+    )
+    assert.equal(
+      createHash("sha1")
+        .update(`blob ${bytes.length}\0`)
+        .update(bytes)
+        .digest("hex"),
+      file.gitBlob,
       file.path,
     )
     if (file.path.endsWith("/SKILL.md")) {
@@ -49,6 +60,16 @@ test("installed skills retain every pinned source file and explicit Pi resource"
     }
   }
   assert.equal(resources.length, 46)
+  assert.deepEqual(
+    [...paths].filter(path => !path.endsWith("/SKILL.md")).sort(),
+    [
+      "eod/scripts/collect.nu",
+      "eod/scripts/evidence.nu",
+      "gitbutler/references/concepts.md",
+      "gitbutler/references/examples.md",
+      "gitbutler/references/reference.md",
+    ],
+  )
   assert.equal(manifest.name, "@metagenda/pi-skills")
   assert.ok(isRecord(manifest.pi))
   assert.deepEqual(manifest.pi.skills, resources)
