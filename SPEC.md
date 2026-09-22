@@ -165,19 +165,23 @@ to verification before release.
 
 ```mermaid
 flowchart TD
-    Human([Human])
+    Human([Human request])
     Complete([Feature or fix])
     subgraph Planning[Planning]
         Intake[Record request as an issue]
         Refine[Refinement]
         Priority[Prioritization]
         Queue[Actionable task queued for capacity]
+        Clarify([Human clarification])
+        Approve([Human priority approval])
     end
     Research[Linked research tasks]
     subgraph Implementation[Engineering and review]
         Engineering[Engineering and early draft PR]
         Review[Current-revision review task and configured CodeRabbit checks]
         Arbitration[Manager arbitration]
+        HumanReview([Human PR review])
+        HumanDecision([Human arbitration])
     end
     subgraph Delivery[Delivery and operations]
         Release{Delivery checks and required approvals satisfied?}
@@ -199,18 +203,15 @@ flowchart TD
         Release -->|Yes| Deliver
         Release -->|Conflict or changed code| Engineering
     Human -->|Feature request or bug report| Intake
-    Refine -->|Clarification needed| Human
-    Human -->|Clarification| Refine
-    Priority -->|Propose priorities| Human
-    Human -->|Approve priorities| Queue
-    Review -->|Request human PR review| Human
-    Human -->|Feedback| Engineering
-    Human -->|Review verdict| Release
-    Arbitration -->|Unresolved dispute| Human
-    Human -->|Final decision| Arbitration
+    Refine <-->|Questions and answers| Clarify
+    Priority --> Approve --> Queue
+    Review --> HumanReview
+    HumanReview -->|Feedback| Engineering
+    HumanReview -->|Verdict| Release
+    Arbitration <-->|Escalation and decision| HumanDecision
     Deliver --> Complete
     classDef endpoint fill:#17324d,color:#ffffff,stroke:#69b7ff,stroke-width:3px
-    class Human,Complete endpoint
+    class Human,Complete,Clarify,Approve,HumanReview,HumanDecision endpoint
 ```
 
 This lifecycle follows an issue through delivery. Research tasks return evidence
