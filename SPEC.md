@@ -85,7 +85,15 @@ flowchart TB
     subgraph Runtime[Metagenda runtime]
         Manager[Manager Pi SDK session]
         Coordinator[Orchestrator]
-        Workers[Engineering, research, and review SDK sessions]
+        subgraph Workers[Task sessions using the Pi SDK]
+            Engineer[Engineering agent]
+            Research[Research agents]
+            Reviewer[Review agent]
+            Engineer -->|Request investigation| Research
+            Research -->|Return findings| Engineer
+            Engineer -->|Submit changes| Reviewer
+            Reviewer -->|Findings or acceptance| Engineer
+        end
     end
     Human -->|Send messages| Telegram
     Human -->|Speak or correct transcript| Voice
