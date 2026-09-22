@@ -1,5 +1,37 @@
 # Dotconfig import manifest
 
+## Receiving and cutover gates
+
+The specification defines the target system. Migration order and verification
+belong here and in the roadmap.
+
+Reusable locally owned code retains source provenance and licenses. Upstream Pi
+extensions are consumed as pinned packages, never copied or vendored. Personal
+voice, browser, host configuration, and private runtime data remain outside the
+shared-package import. Extraction does not authorize redesigning personal
+integrations or copying live messages, credentials, questions, or private state.
+
+Before extraction, review, check, and merge the source baseline. Record its
+revision, dependency closure, private exclusions, and compatibility tests. Keep
+the receiving baseline coherent and retain legacy recovery.
+
+Verify the installed CLI against its documented package and file contract.
+Before extracting dashboard or Telegram capability, record the receiving package
+boundary, named Nix artifact, service entrypoint, configuration and state
+interfaces, and supported Linux platforms. Verify installed observational and
+layout-state behavior for the dashboard, and protocol, identity, durable
+delivery, and restart behavior for Telegram before Infra consumes them.
+
+Extraction tests cover valid, malformed, duplicate, stale, interrupted, and
+recovered cases without live configuration. State migration records format,
+compatibility rules, backup, rollback, and operator authorization.
+
+Infra preparation does not activate services or change live state or routing.
+Cutover requires operator authorization and package, type, lint, test, Nix, and
+rollback checks. Verify the live revision, routing, and recovery before retiring
+old consumers. Migration planning toward the SDK runtime is separate from the
+target architecture; no RPC migration task is selected by the specification.
+
 ## Status and gate
 
 This records the first local import, not a completed receiving release or

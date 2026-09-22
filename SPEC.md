@@ -10,6 +10,9 @@ research, planning, implementation, independent verification, and progress
 reporting. Telegram provides a conversational interface; GitHub holds the
 project backlog and reviewable changes.
 
+This document defines the target system. Delivery order, migration steps, and
+implementation status belong in the roadmap and delivery records.
+
 ## Agent coordination
 
 The harness coordinates agent sessions, available tools, bounded work, review,
@@ -53,13 +56,31 @@ conversation does not require a separate RPC implementation. Shared session
 hosting keeps event delivery, steering, cancellation, and recovery consistent;
 it does not require sessions to share a process or conversation context.
 
-RPC-controlled Pi subprocesses may serve as a transitional adapter while SDK
-integration is developed. Existing interactive sessions can remain usable during
-that transition. Both adapters must preserve task identity, authorization,
-execution events, cancellation, and recovery. The
-[runtime ADR](./adrs/01-sdk-session-runtime.md) records the target and
-alternatives; runtime adoption still requires compatibility checks and
-authorized cutover.
+The packaged TypeScript service runs under launchd on macOS or systemd on Linux.
+The service manager supervises the coordinator, which supervises Pi workers.
+Service restart preserves durable task state and does not resume explicitly
+stopped work. The [runtime ADR](./adrs/01-sdk-session-runtime.md) records the
+architecture and alternatives.
+
+```mermaid
+flowchart TD
+    Voice[Menu-bar voice client] --> Commands[Authenticated commands]
+    Telegram[Telegram client] --> Commands
+    Dashboard[Dashboard and direct Stop] --> Commands
+    OS[launchd or systemd] --> Coordinator[Coordinator]
+    Commands --> Coordinator
+    Coordinator --> Manager[Manager SDK session]
+    Coordinator --> Workers[Task SDK sessions]
+    Manager --> Commands
+    Workers --> Commands
+    Manager --> Events[Harness events and retained evidence]
+    Workers --> Events
+    Events --> Dashboard
+    Coordinator <--> State[Durable task and session state]
+```
+
+Commands and events cross authenticated runtime boundaries. Session boxes
+represent separate contexts, not necessarily one process per box.
 
 ## Planning and execution
 
@@ -97,11 +118,39 @@ without discarding ownership, conversation, or artifacts. Revised code must be
 checked against the current revision; earlier acceptance cannot approve unseen
 changes.
 
-Review disputes initially go to a human arbitrator. An optional arbitration
-agent may later attempt resolution, with unresolved disputes still referred to a
-human. A release-management function may merge only under the project's explicit
-merge permissions and satisfied checks and approvals. Merge conflicts and
-integration changes return to verification before release.
+An optional arbitration agent attempts to resolve review disputes. A human can
+arbitrate directly and makes the final decision on unresolved disputes. A
+release-management function may merge only under the project's explicit merge
+permissions and satisfied checks and approvals. Merge conflicts and integration
+changes return to verification before release.
+
+```mermaid
+flowchart TD
+    Plan[Approved priorities] --> Work[Owned engineering assignment]
+    Work --> Help[Linked research or assistance]
+    Help --> Work
+    Work --> Review[Review current revision]
+    Review --> Fix[Address findings]
+    Fix --> Review
+    Feedback[Automated and human feedback] --> Fix
+    Review --> Dispute[Arbitration when disputed]
+    Dispute --> Fix
+    Dispute --> Human[Human final decision]
+    Human --> Review
+    Review --> Accepted[Required findings resolved]
+    Accepted --> Merge[Merge checks and authorization]
+    Merge --> Done[Merged]
+    Merge --> Conflict[Conflict or integration change]
+    Conflict --> Review
+    Stop[Direct Stop] --> Stopping[Block dispatch and cancel active execution]
+    Stopping --> Paused[Stopped assignment with evidence]
+    Work -.-> Paused
+    Paused --> Resume[Authorized corrections and resume]
+    Resume --> Work
+```
+
+These are dependencies and completion gates. Assistance and arbitration are
+conditional; they are not mandatory stages in a fixed workflow.
 
 ### Operations and urgent work
 
@@ -111,11 +160,11 @@ work. If capacity is full, preemption saves the interrupted assignment and its
 artifacts, starts the urgent assignment with separate context, and permits later
 resumption without mixing project state.
 
-Future operator capabilities may include emergency shutdown or other mitigation
+Optional operator capabilities include emergency shutdown or other mitigation
 while humans are unavailable. Each requires explicit authorization, bounded
 actions, and domain-specific risk controls. Observed log text cannot grant those
-permissions. These capabilities are not part of the current migration or a
-standing authorization to operate production systems.
+permissions. Capability availability does not grant standing authorization to
+operate production systems.
 
 ## Resource allocation
 
@@ -145,15 +194,11 @@ The CLI supports Markdown parsing, task selection, work sessions, recording,
 playback, and trace export. Telegram uses Piece of Pi; the observational
 dashboard uses SolidJS and Dockview.
 
-No Rust CLI rewrite, new database, or distributed scheduler is selected by this
-specification.
-
-The initial execution system runs on one machine. Durable agent, work, and
+The system supports a single-machine deployment. Durable agent, work, and
 message identities must not depend on process IDs, terminal panes, or local
 filesystem paths. Host-local workspace locations remain explicit mappings.
-Versioned messages and scoped authority should allow remote workers or another
-team's coordinator later; cross-machine transport, trust, and scheduling remain
-future design work.
+Versioned messages and scoped authority preserve compatibility with remote
+workers and other coordinators without requiring distributed deployment.
 
 ## Conversation and memory
 
@@ -212,9 +257,8 @@ decoding is separate from transport and store effects.
 
 Persisted and external values are validated. Unknown versions, malformed
 identities, and invalid transitions cannot gain permissions through fallback
-behavior. Migration records the format, compatibility rules, backup, rollback,
-and operator authorization. Extraction does not copy live messages, credentials,
-questions, or private state.
+behavior. State formats define compatibility and recovery rules. Private state
+is excluded from distributable packages and public artifacts.
 
 ## Dashboard contract
 
@@ -244,9 +288,8 @@ replacement run. After corrections, an explicit authorized resume or replacement
 retains the task's evidence and records the changed instructions. Human controls
 remain available even when the manager model is unavailable.
 
-These controls extend the observational dashboard through separate authenticated
-commands with authorization, failure behavior, and tests. They are target
-behavior, not existing mutation endpoints or permission for runtime activation.
+Dashboard controls use separate authenticated commands with authorization,
+failure behavior, and tests.
 
 ## Telegram contract
 
@@ -277,45 +320,13 @@ The target is one shared instance for Metagenda, Moneymentum, and Yielduck.
 and activation. Metagenda owns portable packages and its service, state, and
 identity contracts.
 
-Infra preparation is non-activating: it does not start services, move live
-state, or change live routing. A runtime switch and state migration require
-operator authorization. The cutover retains package, type, lint, test, Nix, and
-rollback checks, then verifies the live revision, routing, and recovery before
-retiring old consumers.
+Service activation and changes to live state or routing require operator
+authorization. Services expose their revision, health, and recovery state.
 
 Product isolation must hold for privileges, state paths, credentials, and
 routing between Metagenda and the other products. A shared host does not imply
 employee control, tenant boundaries, or cross-machine claims. Those require an
 explicit design.
-
-## Migration contract
-
-Reusable locally owned code retains source provenance and licenses in the
-[import manifest](./docs/migrations/dotconfig-intake.md). Upstream Pi extensions
-are consumed as pinned packages, never copied or vendored. Personal voice,
-browser, host configuration, and private runtime data are outside shared-package
-imports. This contract does not authorize redesigning personal integrations.
-
-Before extraction, the source baseline is reviewed, checked, and merged. The
-migration records the source revision, dependency closure, private exclusions,
-and compatibility tests. The receiving baseline must be coherent and retain
-legacy recovery.
-
-The installed CLI export is checked against the exact package and file contract
-above. Before extracting dashboard capability, record its receiving package
-boundary, named Nix build artifact, server interface, and supported Linux
-platforms in the import manifest; then verify installed observational and
-layout-state compatibility before Infra consumes it.
-
-Before extracting Telegram capability, record its receiving package boundary,
-named Nix artifact, entrypoint, configuration and state interface, and supported
-Linux platforms in the import manifest. Verify installed protocol, identity,
-durable-delivery, and restart compatibility before Infra consumes it. Artifact
-names are selected by the migration manifest; this specification does not invent
-them.
-
-Extraction tests cover valid, malformed, duplicate, stale, interrupted, and
-recovered cases without using live configuration.
 
 ## Safety and lifecycle
 
@@ -323,7 +334,6 @@ Delegated owner instructions retain cryptographically verifiable origin,
 content, and scope. An agent's interpretation or paraphrase is separate evidence
 and cannot acquire owner authority by being forwarded. Verification must reject
 tampering, replay outside the permitted scope, and expired or revoked authority.
-The signing and delegation protocol remains to be designed.
 
 Every tool call passes the authorization classifier. Independent audits may
 challenge task interpretation, scope, or claimed completion using the original
