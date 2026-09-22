@@ -222,6 +222,93 @@ gate waits for required checks and human approvals rather than treating missing
 responses as acceptance. Human clarification and arbitration preserve the
 affected task's context and evidence.
 
+### Task handoffs by role
+
+Columns represent responsibilities, not permanent workers. Arrows show logical
+handoffs; the orchestrator handles delivery and scheduling. Repeated role labels
+provide reference points within the sequence.
+
+```mermaid
+sequenceDiagram
+    actor H as Human
+    participant M as Manager
+    participant P as Product owner
+    participant E as Engineering
+    participant R as Research
+    participant V as Review
+    participant D as Delivery
+
+    H->>M: Feature request or bug report
+    M->>P: Refine and record issue
+    opt Evidence needed during refinement
+        P->>R: Research task
+        R-->>P: Findings
+    end
+    opt Clarification needed
+        P->>H: Question
+        H-->>P: Clarification
+    end
+    P->>H: Proposed priorities
+    H-->>P: Approve direction
+    P->>M: Prioritized actionable work
+    M->>E: Engineering assignment
+    Note over M,E: Queued until authorized capacity is available
+    Note over E: Publish draft PR early
+    opt Evidence needed during implementation
+        E->>R: Linked research task
+        R-->>E: Findings
+    end
+
+    Note over H: Human
+    Note over M: Manager
+    Note over P: Product owner
+    Note over E: Engineering
+    Note over R: Research
+    Note over V: Review
+    Note over D: Delivery
+
+    E->>V: Mark PR ready and submit revision
+    Note over V: Include configured automated reviews
+    loop Review and corrections
+        V-->>E: Findings
+        opt Disputed finding
+            E->>M: Evidence and disagreement
+            M-->>E: Resolution
+            opt Still unresolved
+                M->>H: Request arbitration
+                H-->>M: Final decision
+                M-->>E: Decision
+            end
+        end
+        E->>V: Corrected revision
+    end
+    V-->>E: Accept current revision
+
+    Note over H: Human
+    Note over M: Manager
+    Note over P: Product owner
+    Note over E: Engineering
+    Note over R: Research
+    Note over V: Review
+    Note over D: Delivery
+
+    E->>H: PR for human review
+    opt Human requests changes
+        H-->>E: Feedback
+        E->>V: Revised changes
+        V-->>E: Review outcome
+        E->>H: Updated PR
+    end
+    H->>D: Required human approval
+    E->>D: Reviewed revision and check results
+    Note over D: Verify current approvals, checks, and merge authority
+    opt Merge conflict or integration changes
+        D->>E: Return for correction and verification
+        E-->>D: Reverified revision and approvals
+    end
+    D-->>H: Feature or fix delivered
+```
+
 ### Operations and urgent work
 
 Operator tasks observe service health and report evidence. A proposed hotfix is
