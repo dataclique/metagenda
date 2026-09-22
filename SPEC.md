@@ -78,28 +78,26 @@ These are responsibility boundaries, not package names or a build plan.
 ```mermaid
 flowchart TB
     Human[Human]
-    subgraph Interfaces[Human interfaces]
-        Telegram[Telegram bot]
-        Voice[Menu-bar voice and live transcript]
-        Dashboard[Live work dashboard]
+    Manager[Manager agent]
+    subgraph Pool[Worker pool]
+        Engineering[Engineering tasks]
+        Research[Research tasks]
+        Review[Review tasks]
     end
-    Manager[Manager conversation]
-    Runtime[Orchestrator]
-    Human -->|Send messages| Telegram
-    Human -->|Speak or correct transcript| Voice
-    Telegram -->|Same conversation| Manager
-    Voice -->|Same conversation| Manager
-    Manager -->|Request work or corrections| Runtime
-    Runtime -->|Progress and questions| Manager
-    Human -->|Inspect or stop work| Dashboard
-    Dashboard -->|Stop selected run| Runtime
-    Runtime -->|Tool activity, results, usage| Dashboard
+    Human <-->|Telegram bot| Manager
+    Human <-->|Menu-bar voice| Manager
+    Human <-->|Dashboard conversation| Manager
+    Manager -->|Assign work and corrections| Pool
+    Pool -->|Results and questions| Manager
+    Pool -.->|Dashboard activity and evidence| Human
+    Human -.->|Direct Stop through runtime controls| Pool
 ```
 
-This view shows human interaction: conversation through the manager, observation
-through the dashboard, and Stop sent directly to the orchestrator. It does not
-show process containment or task dependencies. The following table separates
-retained records from the processes using them.
+This view shows how humans manage work through the manager. The pool contains
+task types, not permanent specialist agents or fixed worker counts. The
+orchestrator hosts runs and delivers assignments and results. Dashed arrows show
+observation and direct Stop, which do not require a manager turn. The following
+table separates retained records from the processes using them.
 
 | Component           | Retained records                       | Purpose                          |
 | ------------------- | -------------------------------------- | -------------------------------- |
