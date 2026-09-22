@@ -78,26 +78,28 @@ These are responsibility boundaries, not package names or a build plan.
 ```mermaid
 flowchart TB
     Human[Human]
-    Manager[Manager agent]
-    subgraph Pool[Worker pool]
-        Engineering[Engineering tasks]
-        Research[Research tasks]
-        Review[Review tasks]
+    subgraph System[Metagenda]
+        Manager[Manager agent]
+        Dashboard[Dashboard]
+        Runtime[Orchestrator]
+        Pool[Worker pool]
+        Manager -->|Work requests and corrections| Runtime
+        Runtime -->|Assignments and cancellation| Pool
+        Pool -->|Results and execution events| Runtime
+        Runtime -->|Results and questions| Manager
+        Dashboard -->|Control commands| Runtime
+        Runtime -->|State and execution evidence| Dashboard
     end
     Human <-->|Telegram bot| Manager
     Human <-->|Menu-bar voice| Manager
-    Human <-->|Dashboard conversation| Manager
-    Manager -->|Assign work and corrections| Pool
-    Pool -->|Results and questions| Manager
-    Pool -.->|Dashboard activity and evidence| Human
-    Human -.->|Direct Stop through runtime controls| Pool
+    Human <-->|Inspect work and use controls| Dashboard
 ```
 
-This view shows how humans manage work through the manager. The pool contains
-task types, not permanent specialist agents or fixed worker counts. The
-orchestrator hosts runs and delivers assignments and results. Dashed arrows show
-observation and direct Stop, which do not require a manager turn. The following
-table separates retained records from the processes using them.
+This view shows communication across the system boundary and between components.
+The worker pool has no fixed task-specific subdivisions. The orchestrator
+delivers work and collects execution evidence; dashboard controls reach it
+without a manager turn. The following table separates retained records from the
+processes using them.
 
 | Component           | Retained records                       | Purpose                          |
 | ------------------- | -------------------------------------- | -------------------------------- |
@@ -112,13 +114,6 @@ history, and artifacts have separate responsibilities; these records do not
 require separate database products.
 
 ### Process supervision
-
-```mermaid
-flowchart TD
-    OS[launchd or systemd] -->|Supervises| Coordinator[Orchestrator process]
-    Coordinator -->|Supervises| ManagerHost[Manager SDK host process]
-    Coordinator -->|Supervises| WorkerHosts[Task SDK host processes]
-```
 
 Process boundaries isolate the orchestrator from model execution. Manager and
 task hosts use the same SDK integration with separate session state. A task host
@@ -170,80 +165,53 @@ to verification before release.
 
 ```mermaid
 flowchart TD
-    subgraph Planning[Planning]
-        Intake[Ideas and requests]
-        Refine[Refine into actionable backlog items]
-        Product[Product-owner agent proposes priorities]
-        Owner[Human approves priorities]
-        Assign[Allocate authorized work]
-        Intake --> Refine --> Product --> Owner --> Assign
+    Human[Human]
+    Complete[Completed feature or fix]
+    subgraph Lifecycle[GitHub issue lifecycle]
+        Intake[Record request as an issue]
+        Refine[Refinement]
+        Research[Linked research tasks]
+        Priority[Prioritization]
+        Queue[Actionable task queued for capacity]
+        Engineering[Engineering and early draft PR]
+        Review[Current-revision review task and configured CodeRabbit checks]
+        Arbitration[Manager arbitration]
+        Release{Delivery checks and required approvals satisfied?}
+        Deliver[Authorized merge and delivery]
+        Intake --> Refine --> Priority
+        Refine -->|Missing evidence| Research
+        Research -->|Findings to requesting task| Refine
+        Engineering -->|Missing evidence| Research
+        Research -->|Findings to requesting task| Engineering
+        Queue -->|Worker capacity available| Engineering
+        Engineering -->|Mark PR ready at first review submission| Review
+        Review -->|Corrections| Engineering
+        Review -->|Disagreement| Arbitration
+        Arbitration -->|Resolution| Review
+        Review -->|Accepted current revision| Release
+        Release -->|Yes| Deliver
+        Release -->|Conflict or changed code| Engineering
     end
-    subgraph Engineering[Implementation]
-        Start[Start authorized assignment]
-        Draft[Publish draft PR early]
-        Engineer[Implement and check changes]
-        Start --> Draft --> Engineer
-    end
-    Assign --> Start
+    Human -->|Feature request or bug report| Intake
+    Refine -->|Clarification needed| Human
+    Human -->|Clarification| Refine
+    Priority -->|Propose priorities| Human
+    Human -->|Approve priorities| Queue
+    Review -->|Request human PR review| Human
+    Human -->|Feedback| Engineering
+    Human -->|Review verdict| Release
+    Arbitration -->|Unresolved dispute| Human
+    Human -->|Final decision| Arbitration
+    Deliver --> Complete
 ```
 
-Once implementation is ready for review, the draft PR enters the correction loop
-below. The engineering assignment retains ownership while agent, automated, and
-human reviewers examine the current revision.
-
-```mermaid
-flowchart TD
-    Ready[Mark PR ready at first agent-review submission]
-    subgraph Reviewers[Reviewers of the current revision]
-        AgentReview[Review agent]
-        BotReview[CodeRabbit where configured]
-        HumanReview[Human PR reviewer]
-    end
-    Ready --> AgentReview
-    Ready --> BotReview
-    Ready --> HumanReview
-    AgentReview -->|Findings or acceptance| Assessment{Required corrections?}
-    BotReview -->|Automated review results| Assessment
-    HumanReview -->|Feedback and human verdict| Assessment
-    Assessment -->|Yes| Fix[Engineering worker fixes changes]
-    Fix -->|Resubmit current revision| Ready
-    Assessment -->|No| Gate{Current acceptance, approvals,<br/>CI, and merge permission satisfied?}
-    Gate -->|Yes| Merge[Release manager merges PR]
-    Gate -->|Awaiting checks or approval| Wait[Keep PR open]
-    Wait -->|Check or approval arrives| Gate
-    Wait -->|New feedback or changed revision| Fix
-    Gate -->|Conflict or integration changes| Fix
-```
-
-The first view covers planning and implementation; the second follows the PR
-from its first review submission through corrections and release. Reviewers may
-respond at different times; every changed revision returns to the applicable
-checks. Human approval requirements follow project policy. Pausing execution
-preserves assignment ownership and review history.
-
-Disagreements use one escalation path through the manager. A worker that simply
-needs clarification can ask the human through Telegram without arbitration.
-
-```mermaid
-flowchart LR
-    subgraph Agents[Agents needing a decision]
-        Question[Worker needs clarification]
-        Dispute[Worker and auditor disagree]
-        ReviewDispute[Engineer and reviewer disagree]
-        Manager[Manager examines evidence]
-    end
-    subgraph Humans[Human decisions]
-        Telegram[Human answers through Telegram]
-        Final[Human resolves outstanding dispute]
-    end
-    Question -->|Ask directly| Telegram
-    Dispute --> Manager
-    Manager -->|Unresolved disagreement| Final
-    ReviewDispute --> Manager
-    Manager -->|Resolved with evidence| Resume[Return decision to affected work]
-    Final -->|Human decision| Resume
-    Telegram -->|Clarification| Resume
-```
+This lifecycle follows an issue through delivery. Research tasks return evidence
+to the task that requested it; they are not mandatory stages. New tasks queue
+when worker capacity is unavailable. Engineering retains ownership through
+corrections, and changed revisions repeat the applicable reviews. The release
+gate waits for required checks and human approvals rather than treating missing
+responses as acceptance. Human clarification and arbitration preserve the
+affected task's context and evidence.
 
 ### Operations and urgent work
 
@@ -262,36 +230,12 @@ according to its priority. Ordinary work slows or pauses to compensate for the
 capacity consumed. Urgency changes scheduling, not authority or acceptance
 criteria, and provider-enforced limits still apply.
 
-```mermaid
-sequenceDiagram
-    participant C as Orchestrator
-    participant O as Watchdog worker
-    participant V as Independent validation worker
-    participant W as Response workers
-    participant B as GitHub backlog
-    O->>C: Incident evidence
-    Note over C,W: Incident response bypasses ordinary pacing
-    C->>C: Reserve capacity and reduce ordinary work
-    C->>V: Independent validation
-    V-->>C: Assessment and evidence
-    C-->>O: Validation outcome and reasons
-    alt Validated urgent hotfix
-        C->>W: Start urgent assignment with separate context
-        Note over C,W: Preserve incident priority through implementation, review, and release
-        Note over W: Apply the same review and authorization gates as ordinary work
-        W-->>C: Outcome and evidence
-        C-->>O: Response outcome
-    else Valid issue, not urgent
-        O->>B: File issue within authorized scope
-    else Concern not substantiated
-        Note over O: Retain assessment and continue monitoring
-    end
-```
-
-This sequence shows validation and scheduling outcomes rather than repeating the
-PR review loop. A rejected diagnosis does not enter engineering. Human review
-follows project policy; unavailable required approval blocks release even during
-an incident.
+The orchestrator returns independent validation outcomes and reasons to the
+watchdog. A validated urgent issue enters the delivery lifecycle with incident
+priority. A valid nonurgent issue enters the backlog within authorized scope; an
+unsubstantiated concern retains its assessment without starting engineering. The
+watchdog receives the response outcome. Human review follows project policy;
+unavailable required approval blocks release even during an incident.
 
 Optional operator capabilities include emergency shutdown or other mitigation
 while humans are unavailable. Each requires explicit authorization, bounded
