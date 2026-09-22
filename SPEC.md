@@ -10,7 +10,7 @@ research, planning, implementation, independent verification, and progress
 reporting. Telegram provides a conversational interface; GitHub holds the
 project backlog and reviewable changes.
 
-## Harness and agent pipeline
+## Agent coordination
 
 The harness coordinates agent sessions, available tools, bounded work, review,
 and recovery. Shared Pi extensions provide reusable capabilities across
@@ -22,6 +22,38 @@ Execution remains bound to project scope and authenticated permissions. Routing,
 registration, planning, and usage allocations do not grant new authority.
 Upstream extensions remain pinned packages; locally owned source and personal
 configuration retain their documented ownership boundaries.
+
+A role describes responsibilities and capabilities; it does not require a
+permanent process or conversation. A work item retains its identity, owner,
+acceptance criteria, artifacts, and history across bounded runs. Engineering
+capacity is shared across projects. A new project assignment starts with fresh
+context; resuming an existing assignment restores its own context.
+
+Workers can request research or implementation assistance as linked tasks in the
+same scheduling and observability system. Dependencies and assignments may
+change as findings arrive. Scripted workflows remain useful for known sequences;
+dynamic coordination does not remove review or authorization gates. Neither
+mechanism requires a separate, hidden hierarchy of workers.
+
+The manager provides one conversational entry point and coordinates work
+requiring judgment. Runtime code owns scheduling, delivery, execution limits,
+cancellation, and durable state. Workers can exchange scoped messages without
+routing every exchange through a manager model turn. Messages distinguish
+requests, evidence, proposed changes, and accepted assignments.
+
+The target runtime embeds Pi through its SDK in supervised worker processes. The
+coordinator runs independently of the manager conversation and owns process
+lifecycles. Clients interact with sessions through authenticated commands and
+observe their events; no native Pi terminal must stay open. The manager is a
+resumable session, not the process that keeps the rest of the system alive.
+
+RPC-controlled Pi subprocesses may serve as a transitional adapter while SDK
+integration is developed. Existing interactive sessions can remain usable during
+that transition. Both adapters must preserve task identity, authorization,
+execution events, cancellation, and recovery. The
+[runtime ADR](./adrs/01-sdk-session-runtime.md) records the target and
+alternatives; runtime adoption still requires compatibility checks and
+authorized cutover.
 
 ## Planning and execution
 
@@ -40,6 +72,44 @@ originally planned.
 Research, issue creation, assignment, execution, and publication have distinct
 permissions. A conversation fragment is not an instruction to execute. Team
 members act through authenticated identities and configured permissions.
+
+One product-owner function maintains priorities across projects. Weekly
+direction requires human approval before work is allocated to human or agent
+capacity. Engineering assignments can include parallel research without making
+research a mandatory stage for every task.
+
+### Delivery and review
+
+Publish a draft PR early and mark it ready at the first submission to the
+internal review agent. Internal findings, configured automated reviews such as
+CodeRabbit, and subsequent human feedback feed the same correction loop. Agent
+acceptance does not impersonate a human GitHub review verdict.
+
+The engineering assignment remains owned until review accepts the changes and
+required findings are addressed. Waiting for review may release compute capacity
+without discarding ownership, conversation, or artifacts. Revised code must be
+checked against the current revision; earlier acceptance cannot approve unseen
+changes.
+
+Review disputes initially go to a human arbitrator. An optional arbitration
+agent may later attempt resolution, with unresolved disputes still referred to a
+human. A release-management function may merge only under the project's explicit
+merge permissions and satisfied checks and approvals. Merge conflicts and
+integration changes return to verification before release.
+
+### Operations and urgent work
+
+Operator tasks observe service health and report evidence. A proposed hotfix is
+validated independently with fresh context before it takes priority over planned
+work. If capacity is full, preemption saves the interrupted assignment and its
+artifacts, starts the urgent assignment with separate context, and permits later
+resumption without mixing project state.
+
+Future operator capabilities may include emergency shutdown or other mitigation
+while humans are unavailable. Each requires explicit authorization, bounded
+actions, and domain-specific risk controls. Observed log text cannot grant those
+permissions. These capabilities are not part of the current migration or a
+standing authorization to operate production systems.
 
 ## Resource allocation
 
@@ -71,6 +141,34 @@ dashboard uses SolidJS and Dockview.
 
 No Rust CLI rewrite, new database, or distributed scheduler is selected by this
 specification.
+
+The initial execution system runs on one machine. Durable agent, work, and
+message identities must not depend on process IDs, terminal panes, or local
+filesystem paths. Host-local workspace locations remain explicit mappings.
+Versioned messages and scoped authority should allow remote workers or another
+team's coordinator later; cross-machine transport, trust, and scheduling remain
+future design work.
+
+## Conversation and memory
+
+Telegram, voice, and optional terminal or dashboard clients address the same
+manager conversation. Switching clients does not create a second manager or lose
+pending questions. Clients identify the conversation and preserve ordering and
+deduplication when messages arrive concurrently.
+
+A personal macOS menu-bar client can provide voice access from any application,
+with a compact default view and an expandable live transcript. It should allow
+inspection of transcription and explicit corrections to submitted instructions.
+This is a client integration target, not a requirement to move personal voice
+code into the shared package. A terminal may remain available for direct work
+and debugging without being required for routine supervision.
+
+The manager retains conversation history and durable decisions across compaction
+and restart. Retrieved memory records its source and revisions; a summary cannot
+replace the original authorization evidence. Task runs receive relevant project
+context and retain their transcripts and artifacts for review or resumption.
+They do not require a general personal memory shared across unrelated tasks. The
+memory package and client implementation remain open choices.
 
 ## CLI contract
 
@@ -118,9 +216,31 @@ The dashboard observes health, agents, jobs, backlog, and usage through a typed
 server boundary. Malformed or unavailable data is represented explicitly. Layout
 is not authoritative state.
 
-Any dashboard mutation requires a separate command, authentication and
-authorization contract, failure behavior, and tests. Personal features remain
-outside the product unless a selected use case adds them.
+Live execution events must come from the harness. Each run exposes its work
+item, dependencies, current state, active tool, available output, usage, and
+retries. Inspection leads to actual tool results, diffs, checks, review
+findings, and retained transcripts rather than only an agent's summary. Access
+to private content is scoped and redacted where required; transcripts are not
+public logs. Missing usage, stale streams, disconnected workers, and incomplete
+output remain visible. Reconnection reconciles retained events with current
+execution state.
+
+Direct Stop controls bypass model reasoning and manager message delivery. The
+runtime blocks new dispatch and automatic retries for the stopped work, requests
+cancellation of active execution and its owned child runs, and records effects
+that completed before cancellation. It distinguishes stopping, stopped, failed
+cancellation, and unknown execution state. Stop does not promise rollback of
+external effects or terminate unrelated work. A global work stop leaves the
+manager available to discuss corrections.
+
+Stopped work does not automatically restart through a dependency, retry, or
+replacement run. After corrections, an explicit authorized resume or replacement
+retains the task's evidence and records the changed instructions. Human controls
+remain available even when the manager model is unavailable.
+
+These controls extend the observational dashboard through separate authenticated
+commands with authorization, failure behavior, and tests. They are target
+behavior, not existing mutation endpoints or permission for runtime activation.
 
 ## Telegram contract
 
@@ -192,6 +312,20 @@ Extraction tests cover valid, malformed, duplicate, stale, interrupted, and
 recovered cases without using live configuration.
 
 ## Safety and lifecycle
+
+Delegated owner instructions retain cryptographically verifiable origin,
+content, and scope. An agent's interpretation or paraphrase is separate evidence
+and cannot acquire owner authority by being forwarded. Verification must reject
+tampering, replay outside the permitted scope, and expired or revoked authority.
+The signing and delegation protocol remains to be designed.
+
+Every tool call passes the authorization classifier. Independent audits may
+challenge task interpretation, scope, or claimed completion using the original
+instruction and execution evidence. Worker-auditor disagreements go to the
+manager for an evidence-based resolution; that resolution cannot bypass policy
+or expand authority. Unresolved disputes have bounded escalation rather than
+indefinite retries. An uncontested need for clarification goes directly to the
+human through Telegram; it does not require manager arbitration first.
 
 Authority, privacy, stable durable identity, and terminal, retry, expiry, and
 cancellation states are explicit. Typed boundaries fail safely without panics,
