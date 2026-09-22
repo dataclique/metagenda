@@ -39,8 +39,9 @@ and their source tests retain MIT provenance and existing API semantics from
 [dotconfig PR #82](https://github.com/0xgleb/dotconfig/pull/82), revision
 `31a31a2218d9fef19f401c8d5ee86250b42cb867`. No live consumer was switched. After
 rebasing onto master `1371ce9`, `bun run verify` passed at local branch revision
-`e3d7a3c`, before the subsequent documentation-only edits. Publication and
-CI/native Nix verification of the revised branch remain pending. This does not
+`e3d7a3c`, before the subsequent documentation-only edits. Revised head
+`963a8a0` is published in that draft and passed all six native CI jobs. Those
+results do not verify later uncommitted Pi integration work. This does not
 complete planning or the shared Pi harness.
 [Package provenance](./packages/work-core/PROVENANCE.md) records the source
 revision, MIT notice, adaptations, and verification boundaries.
@@ -110,6 +111,19 @@ The first portable `fj` slice landed in
 [PR #7](https://github.com/dataclique/metagenda/pull/7) at `919209d`, with
 four-platform receiving verification. Broader harness and service exports remain
 separate work; neither `fj` nor the backlog package supplies a complete runtime.
+
+The additive `packages.<system>.pi-skills` output packages all 46 public skill
+documents and five support files, with pinned source hashes and preserved MIT
+attribution. [PR #46](https://github.com/dataclique/metagenda/pull/46) proposes
+this package. At `76f8b4043da97e1100c23bc38336b16ac3629770`,
+[four-platform native CI](https://github.com/dataclique/metagenda/actions/runs/35763232021)
+and
+[both Linux default-package jobs](https://github.com/dataclique/metagenda/actions/runs/35763232220)
+passed. CodeRabbit review and gated landing remain pending.
+[The skills provenance record](./pi/SKILLS-PROVENANCE.md) documents the source,
+package layout, and host-specific instruction assumptions. No extensions or
+services are activated. Full shared Pi runtime integration remains unfinished,
+so this package does not authorize retiring the temporary Dotconfig runtime.
 
 ## Improve shared development tools
 
