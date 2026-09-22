@@ -45,7 +45,7 @@ routing every exchange through a manager model turn. Messages distinguish
 requests, evidence, proposed changes, and accepted assignments.
 
 The target runtime embeds Pi through its SDK in supervised worker processes. The
-coordinator runs independently of the manager conversation and owns process
+orchestrator runs independently of the manager conversation and owns process
 lifecycles. Clients interact with sessions through authenticated commands and
 observe their events; no native Pi terminal must stay open. The manager is a
 resumable session, not the process that keeps the rest of the system alive.
@@ -57,8 +57,8 @@ hosting keeps event delivery, steering, cancellation, and recovery consistent;
 it does not require sessions to share a process or conversation context.
 
 The packaged TypeScript service runs under launchd on macOS or systemd on Linux.
-The service manager supervises the coordinator, which supervises Pi workers. The
-coordinator starts automatically at user login on a workstation or at boot on an
+The service manager supervises the orchestrator, which supervises Pi workers. The
+orchestrator starts automatically at user login on a workstation or at boot on an
 unattended host, under an account with only its required privileges. Workers
 launch on demand after authorization and capacity checks. Service restart
 preserves durable task state and does not resume explicitly stopped work.
@@ -70,7 +70,7 @@ These are responsibility boundaries, not package names or a build plan.
 | Component    | Owns                                                                                   | Boundary                                                                                                 |
 | ------------ | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | Clients      | Voice, text conversation, task inspection, and direct controls                         | Submit authenticated commands and display observations; do not schedule work or enforce execution policy |
-| Coordination | Task ownership, message delivery, authorization, priorities, budgets, and cancellation | Accept commands, authorize dispatch, reconcile execution events, and retain durable work state           |
+| Orchestrator | Task ownership, message delivery, authorization, priorities, budgets, and cancellation | Accept commands, authorize dispatch, reconcile execution events, and retain durable work state           |
 | Execution    | Pi SDK sessions, model turns, tools, and session events                                | Execute scoped assignments and report evidence; cannot grant authority or allocate itself capacity       |
 | Persistence  | Work records, session history, and artifacts                                           | Retain distinct records for recovery and inspection; a transcript is not task completion authority       |
 
@@ -82,10 +82,8 @@ flowchart TB
         Voice[Menu-bar voice and live transcript]
         Dashboard[Live work dashboard]
     end
-    subgraph Runtime[Metagenda runtime]
-        Manager[Manager Pi SDK session]
-        Coordinator[Orchestrator]
-        subgraph Workers[Task sessions using the Pi SDK]
+    subgraph Runtime[Orchestrator]
+        Manager[Manager agent]
             Engineer[Engineering agent]
             Research[Research agents]
             Reviewer[Review agent]
@@ -93,49 +91,47 @@ flowchart TB
             Research -->|Return findings| Engineer
             Engineer -->|Submit changes| Reviewer
             Reviewer -->|Findings or acceptance| Engineer
-        end
     end
     Human -->|Send messages| Telegram
     Human -->|Speak or correct transcript| Voice
     Telegram -->|Same conversation| Manager
     Voice -->|Same conversation| Manager
-    Manager -->|Request work| Coordinator
-    Coordinator -->|Authorize and schedule| Workers
-    Workers -->|Results and questions| Manager
+    Manager -->|Assign authorized work| Engineer
+    Engineer -->|Results and questions| Manager
     Human -->|Inspect or stop work| Dashboard
-    Dashboard -->|Stop selected run| Coordinator
-    Coordinator -->|Cancel run and block retries| Workers
-    Workers -->|Tool activity, results, usage| Dashboard
+    Dashboard -->|Stop selected run| Runtime
+    Runtime -->|Tool activity, results, usage| Dashboard
 ```
 
-Arrows show the action and its destination; session messages and dashboard
-events pass through authenticated runtime delivery. The manager does not have to
-interpret a Stop request. The following table separates retained records from
+All agents inside the orchestrator use Pi SDK sessions. Agent-to-agent arrows
+show logical exchanges delivered by the orchestrator, which also authorizes
+dispatch, schedules runs, and enforces cancellation. The manager does not have
+to interpret a Stop request. The following table separates retained records from
 the processes using them.
 
 | Component           | Retained records                       | Purpose                          |
 | ------------------- | -------------------------------------- | -------------------------------- |
-| Metagenda runtime   | Assignments, ownership, and run status | Track task transitions           |
+| Orchestrator        | Assignments, ownership, and run status | Track task transitions           |
 | Manager SDK session | Conversation and decisions             | Preserve context across restarts |
 | Task SDK sessions   | Transcripts, diffs, and check results  | Support review and resumption    |
 
 The manager belongs to execution: it is a session with coordination tools, not
 the component that schedules work or owns authority. A direct Stop command
-reaches coordination without a manager turn. Work state, conversation history,
-and artifacts have separate responsibilities; these records do not require
-separate database products.
+reaches the orchestrator without a manager turn. Work state, conversation
+history, and artifacts have separate responsibilities; these records do not
+require separate database products.
 
 ### Process supervision
 
 ```mermaid
 flowchart TD
-    OS[launchd or systemd] -->|Supervises| Coordinator[Coordinator service process]
+    OS[launchd or systemd] -->|Supervises| Coordinator[Orchestrator process]
     Coordinator -->|Supervises| ManagerHost[Manager SDK host process]
     Coordinator -->|Supervises| WorkerHosts[Task SDK host processes]
     Clients[Client processes] -->|Authenticated commands| Coordinator
 ```
 
-Process boundaries isolate the coordinator from model execution. Manager and
+Process boundaries isolate the orchestrator from model execution. Manager and
 task hosts use the same SDK integration with separate session state. A task host
 may be reused for another assignment only after releasing the previous
 assignment's tools, context, and execution resources. Process supervision does
@@ -177,19 +173,21 @@ without discarding ownership, conversation, or artifacts. Revised code must be
 checked against the current revision; earlier acceptance cannot approve unseen
 changes.
 
-An optional arbitration agent attempts to resolve review disputes. A human can
-arbitrate directly and makes the final decision on unresolved disputes. A
-release-management function may merge only under the project's explicit merge
-permissions and satisfied checks and approvals. Merge conflicts and integration
-changes return to verification before release.
+The manager arbitrates both engineering-review and worker-auditor disputes.
+Unresolved disputes go to a human for the final decision. A release-management
+function may merge only under the project's explicit merge permissions and
+satisfied checks and approvals. Merge conflicts and integration changes return
+to verification before release.
 
 ```mermaid
 flowchart TD
     subgraph Planning[Planning]
+        Intake[Ideas and requests]
+        Refine[Refine into actionable backlog items]
         Product[Product-owner agent proposes priorities]
         Owner[Human approves priorities]
         Assign[Allocate authorized work]
-        Product --> Owner --> Assign
+        Intake --> Refine --> Product --> Owner --> Assign
     end
     subgraph Engineering[Implementation]
         Engineer[Engineering worker implements changes]
@@ -201,6 +199,10 @@ flowchart TD
     end
     Assign --> Engineer
 ```
+
+Once implementation is ready for review, the draft PR enters the correction loop
+below. The engineering assignment retains ownership while agent, automated, and
+human reviewers examine the current revision.
 
 ```mermaid
 flowchart TD
@@ -230,6 +232,9 @@ respond at different times; every changed revision returns to the applicable
 checks. Human approval requirements follow project policy. Pausing execution
 preserves assignment ownership and review history.
 
+Disagreements use one escalation path through the manager. A worker that simply
+needs clarification can ask the human through Telegram without arbitration.
+
 ```mermaid
 flowchart LR
     subgraph Agents[Agents needing a decision]
@@ -237,7 +242,6 @@ flowchart LR
         Dispute[Worker and auditor disagree]
         ReviewDispute[Engineer and reviewer disagree]
         Manager[Manager examines evidence]
-        Arbitrator[Optional arbitration agent]
     end
     subgraph Humans[Human decisions]
         Telegram[Human answers through Telegram]
@@ -246,9 +250,7 @@ flowchart LR
     Question -->|Ask directly| Telegram
     Dispute --> Manager
     Manager -->|Unresolved disagreement| Final
-    ReviewDispute --> Arbitrator
-    ReviewDispute -->|Direct human arbitration| Final
-    Arbitrator -->|Unresolved disagreement| Final
+    ReviewDispute --> Manager
 ```
 
 ### Operations and urgent work
@@ -270,7 +272,7 @@ criteria, and provider-enforced limits still apply.
 
 ```mermaid
 sequenceDiagram
-    participant C as Coordinator service (runtime code)
+    participant C as Orchestrator
     box Agent sessions
         participant O as Watchdog agent
         participant V as Independent validation agent
@@ -359,7 +361,7 @@ The system supports a single-machine deployment. Durable agent, work, and
 message identities must not depend on process IDs, terminal panes, or local
 filesystem paths. Host-local workspace locations remain explicit mappings.
 Versioned messages and scoped authority preserve compatibility with remote
-workers and other coordinators without requiring distributed deployment.
+workers and other orchestrators without requiring distributed deployment.
 
 ## Conversation and memory
 
@@ -478,7 +480,7 @@ identity contracts.
 Service activation and changes to live state or routing require operator
 authorization. Authorizing service enablement permits subsequent automatic
 starts and supervised restarts under the same configuration until that
-authorization is revoked. Restarting the coordinator grants no new task
+authorization is revoked. Restarting the orchestrator grants no new task
 authority and does not resume explicitly stopped work. Services expose their
 revision, health, and recovery state.
 
