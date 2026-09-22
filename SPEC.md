@@ -165,19 +165,26 @@ to verification before release.
 
 ```mermaid
 flowchart TD
-    Human[Human]
-    Complete[Completed feature or fix]
-    subgraph Lifecycle[GitHub issue lifecycle]
+    Human([Human])
+    Complete([Feature or fix])
+    subgraph Planning[Planning]
         Intake[Record request as an issue]
         Refine[Refinement]
-        Research[Linked research tasks]
         Priority[Prioritization]
         Queue[Actionable task queued for capacity]
+    end
+    Research[Linked research tasks]
+    subgraph Implementation[Engineering and review]
         Engineering[Engineering and early draft PR]
         Review[Current-revision review task and configured CodeRabbit checks]
         Arbitration[Manager arbitration]
+    end
+    subgraph Delivery[Delivery and operations]
         Release{Delivery checks and required approvals satisfied?}
         Deliver[Authorized merge and delivery]
+        Monitor[Observe service health]
+        Deliver --> Monitor
+    end
         Intake --> Refine --> Priority
         Refine -->|Missing evidence| Research
         Research -->|Findings to requesting task| Refine
@@ -191,7 +198,6 @@ flowchart TD
         Review -->|Accepted current revision| Release
         Release -->|Yes| Deliver
         Release -->|Conflict or changed code| Engineering
-    end
     Human -->|Feature request or bug report| Intake
     Refine -->|Clarification needed| Human
     Human -->|Clarification| Refine
@@ -203,6 +209,8 @@ flowchart TD
     Arbitration -->|Unresolved dispute| Human
     Human -->|Final decision| Arbitration
     Deliver --> Complete
+    classDef endpoint fill:#17324d,color:#ffffff,stroke:#69b7ff,stroke-width:3px
+    class Human,Complete endpoint
 ```
 
 This lifecycle follows an issue through delivery. Research tasks return evidence
