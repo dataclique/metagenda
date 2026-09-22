@@ -80,10 +80,11 @@ flowchart TB
     subgraph Interfaces[Interfaces used by humans]
         Telegram[Telegram text chat]
         Voice[Menu-bar voice and live transcript]
+        Dashboard[Live work dashboard]
     end
     subgraph Runtime[Metagenda runtime]
         Manager[Manager Pi SDK session]
-        Coordinator[Coordinator service]
+        Coordinator[Orchestrator]
         Workers[Engineering, research, and review SDK sessions]
     end
     Human -->|Send messages| Telegram
@@ -93,15 +94,7 @@ flowchart TB
     Manager -->|Request work| Coordinator
     Coordinator -->|Authorize and schedule| Workers
     Workers -->|Results and questions| Manager
-```
-
-```mermaid
-flowchart TB
-    Human[Human] -->|Inspect or stop work| Dashboard[Live work dashboard]
-    subgraph Runtime[Metagenda runtime]
-        Coordinator[Coordinator service]
-        Workers[Running task sessions]
-    end
+    Human -->|Inspect or stop work| Dashboard
     Dashboard -->|Stop selected run| Coordinator
     Coordinator -->|Cancel run and block retries| Workers
     Workers -->|Tool activity, results, usage| Dashboard
