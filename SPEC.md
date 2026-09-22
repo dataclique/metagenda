@@ -57,10 +57,13 @@ hosting keeps event delivery, steering, cancellation, and recovery consistent;
 it does not require sessions to share a process or conversation context.
 
 The packaged TypeScript service runs under launchd on macOS or systemd on Linux.
-The service manager supervises the coordinator, which supervises Pi workers.
-Service restart preserves durable task state and does not resume explicitly
-stopped work. The [runtime ADR](./adrs/01-sdk-session-runtime.md) records the
-architecture and alternatives.
+The service manager supervises the coordinator, which supervises Pi workers. The
+coordinator starts automatically at user login on a workstation or at boot on an
+unattended host, under an account with only its required privileges. Workers
+launch on demand after authorization and capacity checks. Service restart
+preserves durable task state and does not resume explicitly stopped work. The
+[runtime ADR](./adrs/01-sdk-session-runtime.md) records the architecture and
+alternatives.
 
 ```mermaid
 flowchart TD
@@ -177,6 +180,20 @@ windows, queued priorities, and interactive demand. Interactive planning and
 steering remain responsive. Allocation targets do not guarantee capacity, and
 unavailable usage data or exhausted limits remain explicit. Throttling preserves
 pause, cancellation, execution permissions, and concurrency limits.
+
+Admission accounts for the remaining budget through the provider's reset window,
+not only concurrent worker count. Reserve capacity for interactive requests and
+urgent work. Requests for additional workers consume the same shared allowance;
+delegation cannot multiply a task's budget. Missing or delayed usage information
+reduces admissions conservatively rather than implying unlimited capacity.
+
+Background work is paced across the remaining reset window so later priorities
+retain capacity. The manager uses low reasoning effort and receives no
+application-imposed pacing delays. Background admission must not hold up its
+turns; analysis requiring more reasoning is delegated to workers. Manager usage
+still counts against the shared allowance, and provider-enforced limits remain
+visible. Background budgets protect interactive headroom rather than treating
+manager consumption as free or unlimited.
 
 ## Product boundaries
 
