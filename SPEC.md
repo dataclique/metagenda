@@ -75,12 +75,11 @@ These are responsibility boundaries, not package names or a build plan.
 | Persistence  | Work records, session history, and artifacts                                           | Retain distinct records for recovery and inspection; a transcript is not task completion authority       |
 
 ```mermaid
-flowchart LR
+flowchart TB
     Human[Human]
     subgraph Interfaces[Interfaces used by humans]
         Telegram[Telegram text chat]
         Voice[Menu-bar voice and live transcript]
-        Dashboard[Live work dashboard]
     end
     subgraph Runtime[Metagenda runtime]
         Manager[Manager Pi SDK session]
@@ -88,16 +87,24 @@ flowchart LR
         Workers[Engineering, research, and review SDK sessions]
     end
     Human -->|Send messages| Telegram
-    Human -->|Speak and correct transcription| Voice
-    Telegram -->|Deliver to the same conversation| Manager
-    Voice -->|Deliver to the same conversation| Manager
-    Manager -->|Request assignments or corrected runs| Coordinator
-    Coordinator -->|Authorize, schedule, and start runs| Workers
-    Workers -->|Report results and questions| Manager
-    Human -->|Inspect work or press Stop| Dashboard
-    Workers -->|Stream tool activity, results, and usage| Dashboard
-    Dashboard -->|Stop selected run directly| Coordinator
-    Coordinator -->|Cancel execution and block retries| Workers
+    Human -->|Speak or correct transcript| Voice
+    Telegram -->|Same conversation| Manager
+    Voice -->|Same conversation| Manager
+    Manager -->|Request work| Coordinator
+    Coordinator -->|Authorize and schedule| Workers
+    Workers -->|Results and questions| Manager
+```
+
+```mermaid
+flowchart TB
+    Human[Human] -->|Inspect or stop work| Dashboard[Live work dashboard]
+    subgraph Runtime[Metagenda runtime]
+        Coordinator[Coordinator service]
+        Workers[Running task sessions]
+    end
+    Dashboard -->|Stop selected run| Coordinator
+    Coordinator -->|Cancel run and block retries| Workers
+    Workers -->|Tool activity, results, usage| Dashboard
 ```
 
 Arrows show the action and its destination; session messages and dashboard
