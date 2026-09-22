@@ -57,11 +57,12 @@ hosting keeps event delivery, steering, cancellation, and recovery consistent;
 it does not require sessions to share a process or conversation context.
 
 The packaged TypeScript service runs under launchd on macOS or systemd on Linux.
-The service manager supervises the orchestrator, which supervises Pi workers. The
-orchestrator starts automatically at user login on a workstation or at boot on an
-unattended host, under an account with only its required privileges. Workers
-launch on demand after authorization and capacity checks. Service restart
-preserves durable task state and does not resume explicitly stopped work.
+The service manager supervises the orchestrator, which supervises Pi workers.
+The orchestrator starts automatically at user login on a workstation or at boot
+on an unattended host, under an account with only its required privileges.
+Workers launch on demand after authorization and capacity checks. Service
+restart preserves durable task state and does not resume explicitly stopped
+work.
 
 ### Component boundaries
 
@@ -82,32 +83,23 @@ flowchart TB
         Voice[Menu-bar voice and live transcript]
         Dashboard[Live work dashboard]
     end
-    subgraph Runtime[Orchestrator]
-        Manager[Manager agent]
-            Engineer[Engineering agent]
-            Research[Research agents]
-            Reviewer[Review agent]
-            Engineer -->|Request investigation| Research
-            Research -->|Return findings| Engineer
-            Engineer -->|Submit changes| Reviewer
-            Reviewer -->|Findings or acceptance| Engineer
-    end
+    Manager[Manager conversation]
+    Runtime[Orchestrator]
     Human -->|Send messages| Telegram
     Human -->|Speak or correct transcript| Voice
     Telegram -->|Same conversation| Manager
     Voice -->|Same conversation| Manager
-    Manager -->|Assign authorized work| Engineer
-    Engineer -->|Results and questions| Manager
+    Manager -->|Request work or corrections| Runtime
+    Runtime -->|Progress and questions| Manager
     Human -->|Inspect or stop work| Dashboard
     Dashboard -->|Stop selected run| Runtime
     Runtime -->|Tool activity, results, usage| Dashboard
 ```
 
-All agents inside the orchestrator use Pi SDK sessions. Agent-to-agent arrows
-show logical exchanges delivered by the orchestrator, which also authorizes
-dispatch, schedules runs, and enforces cancellation. The manager does not have
-to interpret a Stop request. The following table separates retained records from
-the processes using them.
+This view shows human interaction: conversation through the manager, observation
+through the dashboard, and Stop sent directly to the orchestrator. It does not
+show process containment or task dependencies. The following table separates
+retained records from the processes using them.
 
 | Component           | Retained records                       | Purpose                          |
 | ------------------- | -------------------------------------- | -------------------------------- |
@@ -128,7 +120,6 @@ flowchart TD
     OS[launchd or systemd] -->|Supervises| Coordinator[Orchestrator process]
     Coordinator -->|Supervises| ManagerHost[Manager SDK host process]
     Coordinator -->|Supervises| WorkerHosts[Task SDK host processes]
-    Clients[Client processes] -->|Authenticated commands| Coordinator
 ```
 
 Process boundaries isolate the orchestrator from model execution. Manager and
@@ -190,14 +181,12 @@ flowchart TD
         Intake --> Refine --> Product --> Owner --> Assign
     end
     subgraph Engineering[Implementation]
-        Engineer[Engineering worker implements changes]
-        Research[Research workers investigate linked questions]
+        Start[Start authorized assignment]
         Draft[Publish draft PR early]
-        Engineer -->|Request parallel help when needed| Research
-        Research -->|Return findings| Engineer
-        Engineer --> Draft
+        Engineer[Implement and check changes]
+        Start --> Draft --> Engineer
     end
-    Assign --> Engineer
+    Assign --> Start
 ```
 
 Once implementation is ready for review, the draft PR enters the correction loop
@@ -223,6 +212,8 @@ flowchart TD
     Assessment -->|No| Gate{Current acceptance, approvals,<br/>CI, and merge permission satisfied?}
     Gate -->|Yes| Merge[Release manager merges PR]
     Gate -->|Awaiting checks or approval| Wait[Keep PR open]
+    Wait -->|Check or approval arrives| Gate
+    Wait -->|New feedback or changed revision| Fix
     Gate -->|Conflict or integration changes| Fix
 ```
 
@@ -251,6 +242,9 @@ flowchart LR
     Dispute --> Manager
     Manager -->|Unresolved disagreement| Final
     ReviewDispute --> Manager
+    Manager -->|Resolved with evidence| Resume[Return decision to affected work]
+    Final -->|Human decision| Resume
+    Telegram -->|Clarification| Resume
 ```
 
 ### Operations and urgent work
@@ -273,34 +267,33 @@ criteria, and provider-enforced limits still apply.
 ```mermaid
 sequenceDiagram
     participant C as Orchestrator
-    box Agent sessions
-        participant O as Watchdog agent
-        participant V as Independent validation agent
-        participant E as Engineering agent
-        participant R as Review agent
-        participant L as Release-management agent
-    end
-    actor H as Human PR reviewer
+    participant O as Watchdog worker
+    participant V as Independent validation worker
+    participant W as Response workers
+    participant B as GitHub backlog
     O->>C: Incident evidence
-    Note over C,R: Incident priority applies throughout the response
+    Note over C,W: Incident response bypasses ordinary pacing
     C->>C: Reserve capacity and reduce ordinary work
     C->>V: Independent validation
-    V-->>C: Validated hotfix need
-    C->>E: Urgent engineering assignment
-    E->>R: Submit current revision
-    loop Until required findings are addressed
-        R-->>E: Findings
-        H-->>E: Human feedback
-        E->>R: Corrected revision
+    V-->>C: Assessment and evidence
+    C-->>O: Validation outcome and reasons
+    alt Validated urgent hotfix
+        C->>W: Start urgent assignment with separate context
+        Note over C,W: Preserve incident priority through implementation, review, and release
+        Note over W: Apply the same review and authorization gates as ordinary work
+        W-->>C: Outcome and evidence
+        C-->>O: Response outcome
+    else Valid issue, not urgent
+        O->>B: File issue within authorized scope
+    else Concern not substantiated
+        Note over O: Retain assessment; continue monitoring
     end
-    R->>L: Current revision accepted
-    H->>L: Required human approval
-    Note over L: Release only with required checks and authority
 ```
 
-This sequence shows a validated incident requiring a hotfix. A rejected
-diagnosis does not enter engineering. Human review follows project policy;
-unavailable required approval blocks release even during an incident.
+This sequence shows validation and scheduling outcomes rather than repeating the
+PR review loop. A rejected diagnosis does not enter engineering. Human review
+follows project policy; unavailable required approval blocks release even during
+an incident.
 
 Optional operator capabilities include emergency shutdown or other mitigation
 while humans are unavailable. Each requires explicit authorization, bounded
