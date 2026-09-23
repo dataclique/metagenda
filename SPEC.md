@@ -47,6 +47,12 @@ execution attempt runs an existing job; it does not create a new backlog item.
 The job registry retains these records, while the agent registry tracks
 available sessions and their capabilities.
 
+Each execution attempt has a durable identity linked to its job and owns its
+outputs. Attempts distinguish pending, running, stopping, succeeded, failed,
+cancelled, and interrupted states. Stable event identities and per-attempt
+ordering prevent duplicate terminal transitions. Late events from older
+attempts cannot overwrite the current job outcome.
+
 An interactive Pi instance can submit jobs to its worker pool. Pool
 infrastructure starts with the instance; idle capacity does not require model
 requests. The interactive coordinator and manager may read code and inspect
@@ -65,6 +71,13 @@ stopping does not mark jobs complete or roll them back. This session-bound
 lifetime applies only to the initial pool, not to the later independently
 supervised service. Once the service owns execution, the interactive session is
 an interface; closing it does not stop the service or its jobs.
+
+Shutdown persists the dispatch stop before cancellation. Confirmed worker exits
+become cancelled; unconfirmed exits remain interrupted. Claims are released
+after confirmed termination or fenced. Startup reconciles surviving, terminated,
+and uncertain attempts before admitting replacement work. Session-closed jobs
+require explicit authorized resume or replacement; uncertainty blocks duplicate
+execution.
 
 ### Session hosting
 
@@ -230,15 +243,16 @@ flowchart TD
         Review -->|Corrections| Engineering
         Review -->|Disagreement| Arbitration
         Arbitration -->|Resolution| Review
-        Review -->|Accepted current revision| Release
+        Review -->|Accepted current revision| HumanReview
         Release -->|Yes| Deliver
         Release -->|Conflict or changed code| Engineering
     Human -->|Feature request or bug report| Intake
     Refine <-->|Questions and answers| Clarify
     Priority --> Approve --> Queue
-    Review --> HumanReview
-    HumanReview -->|Feedback| Engineering
-    HumanReview -->|Verdict| Release
+    HumanReview -->|Changes requested| Engineering
+    HumanReview -->|Approved when required by policy| Release
+    HumanReview -->|Human approval not required by policy| Release
+    Release -->|Missing checks or approvals| Blocked[Delivery blocked]
     Arbitration <-->|Escalation and decision| HumanDecision
     Deliver --> Complete
     classDef endpoint fill:#17324d,color:#ffffff,stroke:#69b7ff,stroke-width:3px
@@ -356,8 +370,10 @@ work. If capacity is full, preemption saves the interrupted assignment and its
 artifacts, starts the urgent assignment with separate context, and permits later
 resumption without mixing project state.
 
-Operator and engineering assignments have separate contexts, permissions, and
-execution capacity. Watchdog incident responses bypass application-imposed
+Operator and engineering assignments have separate contexts and permissions.
+They share worker capacity and provider-budget accounting, with reserved
+capacity for incidents. Preemption releases execution capacity while retaining
+the interrupted job's state. All consumption counts against the shared allowance. Watchdog incident responses bypass application-imposed
 pacing. Incident priority follows the response through independent validation,
 engineering, review, and authorized release; a handoff must not place it back in
 the ordinary background queue. Other urgent work receives reduced or no pacing
@@ -430,8 +446,10 @@ dashboard uses SolidJS and Dockview.
 The system supports a single-machine deployment. Durable agent, work, and
 message identities must not depend on process IDs, terminal panes, or local
 filesystem paths. Host-local workspace locations remain explicit mappings.
-Versioned messages and scoped authority preserve compatibility with remote
-workers and other orchestrators without requiring distributed deployment.
+Versioned messages and scoped authority support future remote integration.
+Remote execution requires a separately defined contract for transport
+authentication, version negotiation, idempotency, failure handling, and authority
+propagation before deployment.
 
 ## Conversation and memory
 

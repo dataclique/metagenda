@@ -18,6 +18,10 @@ The proposed decision is recorded in
 - [ ] Agree the job and session event contract: prompts, invocation metadata,
       allowed tools, budgets, outputs, identity, and lifecycle -
       [#32](https://github.com/dataclique/metagenda/issues/32).
+- [ ] Verify durable attempt identity, attempt-owned outputs, ordered events,
+      terminal deduplication, shutdown cancellation, claim fencing, and restart
+      reconciliation without duplicate execution -
+      [#32](https://github.com/dataclique/metagenda/issues/32).
 - [ ] Replace workflow execution with an interactive instance's worker pool; the
       coordinating agent decides subsequent jobs -
       [#32](https://github.com/dataclique/metagenda/issues/32).
@@ -85,8 +89,8 @@ Develop ideas into researched, tracked work, then coordinate implementation and
 independent verification. Telegram intake is one entry point; a conversation
 fragment alone does not authorize execution.
 
-- [ ] Connect harness execution, cancellation, bounded concurrency, and recovery
-      to planned work -
+- [ ] Link planned work to the preceding epic's execution contract while retaining
+      issue-to-job ownership -
       [#16](https://github.com/dataclique/metagenda/issues/16).
 - [ ] Connect idea intake, research, refinement, and issue creation to durable
       cross-project planning -

@@ -23,6 +23,12 @@ explicit failure or cancellation outcomes across execution attempts. The job
 registry retains these records; the agent registry tracks sessions and their
 capabilities.
 
+Each execution attempt has a durable identity linked to its job and owns its
+outputs. Attempts distinguish pending, running, stopping, succeeded, failed,
+cancelled, and interrupted states. Stable event identities and per-attempt
+ordering prevent duplicate terminal transitions. Late events from older
+attempts cannot overwrite the current job outcome.
+
 An interactive Pi instance submits jobs to its worker pool. Pool infrastructure
 starts with the instance; idle capacity does not require model requests. The
 coordinating agent submits jobs, consumes outputs, and decides what to do next.
@@ -78,3 +84,10 @@ stopping does not mark jobs complete or roll them back. This session-bound
 lifetime applies only to the initial pool, not to the later independently
 supervised service. Once the service owns execution, the interactive session is
 an interface; closing it does not stop the service or its jobs.
+
+Shutdown persists the dispatch stop before cancellation. Confirmed worker exits
+become cancelled; unconfirmed exits remain interrupted. Claims are released
+after confirmed termination or fenced. Startup reconciles surviving, terminated,
+and uncertain attempts before admitting replacement work. Session-closed jobs
+require explicit authorized resume or replacement; uncertainty blocks duplicate
+execution.
