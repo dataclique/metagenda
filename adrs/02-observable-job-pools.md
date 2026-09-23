@@ -76,9 +76,11 @@ configuration can proceed alongside fleet observation. Removing direct
 code-changing tools depends on functioning worker execution.
 
 In the initial interactive pool, closing the owning Pi session stops its workers
+and all other background resources launched and owned by that session,
 and prevents queued jobs from starting. Job records and outputs are retained;
 stopping does not mark jobs complete or roll them back. This session-bound
 lifetime applies only to the initial pool, not to the later independently
-supervised service. This record
+supervised service. Once the service owns execution, the interactive session is
+an interface; closing it does not stop the service or its jobs. This record
 does not authorize runtime activation or implementation. It remains proposed for
 review.
