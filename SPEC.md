@@ -36,8 +36,7 @@ Workers can request research or implementation assistance as linked jobs in the
 same scheduling and observability system. Dependencies and assignments may
 change as findings arrive. The coordinating agent submits jobs, consumes their
 outputs, and decides what to do next. The runtime enforces authorization,
-budgets, concurrency, cancellation, and recovery. Replacing workflow execution
-does not require retaining a scripted, multi-step workflow engine.
+budgets, concurrency, cancellation, and recovery.
 
 ### Jobs and worker pools
 
@@ -60,8 +59,8 @@ manager already owns the manager role, starting another manager reports a
 conflict instead of replacing it or creating a competing conversation.
 
 In the initial interactive pool, closing the owning Pi session stops its workers
-and all other background resources launched and owned by that session,
-and prevents queued jobs from starting. Job records and outputs are retained;
+and all other background resources launched and owned by that session, and
+prevents queued jobs from starting. Job records and outputs are retained;
 stopping does not mark jobs complete or roll them back. This session-bound
 lifetime applies only to the initial pool, not to the later independently
 supervised service. Once the service owns execution, the interactive session is
@@ -83,9 +82,9 @@ resumable session, not the process that keeps the rest of the system alive.
 
 The manager and job workers use the same SDK session host. They differ in tools,
 permissions, retained history, and memory policy. A persistent manager
-conversation does not require a separate RPC implementation. Shared session
-hosting keeps event delivery, steering, cancellation, and recovery consistent;
-it does not require sessions to share a process or conversation context.
+conversation uses the same hosting interfaces as worker sessions. Shared session
+hosting keeps event delivery, steering, cancellation, and recovery consistent
+while isolating each session's process and conversation context.
 
 The packaged TypeScript service runs under launchd on macOS or systemd on Linux.
 The service manager supervises the orchestrator, which supervises Pi workers.
@@ -497,10 +496,11 @@ the [roadmap](./ROADMAP.md) and
 
 ## Protocol and durable state
 
-Event-sourced job and coordination state through future Event Sorcery TypeScript
-bindings is a later direction. Raw session text remains session history and is
-outside that event-sourcing integration. Those bindings are not required for the
-job pool.
+[Event Sorcery](https://github.com/dataclique/event-sorcery) provides Rust
+event-sourcing primitives and durable job dispatch. A future integration through
+its planned TypeScript bindings would record job and coordination state
+transitions for recovery and inspection. Session transcripts remain separate
+records. The initial pool uses the existing persistence contracts.
 
 The Pi bridge and SQLite state use versioned contracts for identity, delivery
 capability, claim lifecycle, question binding, and restart recovery. Pure
