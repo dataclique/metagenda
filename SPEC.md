@@ -443,6 +443,12 @@ review, and rework. Compare equivalent work categories and record model and
 reasoning settings so easier workloads are not mistaken for better model
 performance.
 
+Record review request to first submitted review and review completion
+separately, distinguishing human and automated reviewers. Report feedback items
+per review and per PR, including the mean and distribution; distinguish
+actionable findings from duplicates and withdrawn findings, and do not treat a
+higher comment count as better review quality.
+
 Track token usage by model, role, project, and accepted outcome, including
 unsuccessful attempts. Report usage burn, forecast exhaustion before reset, and
 time blocked by provider limits. Distinguish provider-reported quota from
