@@ -412,6 +412,49 @@ require job-relevant quality checks; a cheaper model is suitable only when its
 results meet the job's acceptance criteria. The manager's low-reasoning policy
 does not constrain the reasoning effort of its delegated workers.
 
+### Efficiency and delivery measurement
+
+The objective is to maximize accepted work from available usage while
+maintaining quality and responsive human interaction. Compare models using total
+usage and elapsed time through acceptance, including retries, review, and
+corrections. Token price alone is insufficient.
+
+All agent-authored prose intended for human consumption passes through an Unslop
+job before delivery, including documentation, tracker updates, and messages. A
+dedicated lightweight worker can handle these jobs. Editing preserves facts,
+qualifications, links, and authority. Raw logs, code, and quoted material are
+not rewritten.
+
+Measure opened and merged PRs, opened and closed issues, and lines added and
+removed as activity measures, rather than standalone productivity targets.
+Distinguish completed issues from duplicates and abandoned work. Track backlog
+growth and the age of unfinished items.
+
+Record backlog entry after refinement, engineering queue entry, execution start,
+PR merge, and deployment as separate events. Report mean, median, and
+90th-percentile elapsed times, along with sample counts and missing coverage.
+Preserve reopens and repeated attempts. Link issues, jobs, PRs, and deployments
+without counting each as a separate delivered outcome. Deployment latency is
+unavailable when deployment evidence is absent.
+
+Report first-pass acceptance, review cycles, reopens, regressions, and human
+intervention time alongside delivery volume. Break down waiting, execution,
+review, and rework. Compare equivalent work categories and record model and
+reasoning settings so easier workloads are not mistaken for better model
+performance.
+
+Track token usage by model, role, project, and accepted outcome, including
+unsuccessful attempts. Report usage burn, forecast exhaustion before reset, and
+time blocked by provider limits. Distinguish provider-reported quota from
+estimates and unknown data. Token counts need not equal subscription allowance
+consumed.
+
+Support multiple authorized subscriptions from the same provider as separate
+capacity sources, each with its own identity, limits, reset windows, and usage
+accounting. Admission selects an eligible source and retains attribution to the
+source used. Combined views preserve individual limits and provider account
+rules.
+
 ## Product boundaries
 
 The system has one authoritative state across its tools. A proposed, assigned,
