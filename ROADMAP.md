@@ -7,7 +7,7 @@ support these workflows; Telegram provides a conversational interface.
 [SPEC.md](./SPEC.md) defines target behavior; GitHub issues hold acceptance
 criteria and implementation work.
 
-## Delegate work through observable jobs
+## v0 - Observable agent coordination
 
 Keep interactive coordination responsive while workers execute bounded jobs.
 Replace workflow execution first, preserve visibility throughout the transition,
@@ -59,14 +59,17 @@ The accepted decision is recorded in
       human urgency decisions directly, retaining reasons and outcomes -
       [#33](https://github.com/dataclique/metagenda/issues/33).
 
-### v0.3 - Supervised SDK hosting
+### v0.3 - Supervised SDK service
+
+Deliver portable Telegram, CLI, and observational dashboard capabilities with
+verified service contracts and recovery behavior.
 
 - [ ] Adopt supervised SDK hosting after dashboard inspection and direct
       controls replace terminal visibility; no intermediate RPC migration is
       required - [#33](https://github.com/dataclique/metagenda/issues/33),
       [#22](https://github.com/dataclique/metagenda/issues/22).
 
-### Dependencies
+#### Dependencies
 
 ```mermaid
 flowchart TD
@@ -97,13 +100,31 @@ bindings. That integration would cover job and coordination state transitions;
 transcripts retain their separate storage. The initial pool uses existing
 persistence contracts.
 
-## Turn ideas into coordinated work
+#### Portable service delivery
+
+- [ ] Complete package and service export contracts, identity and state
+      boundaries, restart recovery, and receiving verification -
+      [#22](https://github.com/dataclique/metagenda/issues/22).
+- [ ] Finish the portable CLI contract and account for existing consumers -
+      [#6](https://github.com/dataclique/metagenda/issues/6).
+- [ ] Verify dashboard and Telegram exports before host consumption; retain the
+      detailed compatibility gates in the
+      [import manifest](./docs/migrations/dotconfig-intake.md) and
+      [#22](https://github.com/dataclique/metagenda/issues/22).
+- [ ] Prepare host wiring without activation; verify product isolation, then
+      perform an explicitly authorized cutover with rollback -
+      [#22](https://github.com/dataclique/metagenda/issues/22).
+
+Portable packaging can progress alongside planning. Deployment depends on
+verified exports; product refinement does not depend on completing every
+migration task. Source provenance belongs in implementation records, not the
+product's purpose.
+
+### v0.4 - Intake and refinement
 
 Develop ideas into researched, tracked work, then coordinate implementation and
 independent verification. Telegram intake is one entry point; a conversation
 fragment alone does not authorize execution.
-
-### v0.4 - Intake and refinement
 
 - [ ] Link planned work to the preceding epic's execution contract while
       retaining issue-to-job ownership -
@@ -120,13 +141,11 @@ fragment alone does not authorize execution.
 - [ ] Keep unreconciled conversation separate from actionable work -
       [#13](https://github.com/dataclique/metagenda/issues/13).
 
-## Keep plans and agent work aligned
+### v0.5 - Plans and reporting
 
 Make weekly commitments, daily priorities, progress, and corrections visible
 across projects. Agents work from the current plan, while saved revisions make
 planned-versus-actual reporting possible.
-
-### v0.5 - Plans and reporting
 
 - [ ] Preserve plans, revisions, reporting windows, and acknowledged corrections
       across restarts -
@@ -140,14 +159,12 @@ planned-versus-actual reporting possible.
       work - [#9](https://github.com/dataclique/metagenda/issues/9),
       [#20](https://github.com/dataclique/metagenda/issues/20).
 
-## Allocate capacity without making Pi unresponsive
+### v0.6 - Measured and adaptive allocation
 
 Set adjustable engineering-resource allocations by project. Track actual
 consumption against those targets and adapt background work to provider limits
 while preserving responsive interactive use. Project priorities and provider
 throttling are separate controls.
-
-### v0.6 - Measured and adaptive allocation
 
 - [ ] Measure delivery latency, backlog age, acceptance, rework, and human
       intervention alongside activity counts; expose coverage and outcome links
@@ -172,36 +189,9 @@ throttling are separate controls.
       reserved capacity -
       [#16](https://github.com/dataclique/metagenda/issues/16).
 
-## Run the shared service reliably
-
-Deliver portable Telegram, CLI, and observational dashboard capabilities with
-verified service contracts and recovery behavior.
-
-### v0.3 - Portable service delivery
-
-- [ ] Complete package and service export contracts, identity and state
-      boundaries, restart recovery, and receiving verification -
-      [#22](https://github.com/dataclique/metagenda/issues/22).
-- [ ] Finish the portable CLI contract and account for existing consumers -
-      [#6](https://github.com/dataclique/metagenda/issues/6).
-- [ ] Verify dashboard and Telegram exports before host consumption; retain the
-      detailed compatibility gates in the
-      [import manifest](./docs/migrations/dotconfig-intake.md) and
-      [#22](https://github.com/dataclique/metagenda/issues/22).
-- [ ] Prepare host wiring without activation; verify product isolation, then
-      perform an explicitly authorized cutover with rollback -
-      [#22](https://github.com/dataclique/metagenda/issues/22).
-
-Portable packaging can progress alongside planning. Deployment depends on
-verified exports; product refinement does not depend on completing every
-migration task. Source provenance belongs in implementation records, not the
-product's purpose.
-
-## Improve shared development tools
+#### Supporting tools
 
 Ship tooling improvements with the release that needs them.
-
-### Release assigned with the consuming feature
 
 - [ ] Finish shared tooling correctness and diagnostics -
       [#10](https://github.com/dataclique/metagenda/issues/10),
