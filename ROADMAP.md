@@ -37,6 +37,14 @@ The proposed decision is recorded in
 - [ ] Expose fleet sessions, jobs, tool activity, outputs, usage, failures,
       cancellation, and reconnect evidence in the dashboard -
       [#34](https://github.com/dataclique/metagenda/issues/34).
+- [ ] Implement the specification's panel catalog, including planning, agent
+      tasks and replies, question answering, PR review readiness, and editable
+      resource allocations -
+      [#34](https://github.com/dataclique/metagenda/issues/34),
+      [#24](https://github.com/dataclique/metagenda/issues/24).
+- [ ] Route worker urgency proposals to manager judgment and apply authenticated
+      human urgency decisions directly, retaining reasons and outcomes -
+      [#33](https://github.com/dataclique/metagenda/issues/33).
 - [ ] Adopt supervised SDK hosting after dashboard inspection and direct
       controls replace terminal visibility; no intermediate RPC migration is
       required - [#33](https://github.com/dataclique/metagenda/issues/33),

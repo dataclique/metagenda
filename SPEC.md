@@ -340,6 +340,14 @@ sequenceDiagram
 
 ### Operations and urgent work
 
+Humans set priorities, the manager coordinates execution, and workers perform
+assigned jobs. An authenticated human urgency decision takes effect directly and
+cannot be vetoed by the manager. Workers submit urgency proposals with reasons;
+the manager approves or rejects them, records its rationale, and judges whether
+the reason is sufficient. There is no minimum character count or deterministic
+scoring rule. Urgency changes scheduling, while existing execution permissions
+and release checks continue to apply.
+
 Operator jobs observe service health and report evidence. A proposed hotfix is
 validated independently with fresh context before it takes priority over planned
 work. If capacity is full, preemption saves the interrupted assignment and its
@@ -512,6 +520,38 @@ behavior. State formats define compatibility and recovery rules. Private state
 is excluded from distributable packages and public artifacts.
 
 ## Dashboard contract
+
+### Panels and controls
+
+The dashboard provides independently arrangeable panels. Accurate data and
+working controls take priority over polishing the default layout.
+
+| Panel                   | Content and actions                                                                                                                                 |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Planning                | Idea intake, refinement, research, priorities, commitments, and progress toward delivery.                                                           |
+| Jobs and queue          | All jobs, with queue and lifecycle filters; open any job regardless of state.                                                                       |
+| Job output              | Inspect the request, limits, attempts, and results; stream running output and retain it after execution.                                            |
+| Workers and roles       | Available and occupied workers, role responsibilities, assigned jobs, and measured consumption by role.                                             |
+| Agent tasks             | Agent-maintained task lists, status, replies, and links to jobs and tracker issues.                                                                 |
+| Questions               | Pending questions, prior answers, and authenticated answer submission bound to the original question.                                               |
+| Pull requests           | Ownership, implementation and correction activity, checks, unresolved feedback, human review readiness, and merge readiness.                        |
+| Usage                   | Overall token use and breakdowns by project and role, with missing or stale measurements explicit.                                                  |
+| Resource allocation     | Editable project percentages, an apply action, and confirmation that the scheduler has adopted the change; compare targets with actual consumption. |
+| Dependencies            | Prerequisites and blocked work, including dependencies on jobs, merges, answers, or capacity.                                                       |
+| Services and incidents  | Deployed revisions, service health, incidents, and associated investigation or repair jobs.                                                         |
+| Agent communication     | Requests, replies, and unacknowledged handoffs linked to their jobs.                                                                                |
+| Workspaces              | Checkout ownership, associated jobs, and overlapping or abandoned edits.                                                                            |
+| Execution configuration | Actual model, reasoning effort, permitted tools, and loaded extension versions per worker.                                                          |
+| Manager memory          | Retained knowledge and decisions with source and revision provenance.                                                                               |
+| Recovery                | Interrupted jobs, retained evidence, and authenticated resume or replacement controls.                                                              |
+| Delivery performance    | Time spent implementing, waiting, and revising, including repeated review cycles.                                                                   |
+
+Panels link jobs, agent tasks, sessions, issues, pull requests, and evidence
+without conflating their completion states. Job and worker panels expose direct
+stop controls. Human priority controls apply urgency directly; worker proposals
+and manager decisions remain inspectable with their reasons.
+
+### Evidence and lifecycle
 
 Fleet inspection must expose session identity, assigned jobs, active tools,
 available outputs, usage, failures, and cancellation state. Background SDK
