@@ -50,14 +50,14 @@ available sessions and their capabilities.
 Each execution attempt has a durable identity linked to its job and owns its
 outputs. Attempts distinguish pending, running, stopping, succeeded, failed,
 cancelled, and interrupted states. Stable event identities and per-attempt
-ordering prevent duplicate terminal transitions. Late events from older
-attempts cannot overwrite the current job outcome.
+ordering prevent duplicate terminal transitions. Late events from older attempts
+cannot overwrite the current job outcome.
 
-An interactive client submits jobs to the supervised worker pool. Idle
-capacity does not require model requests. The interactive coordinator and manager may read code and inspect
-execution evidence, but they cannot modify code directly. Code changes run as
-worker jobs. Tool configuration enforces this boundary instead of relying on
-prompts.
+An interactive client submits jobs to the supervised worker pool. Idle capacity
+does not require model requests. The interactive coordinator and manager may
+read code and inspect execution evidence, but they cannot modify code directly.
+Code changes run as worker jobs. Tool configuration enforces this boundary
+instead of relying on prompts.
 
 Manager and worker launch modes select their respective capabilities. If a
 manager already owns the manager role, starting another manager reports a
@@ -89,8 +89,8 @@ The orchestrator starts automatically at user login on a workstation or at boot
 on an unattended host, under an account with only its required privileges.
 Authorization to enable the service covers automatic starts and supervised
 restarts under the same configuration until revoked. Workers launch on demand
-after authorization and capacity checks. Service
-restart preserves durable job state and does not resume explicitly stopped work.
+after authorization and capacity checks. Service restart preserves durable job
+state and does not resume explicitly stopped work.
 
 ### Component boundaries
 
@@ -357,8 +357,9 @@ resumption without mixing project state.
 Operator and engineering assignments have separate contexts and permissions.
 They share worker capacity and provider-budget accounting, with reserved
 capacity for incidents. Preemption releases execution capacity while retaining
-the interrupted job's state. All consumption counts against the shared allowance. Watchdog incident responses bypass application-imposed
-pacing. Incident priority follows the response through independent validation,
+the interrupted job's state. All consumption counts against the shared
+allowance. Watchdog incident responses bypass application-imposed pacing.
+Incident priority follows the response through independent validation,
 engineering, review, and authorized release; a handoff must not place it back in
 the ordinary background queue. Other urgent work receives reduced or no pacing
 according to its priority. Ordinary work slows or pauses to compensate for the
@@ -411,6 +412,87 @@ require job-relevant quality checks; a cheaper model is suitable only when its
 results meet the job's acceptance criteria. The manager's low-reasoning policy
 does not constrain the reasoning effort of its delegated workers.
 
+### Efficiency and delivery measurement
+
+The objective is to maximize accepted work from available usage while
+maintaining quality and responsive human interaction. Compare models using total
+usage and elapsed time through acceptance, including retries, review, and
+corrections. Token price alone is insufficient.
+
+All agent-authored prose intended for human consumption passes through an Unslop
+job before delivery, including documentation, tracker updates, and messages. A
+dedicated lightweight worker can handle these jobs. Editing preserves facts,
+qualifications, links, and authority. Raw logs, code, and quoted material are
+not rewritten.
+
+Measure opened and merged PRs, opened and closed issues, and lines added and
+removed as activity measures, rather than standalone productivity targets.
+Distinguish completed issues from duplicates and abandoned work. Track backlog
+growth and the age of unfinished items.
+
+Record backlog entry after refinement, engineering queue entry, execution start,
+PR merge, and deployment as separate events. Report mean, median, and
+90th-percentile elapsed times, along with sample counts and missing coverage.
+Preserve reopens and repeated attempts. Link issues, jobs, PRs, and deployments
+without counting each as a separate delivered outcome. Deployment latency is
+unavailable when deployment evidence is absent.
+
+Report first-pass acceptance, review cycles, reopens, regressions, and human
+intervention time alongside delivery volume. Break down waiting, execution,
+review, and rework. Compare equivalent work categories and record model and
+reasoning settings so easier workloads are not mistaken for better model
+performance.
+
+Record review request to first submitted review and review completion
+separately, distinguishing human and automated reviewers. Report feedback items
+per review and per PR, including the mean and distribution; distinguish
+actionable findings from duplicates and withdrawn findings, and do not treat a
+higher comment count as better review quality.
+
+Track token usage by model, role, project, and accepted outcome, including
+unsuccessful attempts. Report usage burn, forecast exhaustion before reset, and
+time blocked by provider limits. Distinguish provider-reported quota from
+estimates and unknown data. Token counts need not equal subscription allowance
+consumed.
+
+Support multiple authorized subscriptions from the same provider as separate
+capacity sources, each with its own identity, limits, reset windows, and usage
+accounting. Admission selects an eligible source and retains attribution to the
+source used. Combined views preserve individual limits and provider account
+rules.
+
+### Runtime performance
+
+Telemetry must show where startup time is spent, what delays an interaction,
+whether local resources are saturated, and whether performance has regressed.
+
+Measure the time from launch request to usable prompt, separating cold start,
+warm start, reload, and session resume. Attribute startup stages to runtime
+initialization, extension loading, registry and database access, and history
+loading. A rendered prompt is not ready while input remains blocked.
+
+Measure input acknowledgement, request dispatch to first output, streaming gaps,
+tool execution, cancellation acknowledgement, confirmed worker termination, and
+dashboard event freshness. Separate local queueing and processing from provider
+latency and retries. Trace slow requests across these boundaries so slow
+launches and responses can be localized.
+
+Track CPU usage, resident memory, event-loop delay, garbage-collection pauses,
+disk I/O, database lock waits, active workers, queue depth, errors, and
+timeouts. Use bounded metric labels. Keep request and job identifiers in traces.
+Do not collect prompt contents or credentials as performance telemetry.
+
+Show latency distributions and p50, p95, and p99 values with sample counts and
+collection windows. Compare cold and warm runs separately under recorded
+hardware, software, extension, and workload configurations. Set regression
+thresholds from measured baselines, and verify that telemetry overhead does not
+materially degrade interaction.
+
+Delivery timing also includes human request receipt to issue refinement
+completion and job queue entry to worker claim. Report queue-to-execution-start
+separately so a claimed job is not mistaken for one already running. Preserve
+links when one request creates multiple issues.
+
 ## Product boundaries
 
 The system has one authoritative state across its tools. A proposed, assigned,
@@ -423,17 +505,15 @@ The hierarchy is:
 [SPEC.md](./SPEC.md) and [ROADMAP.md](./ROADMAP.md) -> GitHub issues -> bounded
 execution jobs -> verified changes
 
-The CLI supports Markdown parsing, task selection, work sessions, recording,
-playback, and trace export. Telegram uses Piece of Pi; the observational
-dashboard uses SolidJS and Dockview.
+Telegram uses Piece of Pi; the dashboard uses SolidJS and Dockview.
 
 The system supports a single-machine deployment. Durable agent, work, and
 message identities must not depend on process IDs, terminal panes, or local
 filesystem paths. Host-local workspace locations remain explicit mappings.
 Versioned messages and scoped authority support future remote integration.
 Remote execution requires a separately defined contract for transport
-authentication, version negotiation, idempotency, failure handling, and authority
-propagation before deployment.
+authentication, version negotiation, idempotency, failure handling, and
+authority propagation before deployment.
 
 ## Conversation and memory
 
@@ -459,18 +539,15 @@ contracts.
 
 ## CLI contract
 
-Parsing, planning, configuration, commands, recording, and lifetimes remain
-separate. Fixtures are isolated and do not use a personal vault or live
-services. Public command compatibility is maintained through versioned
-contracts.
+Fixtures are isolated and do not use a personal vault or live services. Public
+command compatibility is maintained through versioned contracts.
 
 The portable `fj` contract includes the distinct Nix exports
 `packages.<system>.fj` and `apps.<system>.fj`, plus `bin/fj` and
-`share/nushell/fj/mod.nu`. The default app provides the Metagenda CLI. `fj`
-provides default repository status, `help`, `issue list/view`, and
-`pr list/view`, preserving gh argument and caller-working-directory semantics.
-Completion suggests one argument at a time: `help`, `issue`, or `pr`, then
-`list` or `view` for tracker commands.
+`share/nushell/fj/mod.nu`. `fj` provides default repository status, `help`,
+`issue list/view`, and `pr list/view`, preserving gh argument and
+caller-working-directory semantics. Completion suggests one argument at a time:
+`help`, `issue`, or `pr`, then `list` or `view` for tracker commands.
 
 Repository inspection commands grant no host, session, service, or state
 authority. Routing helpers do not gain execution authority.

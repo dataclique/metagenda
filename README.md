@@ -14,9 +14,8 @@ against project priorities.
 Adjustable resource allocations and dynamic throttling keep background work
 within usage limits while preserving responsive interactive sessions.
 
-The current TypeScript CLI supports task planning and work sessions. The
-portable `fj` package provides repository and tracker inspection. The broader
-Telegram planning and orchestration workflow remains in development.
+The portable `fj` package provides repository and tracker inspection. The
+broader Telegram planning and orchestration workflow remains in development.
 
 ## Documentation
 
@@ -26,52 +25,25 @@ Telegram planning and orchestration workflow remains in development.
 
 ## Packages
 
-- `cli/`: task parsing, planning, work sessions, and asciinema
-  recording/playback.
 - `tooling/fj/`: portable repository status and GitHub issue/PR list/view. It
   has no mutation or host/session management commands; explicit view `--web` may
   open a browser through gh.
-- `packages/work-core/`: private ESM canonical-backlog decoder and normalizers,
-  source tests, and strict compiled-only consumer checks. Published in
-  [draft PR #25](https://github.com/dataclique/metagenda/pull/25) at `0de61d4`.
-  That head passed local type/lint/tests, Apple Silicon Nix checks and the
-  default CLI build, targeted source/packaging reviews, four-platform package
-  and receiving checks, and both Linux default-package builds. After rebasing
-  onto master `1371ce9`, local revision `e3d7a3c` passed `bun run verify`,
-  before subsequent documentation-only edits. Revised head `963a8a0` is now
-  published in that draft and passed all six native CI jobs. Those results do
-  not verify later uncommitted Pi integration work. This is a prerequisite of
-  [planning #15](https://github.com/dataclique/metagenda/issues/15), not an
-  implemented planner, complete Pi integration, or runtime switch.
-- `pi/skills.nix`: the additive `packages.<system>.pi-skills` output packages
-  all 46 public skill documents and five support files, with pinned source
-  hashes and preserved MIT attribution.
-  [PR #46](https://github.com/dataclique/metagenda/pull/46) proposes this
-  package;
-  [four-platform native CI](https://github.com/dataclique/metagenda/actions/runs/35763232021)
-  passed at `76f8b4043da97e1100c23bc38336b16ac3629770`. CodeRabbit review and
-  gated landing remain pending.
-  [The skills provenance record](./pi/SKILLS-PROVENANCE.md) documents the
-  source, package layout, and host-specific instruction assumptions. No
-  extensions or services are activated. Full shared Pi runtime integration
-  remains unfinished, so this package does not authorize retiring the temporary
-  Dotconfig runtime.
+- `packages/work-core/`: private ESM package for canonical-backlog decoding and
+  normalization, with compiled exports and consumer checks.
+- `pi/skills.nix`: packages public Pi skill documents and support files with
+  pinned source hashes and preserved MIT attribution. The
+  [skills provenance record](./pi/SKILLS-PROVENANCE.md) documents the source and
+  package layout. Installing skill documents does not activate extensions or
+  services.
 
-`bot/` is no longer an active workspace, build, or test target. Its uncommitted
-source is preserved, but dotconfig's Telegram capabilities fully supersede it.
-Do not maintain the legacy package.
-
-The obsolete React web workspace and browser-extension shell have been removed;
-CLI recording remains. The shared Pi runtime and services are not yet packaged
-or deployed. Personal Telegram clients remain outside the selected shared
-package. Runtime cutover requires separate authorization.
+See the [roadmap](./ROADMAP.md) for shared runtime and service integration.
 
 ## Portable fj
 
-`nix run .#fj -- help` selects the additive `fj` app; the default app remains
-Metagenda. `nix build .#fj` builds the package, including isolated Nu tests. The
-package exposes `bin/fj` and `share/nushell/fj/mod.nu` with sibling modules. For
-local tests, use `bun run test:fj` with Nu from the development shell.
+`nix run .#fj -- help` runs the `fj` app. `nix build .#fj` builds the package,
+including isolated Nu tests. The package exposes `bin/fj` and
+`share/nushell/fj/mod.nu` with sibling modules. For local tests, use
+`bun run test:fj` with Nu from the development shell.
 
 Commands are default repository status, `help`, `issue list`, `issue view`,
 `pr list`, and `pr view`. List forwards gh flags; view supports `--comments` and
@@ -83,12 +55,8 @@ with the `gitbutler/*` branch heuristic. Missing or failing But is an error
 there; linked and unmanaged worktrees use Git. This heuristic grants no
 authority.
 
-The first `fj` slice is implemented, reviewed and
-[merged](https://github.com/dataclique/metagenda/pull/7).
-[Receiving CI](https://github.com/dataclique/metagenda/actions/runs/35313027613)
-verified package builds and CLI checks on all four declared native platforms.
 [Source provenance and compatibility contracts](docs/migrations/dotconfig-intake.md)
-document the import. No live consumer has been switched by this extraction.
+document the package source and integration boundaries.
 
 ## Development
 
