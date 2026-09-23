@@ -7,6 +7,24 @@ support these workflows; Telegram provides a conversational interface.
 [SPEC.md](./SPEC.md) defines target behavior; GitHub issues hold acceptance
 criteria and implementation work.
 
+### Release targets
+
+Versions mark delivery milestones rather than dates. Work may proceed in parallel
+across milestones, but each release must satisfy its dependencies before shipping.
+
+| Release | Scope |
+| --- | --- |
+| v0.1 | Replace workflows with interactive worker pools, durable jobs and attempts, bounded execution, cancellation, and cleanup when the owning session closes. |
+| v0.2 | Add manager and worker modes, delegated code changes, manager-only general memory, fleet dashboard panels and controls, and human-controlled urgency. |
+| v0.3 | Add the supervised Pi SDK service, portable CLI, dashboard, and Telegram exports. Dashboard visibility and control are prerequisites for background hosting. |
+| v0.4 | Add idea intake, research, refinement, and issue-to-job planning. |
+| v0.5 | Add durable plans, reporting, delivery tracking, and cross-project coordination. |
+| v0.6 | Add adaptive capacity allocation, measured project consumption, and provider-limit handling. |
+
+Basic job budgets belong to v0.1, while editable project allocation controls belong
+to v0.2. v0.6 adds adaptive allocation. Shared tooling improvements ship alongside
+the release that needs them. Event Sorcery integration has no assigned release.
+
 ## Delegate work through observable jobs
 
 Keep interactive coordination responsive while workers execute bounded jobs.
