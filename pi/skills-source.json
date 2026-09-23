@@ -1,0 +1,261 @@
+{
+  "repository": "0xgleb/dotconfig",
+  "revision": "540ea10b2892f33d6c5fc486287050a2b6092b7b",
+  "files": [
+    {
+      "path": "adr/SKILL.md",
+      "gitBlob": "4b6fce56bca007a8794a20372272326174676906",
+      "sha256": "039f0bfabe779f3e9a521dec6b25a1663c69748f06d7dbdb909fb424ad710da6"
+    },
+    {
+      "path": "architect/SKILL.md",
+      "gitBlob": "48c7c7a3df5f38ce6bcf005787103606602e0510",
+      "sha256": "cb60470b868a8230cef4aafdb33e1e6f7e532e7de56ee07c777b13e0b65cb24f"
+    },
+    {
+      "path": "architecture-direction-inspector/SKILL.md",
+      "gitBlob": "d0655f9b73828cc8a8f0dd8e109c2f70c8043b6d",
+      "sha256": "d3c4265767190cf46e13965916f0d44da163d7272fc70ee7c51b72a6a500a34c"
+    },
+    {
+      "path": "audit/SKILL.md",
+      "gitBlob": "2f853f905942e9b6eb0b71aca1f565bccf03e7eb",
+      "sha256": "19403e63de58a2dce7bac1459b90908b1e7d2234cd98a8052dbcaa0751e16da1"
+    },
+    {
+      "path": "defensive-programming-inspector/SKILL.md",
+      "gitBlob": "6e7b3ce6f4f50970637e1221f0e0fea8269113d1",
+      "sha256": "d46c32cb5acc40e5dc3554a59037336a429d028afedf40ed2bc0df8c5ff13cf7"
+    },
+    {
+      "path": "dispatcher/SKILL.md",
+      "gitBlob": "740fa612b17edf30ca7ee4f76f1cab2d0f0dca6a",
+      "sha256": "725a194ba5b2bb233a12aadc4a1d69fb8d02b962e07395013cbe4993a29d3b6d"
+    },
+    {
+      "path": "eod/SKILL.md",
+      "gitBlob": "858825192a2a415a130ffc34238f4a3c5404da8c",
+      "sha256": "0b65acb6afd3bd6f51b611dfed04d6acd5e984d29c2e19bbcdf3dc7cf5551e1a"
+    },
+    {
+      "path": "eow/SKILL.md",
+      "gitBlob": "9be9f7072dc5ea935057f7fed743cec6157f7488",
+      "sha256": "206d125e3075e2f793cba6cdc6ba54e886a6e87e75eb78941b83b62007b12463"
+    },
+    {
+      "path": "external-contract-inspector/SKILL.md",
+      "gitBlob": "3082971fe96615a4413c2879bdbdb775599bc747",
+      "sha256": "4b9a6111dc19ced62a601a07913cb2595fb402d0f1bd2c019a8120233503d10d"
+    },
+    {
+      "path": "financial-programming-inspector/SKILL.md",
+      "gitBlob": "9b4d946a2c89c5358e2643cf1022bc5e559936c1",
+      "sha256": "44f27db55bcf1f4957261e0371bdd9663081a0d1f4001841a899b49bcb23421e"
+    },
+    {
+      "path": "gitbutler/SKILL.md",
+      "gitBlob": "f52c0cfd9ee324c891c95afd8b8d82fa823b7cd4",
+      "sha256": "ff7129d8fe11c21f8821bf509fdb7f8a3fe53f06b59710eb0ddebfd0278bceb3"
+    },
+    {
+      "path": "handover/SKILL.md",
+      "gitBlob": "6832c341a2583d3bbc029b1dc3a0d8ca33aea5d7",
+      "sha256": "1d46f24174afff34219d07d55e7f8bde2c10e6846e5ec4482b39225513538e9f"
+    },
+    {
+      "path": "idiomatic-effect-inspector/SKILL.md",
+      "gitBlob": "0bc9afb08117a03eb6674caafc51187e9eaf5e7d",
+      "sha256": "3bbf5aaa4aa37fdc3365561844fe0448614d2dc568175c4fe2665cc13c1844a6"
+    },
+    {
+      "path": "idiomatic-functional-programming-inspector/SKILL.md",
+      "gitBlob": "f83abab7c037263cf036adb74bb5c3b4227fb0bb",
+      "sha256": "dd12d0b83477dad6ca21284cc7559928e10ba5ce89314444c923cc57c4d483ec"
+    },
+    {
+      "path": "idiomatic-github-actions-inspector/SKILL.md",
+      "gitBlob": "a9639933f093748fcab1d13cd5de0df7b57082a1",
+      "sha256": "04284b8c6bfc3184c08cfa78221267408be0674e56c5a417259bb2809abc599f"
+    },
+    {
+      "path": "idiomatic-nix-inspector/SKILL.md",
+      "gitBlob": "2c01675e8a615e99a331b25d1a7edbc9f63236f6",
+      "sha256": "994b201f93ed64246b6a227f896c0b2aca154a6628cef05c30cbc085a071833c"
+    },
+    {
+      "path": "idiomatic-nushell-inspector/SKILL.md",
+      "gitBlob": "6c5173faabcef04547a23d3265dd2b18813ef812",
+      "sha256": "29266eac7fe5eefd51ecec843591c5ac2454af303bd2e91a95f5ce608101f8af"
+    },
+    {
+      "path": "idiomatic-rust-inspector/SKILL.md",
+      "gitBlob": "f33bcc53c12d7d5ed47578aed4103e32beca970f",
+      "sha256": "2871afb665826b1f26bb31cb0ef8adb7837c3cdb46662272d6f1e220b16a9d7e"
+    },
+    {
+      "path": "idiomatic-solidjs-inspector/SKILL.md",
+      "gitBlob": "b355b23feda165c1fe6867677ab595ce16c3f73d",
+      "sha256": "36175c301ba0e90d32db79bee02a772e4f0ac8d3685c3a9ca40aa68faac4df0f"
+    },
+    {
+      "path": "idiomatic-svelte-inspector/SKILL.md",
+      "gitBlob": "8b5c3907a339b2ec4be84c5030c6437df2b47dad",
+      "sha256": "16947b1e811d7f0f206e0b7de569eb0b572e3e72fc29a9660cb5768f6dc8f362"
+    },
+    {
+      "path": "idiomatic-terraform-inspector/SKILL.md",
+      "gitBlob": "3ed1170b50541ecf0dc6e018dda422687b6d2042",
+      "sha256": "d9fdff291b3cfae1a828643a348f8e778a81f1de43482c57aaffe5acf039b644"
+    },
+    {
+      "path": "idiomatic-typescript-inspector/SKILL.md",
+      "gitBlob": "9af71275307ce0ddf0b793cb228b820165ea99c1",
+      "sha256": "c7582a1fd371efa86ffee1076f481f6a1748d27899bd4101a36ec299bf2151d2"
+    },
+    {
+      "path": "improve-codebase-architecture/SKILL.md",
+      "gitBlob": "abb0b7ef77302ab5bd0a064fc9a09ba653e1ed34",
+      "sha256": "9897002d9b6e4c9c1c295359e0f163041ad23a729872ad9f3ad5b927919830a5"
+    },
+    {
+      "path": "interface-lifecycle/SKILL.md",
+      "gitBlob": "a55fd91e88f5022fd1432471c5e1d897c51a7612",
+      "sha256": "ae543590ac827f6ba5dcedc27b21125fa616c7548469ceed0f9916c5ab3c2af4"
+    },
+    {
+      "path": "new-skill/SKILL.md",
+      "gitBlob": "cb896e1d17aa36a5ecbaf877edc37700b221185e",
+      "sha256": "53d10c69c1094bec45084beec58bdf185ebfeb03802bfea8256ea41b3efbfbc9"
+    },
+    {
+      "path": "nushell/SKILL.md",
+      "gitBlob": "198d0213e93a66a096f1726e7a04c70433f28214",
+      "sha256": "c8f916826f3e04dc7a5c24e8e03b487073ccccd6adebd61f08b6af645a97b6a0"
+    },
+    {
+      "path": "observability/SKILL.md",
+      "gitBlob": "759fd812b3278b62b9aaf922672a2d6122d29e4f",
+      "sha256": "41040a8f5c6f1f6151abe85b138d5b9c2452a65eecb41ce413f7f1b8a75f8325"
+    },
+    {
+      "path": "pi-delegation/SKILL.md",
+      "gitBlob": "9dd439ff693fdf87333dd419714f0d144ea5c55b",
+      "sha256": "8a8854e541ec9e73426405d22b2bf3d1ec98a55378af0bb7cfeaeffb94e1faa4"
+    },
+    {
+      "path": "quantitative-research-inspector/SKILL.md",
+      "gitBlob": "a94fa2a5937071f0e729e537fab47e5fd5f817d4",
+      "sha256": "758650c483ea791fe32277218d8e64b952d7b9c7259d5485e41dd47847c65e07"
+    },
+    {
+      "path": "quantitative-trading-inspector/SKILL.md",
+      "gitBlob": "400cc34ba197b0de7c255f956c53019aa815f7ea",
+      "sha256": "3fd09f87fb63c6036baa276d9cd60e49a7cca88e33c2fa6f5a0c4f62f3dee452"
+    },
+    {
+      "path": "receiver/SKILL.md",
+      "gitBlob": "4c0ca0ff20d0293dc5950aee07643a676dbb9208",
+      "sha256": "66ea530e0fca9fb958bdab1aed61a87b47e001da9a7f26a87033d78ac5cc16cb"
+    },
+    {
+      "path": "register/SKILL.md",
+      "gitBlob": "8b0b4cac25ca6e061b8df3b1ccdcf2bb1b0b5e04",
+      "sha256": "fbaccd0d580e8aad3261c18591b9eaaff32aa7ec990eeec30b6f7669b2e5517a"
+    },
+    {
+      "path": "report/SKILL.md",
+      "gitBlob": "a7bdfa9c185f6e5706a1ca43aacf55ede26c8236",
+      "sha256": "41465bcd5bd66e159696c41e861dffcf37b3a40868ece81a7be85d305c4fe61f"
+    },
+    {
+      "path": "review-core/SKILL.md",
+      "gitBlob": "5543ff846efd7f0cdceeeae9afb7ac0d67390ce7",
+      "sha256": "c53bcf915fddfbd435a69d8be82547248953208a5551df203a5f5c6ca3dbf897"
+    },
+    {
+      "path": "review-loop/SKILL.md",
+      "gitBlob": "82d8ded83f147db432c8e85394731c2e21ab6152",
+      "sha256": "689db4c79ed42b46081c22b7257a15c6506c5bf21d149943fb1147d816f6a887"
+    },
+    {
+      "path": "review-plan/SKILL.md",
+      "gitBlob": "2f3fc52a3c3ead007f93d81d34fd8db304433a00",
+      "sha256": "b04f82f80885824a46d2acb72a4a43620fad314deb81cf6f9435aaf6426f3053"
+    },
+    {
+      "path": "review-pr/SKILL.md",
+      "gitBlob": "937c034d307d96b310c76e1f793d9c310327c592",
+      "sha256": "b17592f02e2af4c15966c747989524a2c09938baef04f084547fe9f688f7977e"
+    },
+    {
+      "path": "review-sweep/SKILL.md",
+      "gitBlob": "cd6eb85faf816180dad2e9bd99a2007eab352979",
+      "sha256": "7843b5468454a8a8edf8bea0ca4eed449b2bc3c1c49c7940a8fb384d7e63fdb1"
+    },
+    {
+      "path": "risk-management-inspector/SKILL.md",
+      "gitBlob": "0e5f941319285a309b47e35f14aa210ef351473d",
+      "sha256": "c75086fbc1dab1f2bed178de565ea4c871e3433c9737548cffb44570516b342a"
+    },
+    {
+      "path": "root-cause-triage/SKILL.md",
+      "gitBlob": "890b28cbe74363e31817604c7325e86367fae8d5",
+      "sha256": "92d3c6b95526dde08414956bb66e59c9c3d3637d416ef785978f8dbb7360fd67"
+    },
+    {
+      "path": "shape-work/SKILL.md",
+      "gitBlob": "df416772cbf2091ff61507b4659733881ca341a5",
+      "sha256": "07cbd6d248ea52f5ca83e90b59e99ee9dcab8b825f849791e3e82f84229e415e"
+    },
+    {
+      "path": "strong-typing-inspector/SKILL.md",
+      "gitBlob": "44a44eaf12d9e06d5e62a9f9ce54e67083521675",
+      "sha256": "b04b43f8fb642c7969b12614116cb3cdfead73795975c2afed2919a0c204be74"
+    },
+    {
+      "path": "test-inspector/SKILL.md",
+      "gitBlob": "7416e09e4e742d3ab500a8b41c9056e092a4436c",
+      "sha256": "8929a5744cf983e93e48fda2a620e7324b695928e67dcaf54fadb5fb47fa79ff"
+    },
+    {
+      "path": "threat-model-first/SKILL.md",
+      "gitBlob": "ce98a984af031119b9707b7bf919fc9bfabfe06f",
+      "sha256": "a5743e2d56738155b3d5aae0c21c8cba2cc4135ca06a79b168fff152b09af374"
+    },
+    {
+      "path": "unslop/SKILL.md",
+      "gitBlob": "ea0d7b6024d6cbe1cc31d80c9ea7304390ae6814",
+      "sha256": "e501a2390d41abc72c9e3592a29a6b96c40c526dcf93bfd11fb39ed6b2ca949d"
+    },
+    {
+      "path": "worktree/SKILL.md",
+      "gitBlob": "bb8e755a28a240e99ac3ebc0725601585ebe7584",
+      "sha256": "1245110e908e40f3564b4e028de1f1f4daaa12caa7881addb9b5e9d2e0df25f4"
+    },
+    {
+      "path": "gitbutler/references/reference.md",
+      "gitBlob": "a355b297031e974c0c1c6c656bf19ae5e5d29bdd",
+      "sha256": "ed8129c27194e62c7766260801327e20cf395b25b39385016b4c968916777818"
+    },
+    {
+      "path": "gitbutler/references/concepts.md",
+      "gitBlob": "bb22d5b64246adecc004cea1ad3089b256cb1eb3",
+      "sha256": "c09cd5782311ebcbf64015c5f8d31a22a58da724a7ab27409aeda7a870e50a95"
+    },
+    {
+      "path": "gitbutler/references/examples.md",
+      "gitBlob": "8bdf614b6797798288fc86b15ce48a45050bb17e",
+      "sha256": "b9bf3934022c8e7d6ecb754ac94139b5e40a4629ca9fc5d8934760091a7755f3"
+    },
+    {
+      "path": "eod/scripts/collect.nu",
+      "gitBlob": "8d7dad0eb401ac4807562f874b5d9b16e18684c7",
+      "sha256": "ff25d5884ff8473b4363cbb809a1e5ac3bc2c191db5fa624a8e44e6346badc31"
+    },
+    {
+      "path": "eod/scripts/evidence.nu",
+      "gitBlob": "24424ccfd238d49cd886c3ea9008201eff44a4a1",
+      "sha256": "95a39111d8e765e784080c3c12797af67796ec6121fc921f9b30937ca6b0d0ce"
+    }
+  ]
+}

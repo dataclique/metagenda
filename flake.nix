@@ -62,6 +62,7 @@
           devenv-up = self.devShells.${system}.default.config.procfileScript;
           default = pkgs.callPackage ./default.nix { };
           fj = pkgs.callPackage ./tooling/fj { };
+          pi-skills = pkgs.callPackage ./pi/skills.nix { };
         };
 
         apps = {
@@ -120,6 +121,38 @@
 
         checks = {
           fj = packages.fj;
+          work-core = pkgs.bun2nix.mkDerivation {
+            pname = "metagenda-work-core-check";
+            version = "0.1.0";
+            src = ./.;
+            bunDeps = pkgs.bun2nix.fetchBunDeps { bunNix = ./bun.nix; };
+            nativeBuildInputs = [
+              pkgs.nodejs_26
+              pkgs.nushell
+            ];
+            dontRunLifecycleScripts = true;
+            buildPhase = ''
+              runHook preBuild
+              bun run --cwd packages/work-core typecheck
+              bun run --cwd packages/work-core lint
+              bun run --cwd packages/work-core build
+              runHook postBuild
+            '';
+            doCheck = true;
+            checkPhase = ''
+              runHook preCheck
+              bun run --cwd packages/work-core test
+              nu --no-config-file --no-history packages/work-core/test-consumer.nu "$TMPDIR"
+              runHook postCheck
+            '';
+            installPhase = ''
+              runHook preInstall
+              mkdir -p "$out"
+              cp -r packages/work-core/dist "$out/dist"
+              cp packages/work-core/package.json packages/work-core/LICENSE packages/work-core/PROVENANCE.md "$out/"
+              runHook postInstall
+            '';
+          };
           pre-commit = pre-commit-hooks.lib.${system}.run {
             src = ./.;
             inherit hooks;

@@ -49,6 +49,10 @@ jobs:
           test "$actual_system" = "$NIX_SYSTEM"
       - name: Build fj with isolated tests
         run: nix --accept-flake-config build --no-link --print-build-logs ".#packages.${NIX_SYSTEM}.fj"
+      - name: Verify canonical backlog package
+        run: nix --accept-flake-config build --no-link --print-build-logs ".#checks.${NIX_SYSTEM}.work-core"
+      - name: Verify installed Pi skills and source hashes
+        run: nix --accept-flake-config build --no-link --print-build-logs ".#packages.${NIX_SYSTEM}.pi-skills"
       - name: Check installed entry point
         run: nix --accept-flake-config run .#fj -- help
       - name: Install frozen JavaScript dependencies

@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "rewriteRelativeImportExtensions": true,
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": ["src/canonical-backlog.ts", "src/backlog-normalization.ts"],
+  "exclude": ["src/**/*.test.ts", "test"]
+}

@@ -468,6 +468,33 @@ Default status uses But only for verified main-worktree topology and
 source-branch heuristics. Linked or unmanaged worktrees use Git. Topology
 failures and selected But failures cannot fall back to a successful result.
 
+Nushell compatibility and intake details are documented in the
+[import manifest](./docs/migrations/dotconfig-intake.md#downstream-consumer-dotconfig-nix-darwin).
+`fj clanker search` is proposal-only and must retain credential-safe exclusions
+and policy boundaries. Missing API behavior must be grounded in observed work
+and source.
+
+## Canonical backlog core
+
+The private `packages/work-core/` ESM workspace imports the canonical decoder,
+tracker/document normalizers and source tests from reviewed dotconfig revision
+`31a31a2218d9fef19f401c8d5ee86250b42cb867`, preserving MIT provenance. Exports
+are `./canonical-backlog` and `./backlog-normalization`; runtime dependencies
+are Node path/crypto and Effect. Source tests and strict compiled-only consumer
+checks remain separate gates.
+
+Preserve the unversioned snapshot, `partial`/`complete` coverage, canonical
+absolute project paths, source-qualified identities and revision hashes. The
+decoder returns `undefined` for invalid input; normalizers retain typed Effect
+errors. Absolute paths are not legacy CLI logical project identities.
+
+This package does not collect data, persist plans, authorize execution, or
+switch consumers. It is a prerequisite of
+[planning #15](https://github.com/dataclique/metagenda/issues/15), not a
+completed planner or shared Pi integration. Current delivery evidence belongs in
+the [roadmap](./ROADMAP.md) and
+[package provenance](./packages/work-core/PROVENANCE.md).
+
 ## Protocol and durable state
 
 Event-sourced job and coordination state through future Event Sorcery TypeScript
@@ -541,6 +568,14 @@ Portable packages are independent of a home directory, launcher, and private
 configuration. Machine activation is separate. Skills and scripts may use shared
 code, while deterministic validation and delivery remain in tested code. Source
 provenance, licenses, and tracker history are preserved.
+
+`packages.<system>.pi-skills` installs the pinned public skills and support
+files at `$out/share/metagenda/pi-skills/skills/`. Its manifest explicitly lists
+skill directories and enrolls no extensions. Source bytes, attribution, and
+relative support-file layout are preserved. Host-specific examples remain
+documented assumptions, not permission to access personal configuration or proof
+of portable command execution. Packaging never activates skills or host
+settings.
 
 ## Shared hosting
 
