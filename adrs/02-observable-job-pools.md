@@ -75,7 +75,10 @@ shared job and session event contract is agreed. Manager capability and memory
 configuration can proceed alongside fleet observation. Removing direct
 code-changing tools depends on functioning worker execution.
 
-The interactive pool's shutdown behavior when its client closes remains
-unresolved and must be decided before that lifecycle is implemented. This record
+In the initial interactive pool, closing the owning Pi session stops its workers
+and prevents queued jobs from starting. Job records and outputs are retained;
+stopping does not mark jobs complete or roll them back. This session-bound
+lifetime applies only to the initial pool, not to the later independently
+supervised service. This record
 does not authorize runtime activation or implementation. It remains proposed for
 review.

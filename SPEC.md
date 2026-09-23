@@ -59,6 +59,12 @@ Manager and worker launch modes select their respective capabilities. If a
 manager already owns the manager role, starting another manager reports a
 conflict instead of replacing it or creating a competing conversation.
 
+In the initial interactive pool, closing the owning Pi session stops its workers
+and prevents queued jobs from starting. Job records and outputs are retained;
+stopping does not mark jobs complete or roll them back. This session-bound
+lifetime applies only to the initial pool, not to the later independently
+supervised service.
+
 ### Session hosting
 
 The manager provides one conversational entry point and coordinates work
