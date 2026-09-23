@@ -30,10 +30,9 @@ from strict compiled-only consumer checks. Do not add host SDK, configuration,
 storage, or transport dependencies, or treat package extraction as planner
 implementation or runtime adoption.
 
-The existing CLI remains supported. The React prototype is retired; do not
-restore it or port it into a new frontend. Dotconfig's Telegram capabilities
-supersede `bot/`. Preserve its existing staged source, but exclude it from
-active workspaces, builds, and tests. Do not maintain or modernize that package.
+The legacy CLI, bot, and React prototype are retired. Do not restore them or
+port the React prototype into a new frontend. The portable `fj` package remains
+supported.
 
 The shared `fj` CLI, dashboard, Telegram capabilities, and selected tooling come
 from reviewed dotconfig components. Do not copy dotconfig wholesale. Preserve
@@ -114,7 +113,7 @@ current Apple Silicon development platform:
 
 ```sh
 nix run github:nix-community/bun2nix/2.1.2 -- --lock-file bun.lock --output-file bun.nix
-nix build .#packages.aarch64-darwin.default --no-link
+nix build .#checks.aarch64-darwin.work-core --no-link
 ```
 
 A successful install with incompatible-peer warnings is not a coherent

@@ -50,14 +50,14 @@ available sessions and their capabilities.
 Each execution attempt has a durable identity linked to its job and owns its
 outputs. Attempts distinguish pending, running, stopping, succeeded, failed,
 cancelled, and interrupted states. Stable event identities and per-attempt
-ordering prevent duplicate terminal transitions. Late events from older
-attempts cannot overwrite the current job outcome.
+ordering prevent duplicate terminal transitions. Late events from older attempts
+cannot overwrite the current job outcome.
 
-An interactive client submits jobs to the supervised worker pool. Idle
-capacity does not require model requests. The interactive coordinator and manager may read code and inspect
-execution evidence, but they cannot modify code directly. Code changes run as
-worker jobs. Tool configuration enforces this boundary instead of relying on
-prompts.
+An interactive client submits jobs to the supervised worker pool. Idle capacity
+does not require model requests. The interactive coordinator and manager may
+read code and inspect execution evidence, but they cannot modify code directly.
+Code changes run as worker jobs. Tool configuration enforces this boundary
+instead of relying on prompts.
 
 Manager and worker launch modes select their respective capabilities. If a
 manager already owns the manager role, starting another manager reports a
@@ -89,8 +89,8 @@ The orchestrator starts automatically at user login on a workstation or at boot
 on an unattended host, under an account with only its required privileges.
 Authorization to enable the service covers automatic starts and supervised
 restarts under the same configuration until revoked. Workers launch on demand
-after authorization and capacity checks. Service
-restart preserves durable job state and does not resume explicitly stopped work.
+after authorization and capacity checks. Service restart preserves durable job
+state and does not resume explicitly stopped work.
 
 ### Component boundaries
 
@@ -357,8 +357,9 @@ resumption without mixing project state.
 Operator and engineering assignments have separate contexts and permissions.
 They share worker capacity and provider-budget accounting, with reserved
 capacity for incidents. Preemption releases execution capacity while retaining
-the interrupted job's state. All consumption counts against the shared allowance. Watchdog incident responses bypass application-imposed
-pacing. Incident priority follows the response through independent validation,
+the interrupted job's state. All consumption counts against the shared
+allowance. Watchdog incident responses bypass application-imposed pacing.
+Incident priority follows the response through independent validation,
 engineering, review, and authorized release; a handoff must not place it back in
 the ordinary background queue. Other urgent work receives reduced or no pacing
 according to its priority. Ordinary work slows or pauses to compensate for the
@@ -423,17 +424,15 @@ The hierarchy is:
 [SPEC.md](./SPEC.md) and [ROADMAP.md](./ROADMAP.md) -> GitHub issues -> bounded
 execution jobs -> verified changes
 
-The CLI supports Markdown parsing, task selection, work sessions, recording,
-playback, and trace export. Telegram uses Piece of Pi; the observational
-dashboard uses SolidJS and Dockview.
+Telegram uses Piece of Pi; the dashboard uses SolidJS and Dockview.
 
 The system supports a single-machine deployment. Durable agent, work, and
 message identities must not depend on process IDs, terminal panes, or local
 filesystem paths. Host-local workspace locations remain explicit mappings.
 Versioned messages and scoped authority support future remote integration.
 Remote execution requires a separately defined contract for transport
-authentication, version negotiation, idempotency, failure handling, and authority
-propagation before deployment.
+authentication, version negotiation, idempotency, failure handling, and
+authority propagation before deployment.
 
 ## Conversation and memory
 
@@ -459,18 +458,15 @@ contracts.
 
 ## CLI contract
 
-Parsing, planning, configuration, commands, recording, and lifetimes remain
-separate. Fixtures are isolated and do not use a personal vault or live
-services. Public command compatibility is maintained through versioned
-contracts.
+Fixtures are isolated and do not use a personal vault or live services. Public
+command compatibility is maintained through versioned contracts.
 
 The portable `fj` contract includes the distinct Nix exports
 `packages.<system>.fj` and `apps.<system>.fj`, plus `bin/fj` and
-`share/nushell/fj/mod.nu`. The default app provides the Metagenda CLI. `fj`
-provides default repository status, `help`, `issue list/view`, and
-`pr list/view`, preserving gh argument and caller-working-directory semantics.
-Completion suggests one argument at a time: `help`, `issue`, or `pr`, then
-`list` or `view` for tracker commands.
+`share/nushell/fj/mod.nu`. `fj` provides default repository status, `help`,
+`issue list/view`, and `pr list/view`, preserving gh argument and
+caller-working-directory semantics. Completion suggests one argument at a time:
+`help`, `issue`, or `pr`, then `list` or `view` for tracker commands.
 
 Repository inspection commands grant no host, session, service, or state
 authority. Routing helpers do not gain execution authority.
