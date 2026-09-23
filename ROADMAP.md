@@ -7,26 +7,6 @@ support these workflows; Telegram provides a conversational interface.
 [SPEC.md](./SPEC.md) defines target behavior; GitHub issues hold acceptance
 criteria and implementation work.
 
-### Release targets
-
-Versions mark delivery milestones rather than dates. Work may proceed in
-parallel across milestones, but each release must satisfy its dependencies
-before shipping.
-
-| Release | Scope                                                                                                                                                        |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| v0.1    | Replace workflows with interactive worker pools, durable jobs and attempts, bounded execution, cancellation, and cleanup when the owning session closes.     |
-| v0.2    | Add manager and worker modes, delegated code changes, manager-only general memory, fleet dashboard panels and controls, and human-controlled urgency.        |
-| v0.3    | Add the supervised Pi SDK service, portable CLI, dashboard, and Telegram exports. Dashboard visibility and control are prerequisites for background hosting. |
-| v0.4    | Add idea intake, research, refinement, and issue-to-job planning.                                                                                            |
-| v0.5    | Add durable plans, reporting, delivery tracking, and cross-project coordination.                                                                             |
-| v0.6    | Add adaptive capacity allocation, measured project consumption, and provider-limit handling.                                                                 |
-
-Basic job budgets belong to v0.1, while editable project allocation controls
-belong to v0.2. v0.6 adds adaptive allocation. Shared tooling improvements ship
-alongside the release that needs them. Event Sorcery integration has no assigned
-release.
-
 ## Delegate work through observable jobs
 
 Keep interactive coordination responsive while workers execute bounded jobs.
@@ -34,6 +14,8 @@ Replace workflow execution first, preserve visibility throughout the transition,
 and adopt background SDK hosting only after fleet inspection and controls work.
 The accepted decision is recorded in
 [ADR 01](./adrs/01-observable-job-pools.md).
+
+### v0.1 - Worker pools
 
 - [ ] Agree the job and session event contract: prompts, invocation metadata,
       allowed tools, budgets, outputs, identity, and lifecycle -
@@ -51,6 +33,9 @@ The accepted decision is recorded in
 - [ ] Stop workers and all session-owned background resources when the initial
       interactive session closes; retain job records and outputs -
       [#32](https://github.com/dataclique/metagenda/issues/32).
+
+### v0.2 - Fleet controls and manager roles
+
 - [ ] Configure manager and worker launch modes, reject competing manager
       launches, and enable general persistent memory only for the manager -
       [#33](https://github.com/dataclique/metagenda/issues/33),
@@ -73,10 +58,15 @@ The accepted decision is recorded in
 - [ ] Route worker urgency proposals to manager judgment and apply authenticated
       human urgency decisions directly, retaining reasons and outcomes -
       [#33](https://github.com/dataclique/metagenda/issues/33).
+
+### v0.3 - Supervised SDK hosting
+
 - [ ] Adopt supervised SDK hosting after dashboard inspection and direct
       controls replace terminal visibility; no intermediate RPC migration is
       required - [#33](https://github.com/dataclique/metagenda/issues/33),
       [#22](https://github.com/dataclique/metagenda/issues/22).
+
+### Dependencies
 
 ```mermaid
 flowchart TD
@@ -113,6 +103,8 @@ Develop ideas into researched, tracked work, then coordinate implementation and
 independent verification. Telegram intake is one entry point; a conversation
 fragment alone does not authorize execution.
 
+### v0.4 - Intake and refinement
+
 - [ ] Link planned work to the preceding epic's execution contract while
       retaining issue-to-job ownership -
       [#16](https://github.com/dataclique/metagenda/issues/16).
@@ -134,6 +126,8 @@ Make weekly commitments, daily priorities, progress, and corrections visible
 across projects. Agents work from the current plan, while saved revisions make
 planned-versus-actual reporting possible.
 
+### v0.5 - Plans and reporting
+
 - [ ] Preserve plans, revisions, reporting windows, and acknowledged corrections
       across restarts -
       [#15](https://github.com/dataclique/metagenda/issues/15).
@@ -152,6 +146,8 @@ Set adjustable engineering-resource allocations by project. Track actual
 consumption against those targets and adapt background work to provider limits
 while preserving responsive interactive use. Project priorities and provider
 throttling are separate controls.
+
+### v0.6 - Measured and adaptive allocation
 
 - [ ] Measure delivery latency, backlog age, acceptance, rework, and human
       intervention alongside activity counts; expose coverage and outcome links
@@ -181,6 +177,8 @@ throttling are separate controls.
 Deliver portable Telegram, CLI, and observational dashboard capabilities with
 verified service contracts and recovery behavior.
 
+### v0.3 - Portable service delivery
+
 - [ ] Complete package and service export contracts, identity and state
       boundaries, restart recovery, and receiving verification -
       [#22](https://github.com/dataclique/metagenda/issues/22).
@@ -200,6 +198,10 @@ migration task. Source provenance belongs in implementation records, not the
 product's purpose.
 
 ## Improve shared development tools
+
+Ship tooling improvements with the release that needs them.
+
+### Release assigned with the consuming feature
 
 - [ ] Finish shared tooling correctness and diagnostics -
       [#10](https://github.com/dataclique/metagenda/issues/10),
