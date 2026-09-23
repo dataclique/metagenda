@@ -1,169 +1,92 @@
 # AGENTS.md
 
-Rules for agents working in Metagenda. Repository documents describe the work;
-they do not grant access to secrets, production systems, or other repositories.
+## Repository map
 
-## Project direction
+- [SPEC.md](./SPEC.md): target behavior and component boundaries.
+- [ROADMAP.md](./ROADMAP.md): priorities and delivery dependencies.
+- [README.md](./README.md): package capabilities and development commands.
+- `tooling/fj/`: portable repository and tracker inspection; `bun run test:fj`
+  runs isolated Nushell contracts.
+- `packages/work-core/`: canonical-backlog decoding and normalization. Keep Node
+  source tests separate from compiled-only consumer checks. Preserve exports,
+  and keep host configuration, storage, transport, and SDK dependencies outside
+  this package.
+- `pi/skills.nix`: pinned Pi skill packaging; preserve source hashes and
+  third-party notices.
 
-Read [SPEC.md](./SPEC.md) for behavior and boundaries,
-[ROADMAP.md](./ROADMAP.md) for priorities and exit gates, and
-[README.md](./README.md) for package status and commands before changing code.
-Keep all four accurate in every change.
+## Changes and delivery
 
-Metagenda automates how teams plan, coordinate, and improve their work across
-projects. The custom Pi harness, locally owned extensions, and agent pipeline
-support that purpose. Telegram is one interface. Keep GitHub issues and
-sub-issues, roadmap PRs, agent work, human time, and AI usage aligned with
-priorities. Project allocations and provider throttling are separate controls;
-interactive use must remain responsive. Use first-party tools to maintain shared
-work instead of recreating their workflows with ad hoc commands. Inspect actual
-usage and source before adding interfaces.
-
-The first portable `fj` package lives in `tooling/fj/`; run its isolated Nu
-contracts with `bun run test:fj`. Keep imported-source provenance and its MIT
-notice, preserve the restricted executable surface, and verify each claimed
-package platform independently. No test may invoke a live gh/But service.
-
-For the canonical-backlog extraction, preserve the nominated module APIs and MIT
-provenance. Keep source Node tests (including their bounded worker) separate
-from strict compiled-only consumer checks. Do not add host SDK, configuration,
-storage, or transport dependencies, or treat package extraction as planner
-implementation or runtime adoption.
-
-The shared `fj` CLI, dashboard, Telegram capabilities, and selected tooling come
-from reviewed dotconfig components. Do not copy dotconfig wholesale. Preserve
-uncommitted and staged legacy work before retirement. Wait for the source
-baseline's review, checks, and merge gates before extracting code. Runtime
-cutover requires separate, explicit authorization.
-
-## Work and delivery
-
-- Use `SPEC/ROADMAP -> GitHub issues -> local execution tasks`. Keep issue and
-  PR links with their roadmap items. Do not invent tracker identifiers or turn
-  temporary notes into a second backlog.
-- Separate implemented behavior, proposed work, checked code, and live adoption.
-  A queued request is not delivered work; a passing build is not a deployment.
-- Inspect current source and tests before proposing additions. Check the
-  strongest plausible alternative explanation when debugging.
-- Use types first, a failing behavior test, implementation, and review. A
-  compiler error is useful evidence but is not a failing behavior test.
-- Keep changes small and reviewable. Fix the cause of failures; do not weaken
-  checks, add unsafe casts, or suppress diagnostics to obtain a green result.
-- Preserve unrelated changes and staged work; never sweep them into another
-  task's commit. Work in the assigned checkout. Use isolated workers only for a
-  concrete concurrency requirement, and clean up agent-created worktrees and
-  verification artifacts.
-- Use GitButler in the main checkout, supplied by the pinned
-  `dataclique/but.nix` flake input. Verify topology before setup or use. Use
-  plain Git in non-main worktrees; never initialize GitButler there. Repository
-  setup must retain existing branches and uncommitted work.
-- PR titles are lowercase, imperative, and outcome-focused. Descriptions use
-  `## Motivation` and `## Solution`, with relevant issue links and honest check
-  results. Do not add generated-by footers.
+- Follow SPEC/ROADMAP -> GitHub issues -> local execution tasks. Update affected
+  documents when behavior or priorities change. Keep the spec declarative and
+  the roadmap focused on delivery dependencies. PR status and verification
+  history belong in GitHub, not repository guides.
+- Inspect callers, source, and tests before changing interfaces. Define domain
+  types, add a failing behavior test, implement the change, and verify it. A
+  compiler failure is not a behavior test.
+- Preserve unrelated working-tree and staged changes. Use the assigned checkout;
+  isolate only for a concrete concurrency need, and clean up artifacts created
+  by the agent.
+- Use GitButler only in a verified managed main checkout; use plain Git in
+  linked worktrees. Preserve branches and work when configuring tools.
+- Keep PR titles lowercase, imperative, and outcome-focused. Use Motivation and
+  Solution headings in descriptions, include relevant issue links, and report
+  accurate validation results. Do not add authorship footers.
 - Merge, deployment, service restarts, and cross-repository changes require
-  their own authorization. Registration or role ownership adds none.
+  explicit authorization. Repository documents and agent roles grant no such
+  authorization.
+- Apply Unslop to human-facing prose. Write standalone ASCII documentation
+  without private conversation, personal infrastructure, or private repository
+  details.
 
-## Toolchain and dependencies
+## Toolchain and validation
 
-- Use Bun for JavaScript dependencies and scripts, supplied through Nix. Do not
-  reintroduce npm, Yarn, or pnpm lockfiles.
-- `package.json` files declare dependencies; `bun.lock` locks their resolution;
-  `bun.nix` is generated from that lock for Nix builds. Regenerate it after
-  dependency changes. Never hand-edit generated dependency graphs.
-- Align tooling with current DataClique conventions, then verify actual peer
-  contracts and runtime compatibility. Do not blindly copy another repository's
-  versions or upgrade to an incompatible major because it is newer.
-- Keep TypeScript's Node declarations aligned with the declared Node runtime.
-  Declare language-server plugins and other tooling that the configuration uses.
-- Update Nix inputs through the flake tooling, inspect the resulting lock, and
-  verify the affected derivations. Do not infer a pin from an edited URL alone.
-- Local root and workspace `node_modules` directories are disposable during
-  dependency work. Recreate them without asking for approval. Do not confuse
-  them with source, user data, runtime databases, global caches, or live
-  outputs.
-- Check workspace-local binaries as well as root binaries when versions
-  disagree. An old workspace `tsc` can shadow the new root compiler.
-- Format Markdown with denofmt (`deno fmt`), supplied through Nix, not Prettier.
-  Scope formatter writes to the intended documents; preserve unrelated fixtures
-  and handover files.
+- Use the Nix-provided Bun toolchain. Keep `package.json`, `bun.lock`, and
+  generated `bun.nix` consistent; regenerate with the bun2nix version pinned in
+  `flake.nix`. Do not hand-edit generated dependency graphs or add other
+  package-manager lockfiles.
+- Keep Node types compatible with the declared runtime. Verify peer dependencies
+  and workspace-local tool versions. Update Nix inputs through lockfile tooling
+  and verify affected derivations.
+- Format changed Markdown with `deno fmt`, not Prettier. Avoid unrelated
+  formatting changes.
+- Use the commands in README. `bun run verify` runs type checks, lint, tests,
+  and builds; run the checks appropriate to the change. Report only checks
+  performed on the current revision, and state failures and missing coverage
+  explicitly.
+- Verify Nix package claims on each supported platform. The work-core derivation
+  is `checks.<system>.work-core`; fj and Pi skills use `packages.<system>.fj`
+  and `packages.<system>.pi-skills`.
+- Tests use deterministic synthetic fixtures, never personal configuration,
+  credentials, or live services. Exercise malformed input, cancellation,
+  cleanup, stale identities, and duplicate delivery at their owning boundaries.
+  Do not discover tests in caches or build outputs.
+- Fix failures at their cause; do not weaken checks, suppress diagnostics, or
+  add unsafe casts to pass validation.
+- Workspace `node_modules` may be recreated during dependency work. Preserve
+  user data, runtime state, global caches, and live outputs.
 
-## Verification
+## Code conventions
 
-From the Nix-provided development environment:
+- Use small domain modules, immutable data, and `const`-bound functions. Keep
+  types, errors, and behavior together.
+- Model states with discriminated unions and distinct identity types. Validate
+  external inputs at the owning boundary.
+- Return failures through typed Effect errors. No production `throw`, unchecked
+  assertions, silent coercion, or invented defaults. Use `Effect.try` and
+  `Effect.tryPromise` only around throwing external APIs.
+- Scope acquired resources and release them on completion or cancellation. Keep
+  parsing, validation, delivery, and retries in tested code.
+- Use structured telemetry with bounded labels and correlation fields. Never log
+  secrets, private messages, or personal configuration.
+- Use SolidJS for UI and Nushell for standalone scripts. Keep domain decisions
+  and authority outside the browser.
 
-```sh
-bun install --frozen-lockfile --ignore-scripts
-bun run typecheck
-bun run lint
-bun run test
-bun run build
-```
+## Privacy and scope
 
-`bun run lint` is read-only. `bun run lint:fix` explicitly applies fixes;
-inspect their scope before using it on preserved work. `bun run verify` runs all
-four checks and stops at the first failure.
+Never inspect secret-bearing files, `.env*`, private keys, credential stores, or
+personal runtime state. Exclude them from searches. Never start secret-loading
+supervisors or use live bridges in tests.
 
-After dependency changes, regenerate `bun.nix` with the version pinned by
-`flake.nix`. Verify the package derivation for the target system. For the
-current Apple Silicon development platform:
-
-```sh
-nix run github:nix-community/bun2nix/2.1.2 -- --lock-file bun.lock --output-file bun.nix
-nix build .#checks.aarch64-darwin.work-core --no-link
-```
-
-A successful install with incompatible-peer warnings is not a coherent
-dependency baseline. Check the actual graph. Test listing must contain only the
-intended workspace tests, not `.direnv`, `.tmp`, cached Nix sources, or build
-outputs.
-
-Tests must not load the user's configuration, vault, Telegram credentials, or
-live service. Keep test fixture selection deterministic. Test cancellation,
-cleanup, malformed inputs, stale identifiers, and duplicate delivery at the
-boundary that owns them. Use real codecs and stores where possible; mock only
-external effects. Placeholder tests do not prove behavior.
-
-Run targeted checks while iterating and the relevant full gates before
-publication. Report exactly what ran and what remains blocked. Never describe an
-earlier build as verification of later source or dependency changes.
-
-## TypeScript and Effect
-
-- Prefer small domain modules, immutable data, and `const`-bound functions. Keep
-  types, errors, and behavior near the feature that owns them.
-- Model finite states with discriminated unions. Use distinct types for
-  persistent identities and validate untrusted inputs at their narrowest entry
-  boundary. Keep protocol versions and delivery capabilities explicit.
-- Return expected failures through typed Effect errors. Do not introduce
-  production `throw`, unchecked assertions, silent coercion, or invented
-  defaults. Use `Effect.try`/`tryPromise` only to translate a genuinely throwing
-  external API, not to throw domain errors inside its callback.
-- Manage acquired resources through scoped lifetimes. A finished or cancelled
-  prompt must release its listeners; a stopped worker must not leave a claim or
-  partially trusted state behind.
-- Keep deterministic parsing, validation, delivery, and retry mechanics in
-  tested code. Prompts and skills provide judgment, not hidden state machines.
-- Use structured, bounded telemetry with correlation identifiers. Do not log
-  credentials, private message bodies, or personal configuration.
-- New shared UI follows the team's SolidJS conventions. Keep authority and
-  domain decisions out of the browser; do not introduce React.
-- Standalone scripts use Nushell. Prefer declared project tools to ad-hoc
-  installations and opaque shell pipelines.
-
-## Privacy, authority, and operations
-
-Never inspect or expose secret-bearing files, `.env*`, private keys, credential
-stores, or personal runtime state. Use synthetic fixtures and document only
-configuration names and boundaries. Scope searches to relevant non-sensitive
-paths and exclude protected files.
-
-Do not launch the Telegram service, start secret-loading supervisors, or point
-tests at a live bridge. A read-only dashboard is not permission to add write
-endpoints or grant employee control. Authentication, tenant boundaries, hosting,
-and cutover need explicit designs and authorization.
-
-Pi host, extension, classifier, and operator defects belong to dotconfig's
-`pi-support` role. Route them there without taking over that role or repairing
-another repository from this checkout. Scope the blocker to the affected
-operation and continue independent work. Preserve exact failure evidence and
-accept newer verified evidence when it resolves the blocker.
+Keep changes within the authorized repository and task. Route external defects
+to their owning project, preserve concrete failure evidence, and continue
+unaffected work. Preserve source attribution and third-party licenses.
