@@ -1,6 +1,6 @@
 # 01. Observable job pools with agent coordination
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-09-22
 - Issue:
   [Delivery lifecycle](https://github.com/dataclique/metagenda/issues/32),

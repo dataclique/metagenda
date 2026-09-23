@@ -12,7 +12,7 @@ criteria and implementation work.
 Keep interactive coordination responsive while workers execute bounded jobs.
 Replace workflow execution first, preserve visibility throughout the transition,
 and adopt background SDK hosting only after fleet inspection and controls work.
-The proposed decision is recorded in
+The accepted decision is recorded in
 [ADR 01](./adrs/01-observable-job-pools.md).
 
 - [ ] Agree the job and session event contract: prompts, invocation metadata,
