@@ -32,11 +32,34 @@ acceptance criteria, artifacts, and history across bounded runs. Engineering
 capacity is shared across projects. A new project assignment starts with fresh
 context; resuming an existing assignment restores its own context.
 
-Workers can request research or implementation assistance as linked tasks in the
+Workers can request research or implementation assistance as linked jobs in the
 same scheduling and observability system. Dependencies and assignments may
-change as findings arrive. Scripted workflows remain useful for known sequences;
-dynamic coordination does not remove review or authorization gates. Neither
-mechanism requires a separate, hidden hierarchy of workers.
+change as findings arrive. The coordinating agent submits jobs, consumes their
+outputs, and decides what to do next. The runtime enforces authorization,
+budgets, concurrency, cancellation, and recovery. Replacing workflow execution
+does not require retaining a scripted, multi-step workflow engine.
+
+### Jobs and worker pools
+
+A job is a bounded execution request with a prompt and execution metadata,
+including its allowed tools and allocated budget. Each job has an identity,
+lifecycle state, outputs, and explicit failure or cancellation outcomes. An
+execution attempt runs an existing job; it does not create a new backlog item.
+The job registry retains these records, while the agent registry tracks
+available sessions and their capabilities.
+
+An interactive Pi instance can submit jobs to its worker pool. Pool
+infrastructure starts with the instance; idle capacity does not require model
+requests. The interactive coordinator and manager may read code and inspect
+execution evidence, but they cannot modify code directly. Code changes run as
+worker jobs. Tool configuration enforces this boundary instead of relying on
+prompts.
+
+Manager and worker launch modes select their respective capabilities. If a
+manager already owns the manager role, starting another manager reports a
+conflict instead of replacing it or creating a competing conversation.
+
+### Session hosting
 
 The manager provides one conversational entry point and coordinates work
 requiring judgment. Runtime code owns scheduling, delivery, execution limits,
@@ -50,8 +73,8 @@ lifecycles. Clients interact with sessions through authenticated commands and
 observe their events; no native Pi terminal must stay open. The manager is a
 resumable session, not the process that keeps the rest of the system alive.
 
-The manager and task workers use the same SDK session host. They differ in
-tools, permissions, retained history, and memory policy. A persistent manager
+The manager and job workers use the same SDK session host. They differ in tools,
+permissions, retained history, and memory policy. A persistent manager
 conversation does not require a separate RPC implementation. Shared session
 hosting keeps event delivery, steering, cancellation, and recovery consistent;
 it does not require sessions to share a process or conversation context.
@@ -61,19 +84,18 @@ The service manager supervises the orchestrator, which supervises Pi workers.
 The orchestrator starts automatically at user login on a workstation or at boot
 on an unattended host, under an account with only its required privileges.
 Workers launch on demand after authorization and capacity checks. Service
-restart preserves durable task state and does not resume explicitly stopped
-work.
+restart preserves durable job state and does not resume explicitly stopped work.
 
 ### Component boundaries
 
 These are responsibility boundaries, not package names or a build plan.
 
-| Component    | Owns                                                                                   | Boundary                                                                                                 |
-| ------------ | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| Clients      | Voice, text conversation, task inspection, and direct controls                         | Submit authenticated commands and display observations; do not schedule work or enforce execution policy |
-| Orchestrator | Task ownership, message delivery, authorization, priorities, budgets, and cancellation | Accept commands, authorize dispatch, reconcile execution events, and retain durable work state           |
-| Execution    | Pi SDK sessions, model turns, tools, and session events                                | Execute scoped assignments and report evidence; cannot grant authority or allocate itself capacity       |
-| Persistence  | Work records, session history, and artifacts                                           | Retain distinct records for recovery and inspection; a transcript is not task completion authority       |
+| Component    | Owns                                                                                  | Boundary                                                                                                 |
+| ------------ | ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Clients      | Voice, text conversation, job inspection, and direct controls                         | Submit authenticated commands and display observations; do not schedule work or enforce execution policy |
+| Orchestrator | Job ownership, message delivery, authorization, priorities, budgets, and cancellation | Accept commands, authorize dispatch, reconcile execution events, and retain durable work state           |
+| Execution    | Pi SDK sessions, model turns, tools, and session events                               | Execute scoped assignments and report evidence; cannot grant authority or allocate itself capacity       |
+| Persistence  | Work records, session history, and artifacts                                          | Retain distinct records for recovery and inspection; a transcript is not job completion authority        |
 
 ```mermaid
 flowchart TB
@@ -96,16 +118,16 @@ flowchart TB
 ```
 
 This view shows communication across the system boundary and between components.
-The worker pool has no fixed task-specific subdivisions. The orchestrator
+The worker pool has no fixed job-specific subdivisions. The orchestrator
 delivers work and collects execution evidence; dashboard controls reach it
 without a manager turn. The following table separates retained records from the
 processes using them.
 
 | Component           | Retained records                       | Purpose                          |
 | ------------------- | -------------------------------------- | -------------------------------- |
-| Orchestrator        | Assignments, ownership, and run status | Track task transitions           |
+| Orchestrator        | Assignments, ownership, and run status | Track job transitions            |
 | Manager SDK session | Conversation and decisions             | Preserve context across restarts |
-| Task SDK sessions   | Transcripts, diffs, and check results  | Support review and resumption    |
+| Job SDK sessions    | Transcripts, diffs, and check results  | Support review and resumption    |
 
 The manager belongs to execution: it is a session with coordination tools, not
 the component that schedules work or owns authority. A direct Stop command
@@ -116,10 +138,10 @@ require separate database products.
 ### Process supervision
 
 Process boundaries isolate the orchestrator from model execution. Manager and
-task hosts use the same SDK integration with separate session state. A task host
+job hosts use the same SDK integration with separate session state. A job host
 may be reused for another assignment only after releasing the previous
 assignment's tools, context, and execution resources. Process supervision does
-not replace task ownership or completion checks.
+not replace job ownership or completion checks.
 
 ## Planning and execution
 
@@ -132,7 +154,7 @@ and checked independently before human review.
 Weekly plans and daily priorities retain their original commitments and later
 revisions. Reports distinguish planned, completed, carried-over, blocked, and
 newly prioritized work, with evidence and missing coverage explicit. Priority
-corrections reach affected agents; a completed task does not erase what was
+corrections reach affected agents; a completed job does not erase what was
 originally planned.
 
 Research, issue creation, assignment, execution, and publication have distinct
@@ -142,7 +164,7 @@ members act through authenticated identities and configured permissions.
 One product-owner function maintains priorities across projects. Weekly
 direction requires human approval before work is allocated to human or agent
 capacity. Engineering assignments can include parallel research without making
-research a mandatory stage for every task.
+research a mandatory stage for every job.
 
 ### Delivery and review
 
@@ -171,14 +193,14 @@ flowchart TD
         Intake[Record request as an issue]
         Refine[Refinement]
         Priority[Prioritization]
-        Queue[Actionable task queued for capacity]
+        Queue[Actionable job queued for capacity]
         Clarify([Human clarification])
         Approve([Human priority approval])
     end
-    Research[Linked research tasks]
+    Research[Linked research jobs]
     subgraph Implementation[Engineering and review]
         Engineering[Engineering and early draft PR]
-        Review[Current-revision review task and configured CodeRabbit checks]
+        Review[Current-revision review job and configured CodeRabbit checks]
         Arbitration[Manager arbitration]
         HumanReview([Human PR review])
         HumanDecision([Human arbitration])
@@ -191,9 +213,9 @@ flowchart TD
     end
         Intake --> Refine --> Priority
         Refine -->|Missing evidence| Research
-        Research -->|Findings to requesting task| Refine
+        Research -->|Findings to requesting job| Refine
         Engineering -->|Missing evidence| Research
-        Research -->|Findings to requesting task| Engineering
+        Research -->|Findings to requesting job| Engineering
         Queue -->|Worker capacity available| Engineering
         Engineering -->|Mark PR ready at first review submission| Review
         Review -->|Corrections| Engineering
@@ -214,15 +236,15 @@ flowchart TD
     class Human,Complete,Clarify,Approve,HumanReview,HumanDecision endpoint
 ```
 
-This lifecycle follows an issue through delivery. Research tasks return evidence
-to the task that requested it; they are not mandatory stages. New tasks queue
-when worker capacity is unavailable. Engineering retains ownership through
+This lifecycle follows an issue through delivery. Research jobs return evidence
+to the job that requested it; they are not mandatory stages. New jobs queue when
+worker capacity is unavailable. Engineering retains ownership through
 corrections, and changed revisions repeat the applicable reviews. The release
 gate waits for required checks and human approvals rather than treating missing
 responses as acceptance. Human clarification and arbitration preserve the
-affected task's context and evidence.
+affected job's context and evidence.
 
-### Task handoffs by role
+### Job handoffs by role
 
 Columns represent responsibilities, not permanent workers. Arrows show logical
 handoffs; the orchestrator handles delivery and scheduling. Repeated role labels
@@ -241,7 +263,7 @@ sequenceDiagram
     H->>M: Feature request or bug report
     M->>P: Refine and record issue
     opt Evidence needed during refinement
-        P->>R: Research task
+        P->>R: Research job
         R-->>P: Findings
     end
     opt Clarification needed
@@ -255,7 +277,7 @@ sequenceDiagram
     Note over M,E: Queued until authorized capacity is available
     Note over E: Publish draft PR early
     opt Evidence needed during implementation
-        E->>R: Linked research task
+        E->>R: Linked research job
         R-->>E: Findings
     end
 
@@ -311,7 +333,7 @@ sequenceDiagram
 
 ### Operations and urgent work
 
-Operator tasks observe service health and report evidence. A proposed hotfix is
+Operator jobs observe service health and report evidence. A proposed hotfix is
 validated independently with fresh context before it takes priority over planned
 work. If capacity is full, preemption saves the interrupted assignment and its
 artifacts, starts the urgent assignment with separate context, and permits later
@@ -354,7 +376,7 @@ pause, cancellation, execution permissions, and concurrency limits.
 Admission accounts for the remaining budget through the provider's reset window,
 not only concurrent worker count. Reserve capacity for interactive requests and
 urgent work. Requests for additional workers consume the same shared allowance;
-delegation cannot multiply a task's budget. Missing or delayed usage information
+delegation cannot multiply a job's budget. Missing or delayed usage information
 reduces admissions conservatively rather than implying unlimited capacity.
 
 Background work is paced across the remaining reset window so later priorities
@@ -365,11 +387,11 @@ still counts against the shared allowance, and provider-enforced limits remain
 visible. Background budgets protect interactive headroom rather than treating
 manager consumption as free or unlimited.
 
-Task configurations select model capability and reasoning effort to match the
+Job configurations select model capability and reasoning effort to match the
 work. Configurable tiers distinguish high-capability analysis, balanced work,
-and fast economical tasks without prescribing model names. Tier assignments
-require task-relevant quality checks; a cheaper model is suitable only when its
-results meet the task's acceptance criteria. The manager's low-reasoning policy
+and fast economical jobs without prescribing model names. Tier assignments
+require job-relevant quality checks; a cheaper model is suitable only when its
+results meet the job's acceptance criteria. The manager's low-reasoning policy
 does not constrain the reasoning effort of its delegated workers.
 
 ## Product boundaries
@@ -382,7 +404,7 @@ authority.
 The hierarchy is:
 
 [SPEC.md](./SPEC.md) and [ROADMAP.md](./ROADMAP.md) -> GitHub issues -> bounded
-execution tasks -> verified changes
+execution jobs -> verified changes
 
 The CLI supports Markdown parsing, task selection, work sessions, recording,
 playback, and trace export. Telegram uses Piece of Pi; the observational
@@ -410,10 +432,11 @@ routine supervision.
 
 The manager retains conversation history and durable decisions across compaction
 and restart. Retrieved memory records its source and revisions; a summary cannot
-replace the original authorization evidence. Task runs receive relevant project
-context and retain their transcripts and artifacts for review or resumption.
-They do not require a general personal memory shared across unrelated tasks. The
-memory and client packages must satisfy these contracts.
+replace the original authorization evidence. General persistent memory is
+enabled for the manager and disabled for workers. Workers retain job-scoped
+context, transcripts, artifacts, and resumable state. Disabling general memory
+does not discard job evidence. The memory and client packages must satisfy these
+contracts.
 
 ## CLI contract
 
@@ -439,6 +462,11 @@ failures and selected But failures cannot fall back to a successful result.
 
 ## Protocol and durable state
 
+Event-sourced job and coordination state through future Event Sorcery TypeScript
+bindings is a later direction. Raw session text remains session history and is
+outside that event-sourcing integration. Those bindings are not required for the
+job pool.
+
 The Pi bridge and SQLite state use versioned contracts for identity, delivery
 capability, claim lifecycle, question binding, and restart recovery. Pure
 decoding is separate from transport and store effects.
@@ -449,6 +477,11 @@ behavior. State formats define compatibility and recovery rules. Private state
 is excluded from distributable packages and public artifacts.
 
 ## Dashboard contract
+
+Fleet inspection must expose session identity, assigned jobs, active tools,
+available outputs, usage, failures, and cancellation state. Background SDK
+execution must not replace terminal visibility until the dashboard provides
+equivalent inspection and direct controls.
 
 The dashboard observes health, agents, jobs, backlog, and usage through a typed
 server boundary. Malformed or unavailable data is represented explicitly. Layout
@@ -473,7 +506,7 @@ manager available to discuss corrections.
 
 Stopped work does not automatically restart through a dependency, retry, or
 replacement run. After corrections, an explicit authorized resume or replacement
-retains the task's evidence and records the changed instructions. Human controls
+retains the job's evidence and records the changed instructions. Human controls
 remain available even when the manager model is unavailable.
 
 Dashboard controls use separate authenticated commands with authorization,
@@ -511,7 +544,7 @@ identity contracts.
 Service activation and changes to live state or routing require operator
 authorization. Authorizing service enablement permits subsequent automatic
 starts and supervised restarts under the same configuration until that
-authorization is revoked. Restarting the orchestrator grants no new task
+authorization is revoked. Restarting the orchestrator grants no new job
 authority and does not resume explicitly stopped work. Services expose their
 revision, health, and recovery state.
 
@@ -528,7 +561,7 @@ and cannot acquire owner authority by being forwarded. Verification must reject
 tampering, replay outside the permitted scope, and expired or revoked authority.
 
 Every tool call passes the authorization classifier. Independent audits may
-challenge task interpretation, scope, or claimed completion using the original
+challenge job interpretation, scope, or claimed completion using the original
 instruction and execution evidence. Worker-auditor disagreements go to the
 manager for an evidence-based resolution; that resolution cannot bypass policy
 or expand authority. Unresolved disputes have bounded escalation rather than
