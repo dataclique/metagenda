@@ -61,6 +61,10 @@ The accepted decision is recorded in
 - [ ] Expose fleet sessions, jobs, tool activity, outputs, usage, failures,
       cancellation, and reconnect evidence in the dashboard -
       [#34](https://github.com/dataclique/metagenda/issues/34).
+- [ ] Measure startup and interaction latency, resource saturation, database
+      waits, and telemetry overhead; expose distributions and regression
+      baselines in the fleet dashboard -
+      [#34](https://github.com/dataclique/metagenda/issues/34).
 - [ ] Implement the specification's panel catalog, including planning, agent
       tasks and replies, question answering, PR review readiness, and editable
       resource allocations -

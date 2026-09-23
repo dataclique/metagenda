@@ -455,6 +455,38 @@ accounting. Admission selects an eligible source and retains attribution to the
 source used. Combined views preserve individual limits and provider account
 rules.
 
+### Runtime performance
+
+Telemetry must show where startup time is spent, what delays an interaction,
+whether local resources are saturated, and whether performance has regressed.
+
+Measure the time from launch request to usable prompt, separating cold start,
+warm start, reload, and session resume. Attribute startup stages to runtime
+initialization, extension loading, registry and database access, and history
+loading. A rendered prompt is not ready while input remains blocked.
+
+Measure input acknowledgement, request dispatch to first output, streaming gaps,
+tool execution, cancellation acknowledgement, confirmed worker termination, and
+dashboard event freshness. Separate local queueing and processing from provider
+latency and retries. Trace slow requests across these boundaries so slow
+launches and responses can be localized.
+
+Track CPU usage, resident memory, event-loop delay, garbage-collection pauses,
+disk I/O, database lock waits, active workers, queue depth, errors, and
+timeouts. Use bounded metric labels. Keep request and job identifiers in traces.
+Do not collect prompt contents or credentials as performance telemetry.
+
+Show latency distributions and p50, p95, and p99 values with sample counts and
+collection windows. Compare cold and warm runs separately under recorded
+hardware, software, extension, and workload configurations. Set regression
+thresholds from measured baselines, and verify that telemetry overhead does not
+materially degrade interaction.
+
+Delivery timing also includes human request receipt to issue refinement
+completion and job queue entry to worker claim. Report queue-to-execution-start
+separately so a claimed job is not mistaken for one already running. Preserve
+links when one request creates multiple issues.
+
 ## Product boundaries
 
 The system has one authoritative state across its tools. A proposed, assigned,
