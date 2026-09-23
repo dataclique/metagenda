@@ -7,6 +7,66 @@ support these workflows; Telegram provides a conversational interface.
 [SPEC.md](./SPEC.md) defines target behavior; GitHub issues hold acceptance
 criteria and implementation work.
 
+## Delegate work through observable jobs
+
+Keep interactive coordination responsive while workers execute bounded jobs.
+Replace workflow execution first, preserve visibility throughout the transition,
+and adopt background SDK hosting only after fleet inspection and controls work.
+The proposed decision is recorded in
+[ADR 01](./adrs/01-observable-job-pools.md).
+
+- [ ] Agree the job and session event contract: prompts, invocation metadata,
+      allowed tools, budgets, outputs, identity, and lifecycle —
+      [#32](https://github.com/dataclique/metagenda/issues/32).
+- [ ] Replace workflow execution with an interactive instance's worker pool;
+      the coordinating agent decides subsequent jobs —
+      [#32](https://github.com/dataclique/metagenda/issues/32).
+- [ ] Enforce job budgets, concurrency, cancellation, and recovery —
+      [#24](https://github.com/dataclique/metagenda/issues/24),
+      [#16](https://github.com/dataclique/metagenda/issues/16).
+- [ ] Stop workers and all session-owned background resources when the initial
+      interactive session closes; retain job records and outputs —
+      [#32](https://github.com/dataclique/metagenda/issues/32).
+- [ ] Configure manager and worker launch modes, reject competing manager
+      launches, and enable general persistent memory only for the manager —
+      [#33](https://github.com/dataclique/metagenda/issues/33),
+      [#20](https://github.com/dataclique/metagenda/issues/20).
+- [ ] Remove direct code-changing tools from the interactive coordinator once
+      worker execution is usable; retain code reading and job controls —
+      [#33](https://github.com/dataclique/metagenda/issues/33).
+- [ ] Expose fleet sessions, jobs, tool activity, outputs, usage, failures,
+      cancellation, and reconnect evidence in the dashboard —
+      [#34](https://github.com/dataclique/metagenda/issues/34).
+- [ ] Adopt supervised SDK hosting after dashboard inspection and direct
+      controls replace terminal visibility; no intermediate RPC migration is
+      required — [#33](https://github.com/dataclique/metagenda/issues/33),
+      [#22](https://github.com/dataclique/metagenda/issues/22).
+
+```mermaid
+flowchart TD
+    Contract[Job and session event contract]
+    Pool[Worker pool and bounded execution]
+    Dashboard[Fleet inspection and direct controls]
+    Modes[Manager and worker capabilities and memory]
+    Delegate[Coordinator delegates code changes]
+    SDK[Supervised SDK service]
+    Contract --> Pool
+    Contract --> Dashboard
+    Contract --> Modes
+    Pool --> Delegate
+    Modes --> Delegate
+    Pool --> SDK
+    Dashboard --> SDK
+    Delegate --> SDK
+```
+
+Pool implementation, dashboard rendering, and manager capability configuration
+can proceed in parallel after agreement on their shared contract. Keep workers
+visible until dashboard inspection and controls are verified. Once the service
+owns execution, closing an interactive interface does not stop its jobs.
+Event Sorcery bindings for job and coordination state remain future work; they
+are not a prerequisite and do not replace raw session history.
+
 ## Turn ideas into coordinated work
 
 Develop ideas into researched, tracked work, then coordinate implementation and

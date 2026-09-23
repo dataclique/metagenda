@@ -1,4 +1,4 @@
-# 02. Observable job pools with agent coordination
+# 01. Observable job pools with agent coordination
 
 - Status: Proposed
 - Date: 2026-09-22
