@@ -619,7 +619,7 @@ settings.
 
 ## Shared hosting
 
-The target is one shared instance for Metagenda, Moneymentum, and Yielduck.
+The target is one shared instance for Metagenda and its consuming projects.
 [dataclique/infra](https://github.com/dataclique/infra) owns its provisioning
 and activation. Metagenda owns portable packages and its service, state, and
 identity contracts.

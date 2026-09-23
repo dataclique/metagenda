@@ -156,7 +156,7 @@ throttling are separate controls.
 ## Run the shared service reliably
 
 Deliver portable Telegram, CLI, and observational dashboard capabilities on the
-instance shared with Moneymentum and Yielduck.
+instance shared with its consuming projects.
 [Infra](https://github.com/dataclique/infra) owns host provisioning and
 activation.
 
