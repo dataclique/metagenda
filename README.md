@@ -74,6 +74,11 @@ bun run test
 bun run build
 ```
 
+`bun run test:job-attempt` checks attempt-event validation, ordering, duplicate
+receipts, and terminal transitions. `bun run typecheck:job-attempt` checks its
+TypeScript contract. Both run through `verify`; neither starts workers or tests
+persistence.
+
 After dependency changes, regenerate `bun.nix` with the pinned bun2nix tool
 before building with Nix:
 
