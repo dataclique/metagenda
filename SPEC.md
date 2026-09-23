@@ -90,7 +90,9 @@ The packaged TypeScript service runs under launchd on macOS or systemd on Linux.
 The service manager supervises the orchestrator, which supervises Pi workers.
 The orchestrator starts automatically at user login on a workstation or at boot
 on an unattended host, under an account with only its required privileges.
-Workers launch on demand after authorization and capacity checks. Service
+Authorization to enable the service covers automatic starts and supervised
+restarts under the same configuration until revoked. Workers launch on demand
+after authorization and capacity checks. Service
 restart preserves durable job state and does not resume explicitly stopped work.
 
 ### Component boundaries
@@ -600,41 +602,10 @@ state at every boundary.
 
 ## Packaging and reproducibility
 
-Nix provides reproducible packages; Bun manages workspace dependencies. The
-pinned `dataclique/but.nix` package supplies GitButler in the main worktree;
-linked worktrees use plain Git. Manifests and lockfiles record exact versions.
-
 Portable packages are independent of a home directory, launcher, and private
 configuration. Machine activation is separate. Skills and scripts may use shared
 code, while deterministic validation and delivery remain in tested code. Source
 provenance, licenses, and tracker history are preserved.
-
-`packages.<system>.pi-skills` installs the pinned public skills and support
-files at `$out/share/metagenda/pi-skills/skills/`. Its manifest explicitly lists
-skill directories and enrolls no extensions. Source bytes, attribution, and
-relative support-file layout are preserved. Host-specific examples remain
-documented assumptions, not permission to access personal configuration or proof
-of portable command execution. Packaging never activates skills or host
-settings.
-
-## Shared hosting
-
-The target is one shared instance for Metagenda and its consuming projects.
-[dataclique/infra](https://github.com/dataclique/infra) owns its provisioning
-and activation. Metagenda owns portable packages and its service, state, and
-identity contracts.
-
-Service activation and changes to live state or routing require operator
-authorization. Authorizing service enablement permits subsequent automatic
-starts and supervised restarts under the same configuration until that
-authorization is revoked. Restarting the orchestrator grants no new job
-authority and does not resume explicitly stopped work. Services expose their
-revision, health, and recovery state.
-
-Product isolation must hold for privileges, state paths, credentials, and
-routing between Metagenda and the other products. A shared host does not imply
-employee control, tenant boundaries, or cross-machine claims. Those require an
-explicit design.
 
 ## Safety and lifecycle
 

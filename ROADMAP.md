@@ -155,10 +155,8 @@ throttling are separate controls.
 
 ## Run the shared service reliably
 
-Deliver portable Telegram, CLI, and observational dashboard capabilities on the
-instance shared with its consuming projects.
-[Infra](https://github.com/dataclique/infra) owns host provisioning and
-activation.
+Deliver portable Telegram, CLI, and observational dashboard capabilities with
+verified service contracts and recovery behavior.
 
 - [ ] Complete package and service export contracts, identity and state
       boundaries, restart recovery, and receiving verification -
@@ -171,7 +169,6 @@ activation.
       [#22](https://github.com/dataclique/metagenda/issues/22).
 - [ ] Prepare host wiring without activation; verify product isolation, then
       perform an explicitly authorized cutover with rollback -
-      [infra #6](https://github.com/dataclique/infra/issues/6),
       [#22](https://github.com/dataclique/metagenda/issues/22).
 
 Portable packaging can progress alongside planning. Deployment depends on
