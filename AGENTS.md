@@ -30,10 +30,6 @@ from strict compiled-only consumer checks. Do not add host SDK, configuration,
 storage, or transport dependencies, or treat package extraction as planner
 implementation or runtime adoption.
 
-The legacy CLI, bot, and React prototype are retired. Do not restore them or
-port the React prototype into a new frontend. The portable `fj` package remains
-supported.
-
 The shared `fj` CLI, dashboard, Telegram capabilities, and selected tooling come
 from reviewed dotconfig components. Do not copy dotconfig wholesale. Preserve
 uncommitted and staged legacy work before retirement. Wait for the source
