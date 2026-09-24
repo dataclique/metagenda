@@ -255,17 +255,18 @@ test("workflow model preflight resolves only authenticated available providers",
     "openai/gpt-5.4-mini",
     "openai-codex/gpt-5.4-mini",
   ]) {
-    assert.equal(
-      resolveAgentModel(legacyMini, "openai-codex", [
-        ...available,
-        {
-          provider: "openai-codex",
-          id: "gpt-5.4-mini",
-          name: "GPT-5.4 Mini",
-        },
-      ]),
-      "openai-codex/gpt-5.6-luna",
-      "legacy mini requests must stay on the lightweight tier without launching a pre-5.6 model",
+    assert.throws(
+      () =>
+        resolveAgentModel(legacyMini, "openai-codex", [
+          ...available,
+          {
+            provider: "openai-codex",
+            id: "gpt-5.4-mini",
+            name: "GPT-5.4 Mini",
+          },
+        ]),
+      /gpt-5\.6 series/i,
+      "legacy pre-5.6 mini requests must be rejected, not silently remapped",
     )
   }
   assert.throws(

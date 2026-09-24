@@ -103,9 +103,6 @@ const LEGACY_REVIEW_FOCUS_ALIASES = new Set(["fable", "sonnet", "opus"])
 const REVIEW_WORKFLOW_MODEL = "openai-codex/gpt-5.6-luna"
 const DEFAULT_WORKFLOW_MODEL = "openai-codex/gpt-5.6-terra"
 const REQUIRED_WORKFLOW_MODEL_PREFIX = "gpt-5.6-"
-const LEGACY_WORKFLOW_MODEL_TIERS: Readonly<Record<string, string>> = {
-  "gpt-5.4-mini": REVIEW_WORKFLOW_MODEL,
-}
 
 const requiredWorkflowModel = (
   model: AvailableAgentModel,
@@ -176,25 +173,6 @@ export const resolveAgentModel = (
     const separator = normalized.indexOf("/")
     const requestedProvider =
       separator === -1 ? undefined : normalized.slice(0, separator)
-    const requestedId =
-      separator === -1 ? normalized : normalized.slice(separator + 1)
-    const legacyTier =
-      requestedProvider === undefined ||
-      requestedProvider === "openai" ||
-      requestedProvider === "openai-codex"
-        ? LEGACY_WORKFLOW_MODEL_TIERS[requestedId]
-        : undefined
-    if (legacyTier) {
-      const replacement = availableModels.find(
-        model => modelReference(model).toLowerCase() === legacyTier,
-      )
-      if (!replacement)
-        return yield* failure(
-          "model_unavailable",
-          `Workflow model ${requested} requires authenticated ${legacyTier}`,
-        )
-      return yield* requiredWorkflowModel(replacement)
-    }
     const canonical = availableModels.find(
       model => modelReference(model).toLowerCase() === normalized,
     )

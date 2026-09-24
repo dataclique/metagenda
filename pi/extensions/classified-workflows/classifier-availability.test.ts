@@ -13,12 +13,7 @@ const source = readFileSync(new URL("./index.ts", import.meta.url), "utf8")
 const start = source.indexOf("const classifierBackoff:")
 const end = source.indexOf("async function evaluateGoal(", start)
 assert.ok(start >= 0 && end > start)
-const constants = [
-  "CLASSIFIER_MODEL",
-  "CLASSIFIER_TIMEOUT_MS",
-  "CLASSIFIER_MAX_ATTEMPTS",
-  "CLASSIFIER_RETRY_BASE_MS",
-]
+const constants = ["CLASSIFIER_TIMEOUT_MS", "CLASSIFIER_RETRY_BASE_MS"]
   .map(name => {
     const match = source.match(new RegExp(`^const ${name} = .+$`, "m"))
     assert.ok(match, name)
@@ -69,7 +64,8 @@ const harness = (t: TestContext, provider: Provider) => {
     "dependencies",
     `
     const { runPi, buildClassifierPrompt, parseClassifierDecision,
-      sanitizeProcessDiagnostic, unknownErrorMessage } = dependencies;
+      sanitizeProcessDiagnostic, unknownErrorMessage,
+      classifierCandidates, markPreferredProvider } = dependencies;
     ${constants}
     const CLASSIFIER_SYSTEM_PROMPT = "classifier protocol test";
     ${stripTypeScriptTypes(source.slice(start, end))}
@@ -84,6 +80,12 @@ const harness = (t: TestContext, provider: Provider) => {
     parseClassifierDecision,
     sanitizeProcessDiagnostic,
     unknownErrorMessage,
+    classifierCandidates: () => [
+      "openai-codex/gpt-5.6-terra",
+      "zai/glm-5.3",
+      "zai/glm-5.3",
+    ],
+    markPreferredProvider: () => {},
   })
   const controller = new AbortController()
   let decision: Decision | undefined

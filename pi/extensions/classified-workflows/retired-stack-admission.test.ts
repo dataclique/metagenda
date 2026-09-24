@@ -7,10 +7,7 @@ import { currentHumanContinuationDisprovesSpecScopeBlock } from "./intent-contex
 test("retired stack commands cannot override a classifier block", () => {
   const source = readFileSync(new URL("./index.ts", import.meta.url), "utf8")
   const start = source.indexOf('    if (decision.verdict === "block") {')
-  const end = source.indexOf(
-    '      if (\n        event.toolName === "workflow"',
-    start,
-  )
+  const end = source.indexOf("      const ownershipEvidence =", start)
   assert.ok(start >= 0 && end > start)
   const run = new Function(
     "decision",

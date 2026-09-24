@@ -286,15 +286,37 @@ import {
   type RegistryIntentRequest,
 } from "../shared/registry-intent-events.ts"
 import { registerRuntimeVersion } from "../shared/runtime-version.ts"
+import { markPreferredProvider, tierCandidates } from "../shared/model-tiers.ts"
 import { AGENTOPS_INCIDENT_EVENT } from "../shared/agentops-events.ts"
 import { remoteBridgeDatabasePath } from "../remote-control/paths.ts"
 import { RemoteBridgeError } from "../remote-control/protocol.ts"
 import { makeRemoteBridgeStore } from "../remote-control/sqlite-store.ts"
 
-const CLASSIFIER_MODEL = "openai-codex/gpt-5.6-terra"
 const CLASSIFIER_TIMEOUT_MS = 60_000
-const CLASSIFIER_MAX_ATTEMPTS = 3
 const CLASSIFIER_RETRY_BASE_MS = 1_000
+
+const classifierModelOverride = (): string | undefined =>
+  process.env.PI_CLASSIFIER_MODEL?.trim() || undefined
+
+const sessionClassifierModel = (
+  ctx: Pick<ExtensionContext, "getModel">,
+): string | undefined => {
+  const model = ctx.getModel?.()
+  return model ? `${model.provider}/${model.id}` : undefined
+}
+
+const classifierCandidates = (
+  ctx: Pick<ExtensionContext, "cwd" | "getModel">,
+): string[] => {
+  const override = classifierModelOverride()
+  const candidates = tierCandidates("mid", {
+    now: () => Date.now(),
+    sessionModel: sessionClassifierModel(ctx),
+  })
+  return override && !candidates.includes(override)
+    ? [override, ...candidates]
+    : candidates
+}
 const REVIEW_DUTY_RELAY_ATTEMPTS = 12
 const MAX_CHILD_STDERR_CHARACTERS = 12_000
 const TASK_CONTINUATION_QUIET_MS = 2_000
@@ -695,14 +717,15 @@ const classifierBackoff: (
 
 async function classify(
   request: ClassificationRequest,
-  ctx: Pick<ExtensionContext, "cwd">,
+  ctx: Pick<ExtensionContext, "cwd" | "getModel">,
   signal?: AbortSignal,
   onActivity?: (active: boolean) => void,
 ): Promise<Decision> {
   onActivity?.(true)
   try {
     let lastClassifierFailure = "no classifier process result"
-    for (let attempt = 0; attempt < CLASSIFIER_MAX_ATTEMPTS; attempt += 1) {
+    const candidates = classifierCandidates(ctx)
+    for (let attempt = 0; attempt < candidates.length; attempt += 1) {
       const controller = new AbortController()
       const abort = () => controller.abort(signal?.reason)
       if (signal?.aborted) abort()
@@ -730,8 +753,7 @@ async function classify(
             "--no-prompt-templates",
             "--no-themes",
             "--no-context-files",
-            "--model",
-            CLASSIFIER_MODEL,
+            ...(candidates[attempt] ? ["--model", candidates[attempt]] : []),
             "--thinking",
             "low",
             "--system-prompt",
@@ -747,8 +769,11 @@ async function classify(
           result.stopReason !== "aborted"
         ) {
           const decision = parseClassifierDecision(result.output)
-          if (decision.reason !== "Classifier returned an invalid decision")
+          if (decision.reason !== "Classifier returned an invalid decision") {
+            if (candidates[attempt])
+              markPreferredProvider(candidates[attempt], () => Date.now())
             return decision
+          }
           lastClassifierFailure = "classifier returned an invalid decision"
         } else {
           lastClassifierFailure = sanitizeProcessDiagnostic(
@@ -772,7 +797,7 @@ async function classify(
       }
 
       if (signal?.aborted) break
-      if (attempt + 1 < CLASSIFIER_MAX_ATTEMPTS) {
+      if (attempt + 1 < candidates.length) {
         try {
           await classifierBackoff(attempt, signal)
         } catch {
@@ -782,7 +807,7 @@ async function classify(
     }
     return {
       verdict: "block",
-      reason: `Classifier was unavailable after ${CLASSIFIER_MAX_ATTEMPTS} attempts; last failure: ${lastClassifierFailure}`,
+      reason: `Classifier was unavailable after ${candidates.length} attempts; last failure: ${lastClassifierFailure}`,
       source: "classifier",
     }
   } finally {
@@ -793,13 +818,14 @@ async function classify(
 async function evaluateGoal(
   condition: string,
   transcript: string[],
-  ctx: Pick<ExtensionContext, "cwd">,
+  ctx: Pick<ExtensionContext, "cwd" | "getModel">,
 ): Promise<GoalEvaluation> {
   const controller = new AbortController()
   const timer = setTimeout(
     () => controller.abort(new Error("Goal evaluator timed out")),
     CLASSIFIER_TIMEOUT_MS,
   )
+  const model = classifierCandidates(ctx)[0]
   try {
     const result = await runPi(
       [
@@ -813,8 +839,7 @@ async function evaluateGoal(
         "--no-prompt-templates",
         "--no-themes",
         "--no-context-files",
-        "--model",
-        CLASSIFIER_MODEL,
+        ...(model ? ["--model", model] : []),
         "--thinking",
         "low",
         "--system-prompt",
@@ -1161,7 +1186,10 @@ export default function classifiedWorkflows(pi: ExtensionAPI): void {
 
   const classifyWithActivity = (
     request: ClassificationRequest,
-    ctx: Pick<ExtensionContext, "cwd" | "getContextUsage" | "getSystemPrompt">,
+    ctx: Pick<
+      ExtensionContext,
+      "cwd" | "getContextUsage" | "getSystemPrompt" | "getModel"
+    >,
     signal?: AbortSignal,
     projectContexts: RuntimeClassificationProjectContexts = runtimeClassificationProjectContexts(
       ctx.cwd,
@@ -4142,7 +4170,7 @@ export default function classifiedWorkflows(pi: ExtensionAPI): void {
     promptGuidelines: [
       "Use workflow for fan-out/fan-in, dependent steps, adversarial verification, or synthesis; use direct tools for simple work.",
       'Call agents as agent("focused task", { cwd?, tools?, model?, thinking? }); parallel accepts an array of agent promises or deferred functions.',
-      "Workflow children may use only authenticated OpenAI Codex gpt-5.6-series models; omit model for gpt-5.6-terra or use gpt-5.6-luna for lightweight and review-focused lanes.",
+      "Workflow children may use only authenticated models; omit model to inherit the session's model, or pin the lightest authenticated model for review-focused lanes.",
       "Always set a concise purpose label plus the smallest sufficient agent, concurrency, timeout, retry, and token limits; the live panel uses that label to explain what the workflow is doing.",
       "Use read-only agent tools unless isolated mutation is explicitly required.",
       "Run independent delegated work with background: true so the parent keeps processing human prompts and foreground work; await only workflows whose result is required by the next parent action.",
