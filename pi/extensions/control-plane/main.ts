@@ -1,9 +1,6 @@
 import { isAbsolute, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
-import { Cause, Data, Effect, Exit } from "effect"
-import { registryStateRoot } from "../agent-registry/paths.ts"
-import { makeSqliteRegistryStore } from "../agent-registry/sqlite-store.ts"
-import { reconcileLegacyAgentopsResearchJobs } from "./research-ownership.ts"
+import { Data, Effect } from "effect"
 import { canonicalPath, type CanonicalPath } from "./review-duty-profile.ts"
 import { startControlPlaneServer } from "./server.ts"
 import { makeSqliteJobStore } from "./sqlite-job-store.ts"
@@ -15,7 +12,6 @@ export interface ControlPlaneConfig {
   readonly host: typeof LOOPBACK_HOST
   readonly port: number
   readonly databasePath: string
-  readonly registryRoot: string
   /**
    * Home the registered checkout locations of harness payloads are resolved
    * against. It is read from the environment once, here, so the boundaries
@@ -115,7 +111,6 @@ export const parseControlPlaneConfig = (
     host: LOOPBACK_HOST,
     port,
     databasePath: join(stateRoot, "pi", "control-plane", "jobs.sqlite"),
-    registryRoot: registryStateRoot(stateRoot, home),
     home,
     ...(dashboardDirectory ? { dashboardDirectory } : {}),
   })
@@ -134,34 +129,26 @@ const waitForShutdown = (): Effect.Effect<void> =>
 
 export const runControlPlane = (
   config: ControlPlaneConfig,
-): Effect.Effect<void, unknown> => {
-  const registryStore = makeSqliteRegistryStore(config.registryRoot)
-  return Effect.acquireUseRelease(
+): Effect.Effect<void, unknown> =>
+  Effect.acquireUseRelease(
     makeSqliteJobStore(config.databasePath, config.home),
-    store =>
-      Effect.flatMap(
-        reconcileLegacyAgentopsResearchJobs(store, Date.now()),
-        () =>
-          Effect.acquireUseRelease(
-            startControlPlaneServer({
-              host: config.host,
-              port: config.port,
-              store,
-              home: config.home,
-              registryStore,
-              codexExecutable: "codex",
-              ...(config.dashboardDirectory
-                ? { dashboardDirectory: config.dashboardDirectory }
-                : {}),
-            }),
-            server =>
-              Effect.zipRight(
-                Effect.sync(() =>
-                  console.log(`pi-control-plane listening on ${server.origin}`),
-                ),
-                waitForShutdown(),
-              ),
-            server => server.close,
+    (store) =>
+      Effect.acquireUseRelease(
+        startControlPlaneServer({
+          host: config.host,
+          port: config.port,
+          store,
+          home: config.home,
+          ...(config.dashboardDirectory
+            ? { dashboardDirectory: config.dashboardDirectory }
+            : {}),
+        }),
+        (server) =>
+          Effect.zipRight(
+            Effect.sync(() =>
+              console.log(`pi-control-plane listening on ${server.origin}`),
+            ),
+            waitForShutdown(),
           ),
       ),
     store => Effect.sync(() => store.close()),

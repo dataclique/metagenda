@@ -4,10 +4,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import test from "node:test"
 import { Effect } from "effect"
-import {
-  toCanonicalWorkspaceRoot,
-  type HarnessLaunchPlan,
-} from "./harness-adapter.ts"
+import type { HarnessLaunchPlan } from "./harness-adapter.ts"
 import type { HarnessReviewHandoff } from "./harness-protocol.ts"
 import {
   HarnessWorkerError,
@@ -15,30 +12,18 @@ import {
   spawnHarnessExecutor,
   type HarnessSpawner,
 } from "./harness-worker.ts"
-import { canonicalPath, type CanonicalPath } from "./review-duty-profile.ts"
 import { startControlPlaneServer } from "./server.ts"
 import { makeSqliteJobStore, type SqliteJobStore } from "./sqlite-job-store.ts"
-
-const canonical = (value: string): CanonicalPath => {
-  const path = canonicalPath(value)
-  if (path === undefined) throw new Error(`fixture is not canonical: ${value}`)
-  return path
-}
-
-const home = canonical("/Users/example")
-const allowedRoot = toCanonicalWorkspaceRoot(`${home}/code/0xgleb/example`)
-if (allowedRoot === undefined)
-  throw new Error("fixture workspace root is invalid")
 
 const withServer = async (
   run: (origin: string, store: SqliteJobStore) => Promise<void>,
 ): Promise<void> => {
   const root = await mkdtemp(join(tmpdir(), "pi-harness-worker-test-"))
   const store = await Effect.runPromise(
-    makeSqliteJobStore(join(root, "jobs.sqlite"), home),
+    makeSqliteJobStore(join(root, "jobs.sqlite")),
   )
   const server = await Effect.runPromise(
-    startControlPlaneServer({ host: "127.0.0.1", port: 0, store, home }),
+    startControlPlaneServer({ host: "127.0.0.1", port: 0, store }),
   )
   try {
     await run(server.origin, store)
@@ -61,7 +46,7 @@ const harnessEnqueueBody = {
     pullRequest: 7,
     kind: "own",
     inputHeadSha: headSha,
-    repositoryRoot: `${home}/code/0xgleb/example`,
+    repositoryRoot: "/Users/example/code/0xgleb/example",
     isolation: "approved-worktree",
   },
   runAt: 0,
@@ -130,9 +115,7 @@ const workerOptions = (origin: string, spawner: HarnessSpawner) => ({
   workerId: "harness-supervisor",
   leaseTtlMs: 90_000,
   retryDelayMs: 0,
-  allowedRoots: [allowedRoot],
-  home,
-  environment: {},
+  allowedRoots: ["/Users/example/code/0xgleb/example"],
   spawner,
 })
 
@@ -332,7 +315,23 @@ test("payload roots outside the registered workspaces fail before any spawn", as
         idempotencyKey: "harness:personal:example:outside",
       }),
     })
-    assert.equal(response.status, 400)
+    assert.equal(response.status, 201)
+    const jobId = ((await response.json()) as { job: { id: string } }).job.id
+    const calls: HarnessLaunchPlan[] = []
+    const outcome = await Effect.runPromise(
+      runNextHarnessAttempt(
+        workerOptions(
+          origin,
+          stubSpawner(
+            () => ({ kind: "spawned", exitCode: 0, stdout: "" }),
+            calls,
+          ),
+        ),
+      ),
+    )
+    assert.equal(outcome.outcome, "failed")
+    assert.equal(calls.length, 0)
+    assert.equal((await jobState(origin, jobId)).state, "retry_wait")
   }))
 
 test("malformed control-plane claim responses surface as typed request failures", async () => {

@@ -29,9 +29,7 @@ export const reconcileLegacyAgentopsResearchJobs = (
   now: number,
 ): Effect.Effect<{ readonly cancelled: readonly string[] }, JobStoreError> =>
   Effect.gen(function* () {
-    const jobs = (yield* store.list()).flatMap(stored =>
-      stored.outcome === "readable" ? [stored.job] : [],
-    )
+    const jobs = yield* store.list()
     const legacy = legacyAgentopsResearchJobs(jobs)
     yield* Effect.forEach(legacy, job => store.cancel(job.id, now), {
       concurrency: 1,

@@ -5,10 +5,12 @@ import { join } from "node:path"
 import test from "node:test"
 import { setTimeout as delay } from "node:timers/promises"
 import { Effect, Either } from "effect"
-import { makeSqliteRegistryStore } from "../agent-registry/sqlite-store.ts"
 import { toJobId, type JobId } from "./harness-protocol.ts"
 import type { Job } from "./job-runtime.ts"
-import { startControlPlaneServer, type ControlPlaneJobStore } from "./server.ts"
+import {
+  startControlPlaneServer,
+  type ControlPlaneJobStore,
+} from "./server.ts"
 import { canonicalPath, type CanonicalPath } from "./review-duty-profile.ts"
 import {
   makeSqliteJobStore,
@@ -52,24 +54,16 @@ const partialStore = (
   claimDue: unavailable("claimDue"),
   complete: unavailable("complete"),
   fail: unavailable("fail"),
-  recoverExpired: unavailable("recoverExpired"),
-  recordUsage: unavailable("recordUsage"),
-  listUsage: unavailable("listUsage"),
-  recordAllowanceCheckpoint: unavailable("recordAllowanceCheckpoint"),
-  listAllowanceCheckpoints: unavailable("listAllowanceCheckpoints"),
-  claimAutonomousAdmission: unavailable("claimAutonomousAdmission"),
-  recordAgentIntervention: unavailable("recordAgentIntervention"),
-  agentIntervention: unavailable("agentIntervention"),
-  reserveProviderCall: unavailable("reserveProviderCall"),
-  settleProviderCall: unavailable("settleProviderCall"),
   ...operations,
 })
 
-const unavailable = (operation: string) => (): Effect.Effect<never> =>
-  Effect.die(new Error(`the test store does not implement ${operation}`))
+const unavailable =
+  (operation: string) =>
+  (): Effect.Effect<never> =>
+    Effect.die(new Error(`the test store does not implement ${operation}`))
 
 const readableJobs = (stored: readonly StoredJob[]): readonly Job[] =>
-  stored.flatMap(entry => (entry.outcome === "readable" ? [entry.job] : []))
+  stored.flatMap((entry) => (entry.outcome === "readable" ? [entry.job] : []))
 
 const withServer = async (
   run: (origin: string, store: SqliteJobStore) => Promise<void>,
@@ -100,106 +94,6 @@ const withServer = async (
   }
 }
 
-test("GET /v1/backlog projects typed work phases without exposing requirements", async () => {
-  const root = await mkdtemp(join(tmpdir(), "pi-control-plane-backlog-test-"))
-  const store = await Effect.runPromise(
-    makeSqliteJobStore(join(root, "jobs.sqlite"), home),
-  )
-  const registryStore = makeSqliteRegistryStore(join(root, "registry"))
-  try {
-    const agent = { id: "agent-1", pid: 123 }
-    const lease = await Effect.runPromise(
-      registryStore.claim({
-        agent,
-        project: "/repo/a",
-        role: "worker",
-        mode: "task",
-        policyDigest: "policy-1",
-        now: 1_000,
-        ttlMs: 60_000,
-      }),
-    )
-    const request = await Effect.runPromise(
-      registryStore.enqueue({
-        project: "/repo/a",
-        role: "worker",
-        requesterId: "requester-1",
-        text: "Private requirement text must not reach this endpoint",
-        now: 2_000,
-      }),
-    )
-    await Effect.runPromise(
-      registryStore.claimRequest({
-        requestId: request.id,
-        leaseId: lease.lease.id,
-        agentId: agent.id,
-        now: 3_000,
-      }),
-    )
-    await Effect.runPromise(
-      registryStore.advanceRequestBacklog({
-        requestId: request.id,
-        leaseId: lease.lease.id,
-        agentId: agent.id,
-        phase: "implementation",
-        evidenceRef: "commit:abc123",
-        now: 4_000,
-      }),
-    )
-    await Effect.runPromise(
-      registryStore.advanceRequestBacklog({
-        requestId: request.id,
-        leaseId: lease.lease.id,
-        agentId: agent.id,
-        phase: "review",
-        evidenceRef: "workflow:wf-7",
-        now: 5_000,
-      }),
-    )
-
-    const server = await Effect.runPromise(
-      startControlPlaneServer({
-        host: "127.0.0.1",
-        port: 0,
-        store,
-        home,
-        registryStore,
-      }),
-    )
-    try {
-      const response = await fetch(`${server.origin}/v1/backlog`)
-      assert.equal(response.status, 200)
-      const body = (await response.json()) as {
-        readonly totals: Readonly<Record<string, number>>
-        readonly projects: readonly Readonly<Record<string, unknown>>[]
-      }
-      assert.deepEqual(body.totals, {
-        ready: 0,
-        assigned: 0,
-        implementing: 0,
-        inReview: 1,
-        publishing: 0,
-        blocked: 0,
-        unreconciled: 0,
-        totalOpen: 1,
-        terminal: 0,
-        implementationEvidence: 1,
-        reviewEvidence: 1,
-        publicationEvidence: 0,
-        terminalEvidence: 0,
-      })
-      assert.equal(body.projects[0]?.project, "/repo/a")
-      assert.equal(JSON.stringify(body).includes("Private requirement"), false)
-    } finally {
-      await Effect.runPromise(server.close)
-    }
-  } finally {
-    registryStore.close()
-    store.close()
-    await rm(root, { recursive: true, force: true })
-  }
-})
-
 const enqueueBody = {
   kind: "review-duty.scan",
   payload: { profile: "st0x-review" },
@@ -224,7 +118,7 @@ const harnessEnqueueBody = {
     kind: "own",
     inputHeadSha: harnessHeadSha,
     repositoryRoot: registeredCheckout("code/0xgleb/example"),
-    isolation: "approved-worktree",
+    isolation: "read-only",
   },
   runAt: 0,
   maxAttempts: 2,
@@ -239,7 +133,7 @@ const harnessHandoff = (
   protocolVersion: 1,
   jobId,
   attempt,
-  lane: "claude-code-max",
+  lane: "cursor-subscription",
   repository: "0xgleb/example",
   pullRequest: 7,
   inputHeadSha: harnessHeadSha,
@@ -261,11 +155,9 @@ const claimJob = async (
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ workerId, ttlMs: 90_000 }),
   })
-  return (
-    (await claimed.json()) as {
-      job: { leaseToken: string; attempt: number }
-    }
-  ).job
+  return ((await claimed.json()) as {
+    job: { leaseToken: string; attempt: number }
+  }).job
 }
 
 const enqueueJob = async (origin: string, body: unknown): Promise<string> => {
@@ -307,234 +199,6 @@ test("health and read-only job routes return bounded versioned JSON", async () =
     assert.equal(jobs.status, 200)
     assert.deepEqual(await jobs.json(), { jobs: [], unreadable: [] })
   }))
-
-test("provider-call reservations cross the loopback server and settle", async () => {
-  const now = Date.now()
-  const resetAt = now + 7 * 24 * 60 * 60 * 1_000
-  let reserved: Parameters<SqliteJobStore["reserveProviderCall"]>[0] | undefined
-  let settled: Parameters<SqliteJobStore["settleProviderCall"]>[0] | undefined
-  const store = partialStore({
-    listAllowanceCheckpoints: () =>
-      Effect.succeed([
-        {
-          provider: "openai" as const,
-          pool: "codex-app-server-weekly" as const,
-          source: "codex-app-server" as const,
-          capturedAt: now - 2 * 60 * 60 * 1_000,
-          remainingPercent: 100,
-          resetAt,
-        },
-        {
-          provider: "openai" as const,
-          pool: "codex-app-server-weekly" as const,
-          source: "codex-app-server" as const,
-          capturedAt: now - 60 * 60 * 1_000,
-          remainingPercent: 99,
-          resetAt,
-        },
-      ]),
-    listUsage: () =>
-      Effect.succeed([
-        {
-          agentId: "agent-a",
-          label: "example",
-          cwd: "/Users/example/project",
-          model: "openai-codex/gpt-5.6-sol",
-          capturedAt: now - 2 * 60 * 60 * 1_000,
-          usage: {
-            input: 70_000,
-            output: 10_000,
-            cacheRead: 20_000,
-            cacheWrite: 0,
-            totalTokens: 100_000,
-          },
-        },
-        {
-          agentId: "agent-a",
-          label: "example",
-          cwd: "/Users/example/project",
-          model: "openai-codex/gpt-5.6-sol",
-          capturedAt: now - 60 * 60 * 1_000,
-          usage: {
-            input: 140_000,
-            output: 20_000,
-            cacheRead: 40_000,
-            cacheWrite: 0,
-            totalTokens: 200_000,
-          },
-        },
-      ]),
-    agentIntervention: () => Effect.succeed(undefined),
-    reserveProviderCall: input =>
-      Effect.sync(() => {
-        reserved = input
-        return {
-          allowed: true as const,
-          reservationId: input.reservationId,
-          reservedTokens: input.requestedTokens,
-          expiresAt: now + 5 * 60_000,
-        }
-      }),
-    settleProviderCall: input =>
-      Effect.sync(() => {
-        settled = input
-        return {
-          reservationId: input.reservationId,
-          reservedTokens: 100_000,
-          actualTokens: input.actualTokens,
-          settledAt: input.now,
-        }
-      }),
-  })
-  const server = await Effect.runPromise(
-    startControlPlaneServer({ host: "127.0.0.1", port: 0, store, home }),
-  )
-  try {
-    const reservation = await fetch(
-      `${server.origin}/v1/usage/provider-calls/reserve`,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          reservationId: "provider-call-a",
-          agentId: "agent-a",
-          cwd: "/Users/example/project",
-          role: "reviewer",
-          provider: "openai",
-          requestedTokens: 100_000,
-          lane: "autonomous",
-          ownerInteractionAt: null,
-        }),
-      },
-    )
-    assert.equal(reservation.status, 200)
-    assert.deepEqual(await reservation.json(), {
-      reservation: {
-        allowed: true,
-        reservationId: "provider-call-a",
-        reservedTokens: 100_000,
-        expiresAt: now + 5 * 60_000,
-      },
-    })
-    assert.equal(reserved?.reservationId, "provider-call-a")
-    assert.equal(reserved?.provider, "openai")
-
-    const settlement = await fetch(
-      `${server.origin}/v1/usage/provider-calls/settle`,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          reservationId: "provider-call-a",
-          actualTokens: 80_000,
-        }),
-      },
-    )
-    assert.equal(settlement.status, 200)
-    assert.equal(settled?.reservationId, "provider-call-a")
-    assert.equal(settled?.actualTokens, 80_000)
-  } finally {
-    await Effect.runPromise(server.close)
-  }
-})
-
-test("throttle control and autonomous workflow admission remain live together", async () => {
-  const now = Date.now()
-  const resetAt = now + 7 * 24 * 60 * 60 * 1_000
-  let claimedRole: string | undefined
-  const checkpoints = [
-    {
-      provider: "openai" as const,
-      pool: "codex-app-server-weekly" as const,
-      source: "codex-app-server" as const,
-      capturedAt: now - 2 * 60 * 60 * 1_000,
-      remainingPercent: 100,
-      resetAt,
-    },
-    {
-      provider: "openai" as const,
-      pool: "codex-app-server-weekly" as const,
-      source: "codex-app-server" as const,
-      capturedAt: now - 60 * 60 * 1_000,
-      remainingPercent: 99,
-      resetAt,
-    },
-  ]
-  const samples = [
-    {
-      agentId: "st0x-agent",
-      label: "st0x",
-      cwd: "/Users/example/code/st0x",
-      model: "openai-codex/gpt-5.6-sol",
-      capturedAt: now - 2 * 60 * 60 * 1_000,
-      usage: {
-        input: 70_000,
-        output: 10_000,
-        cacheRead: 20_000,
-        cacheWrite: 0,
-        totalTokens: 100_000,
-      },
-    },
-    {
-      agentId: "st0x-agent",
-      label: "st0x",
-      cwd: "/Users/example/code/st0x",
-      model: "openai-codex/gpt-5.6-sol",
-      capturedAt: now - 60 * 60 * 1_000,
-      usage: {
-        input: 140_000,
-        output: 20_000,
-        cacheRead: 40_000,
-        cacheWrite: 0,
-        totalTokens: 200_000,
-      },
-    },
-  ]
-  const store = partialStore({
-    listAllowanceCheckpoints: () => Effect.succeed(checkpoints),
-    listUsage: () => Effect.succeed(samples),
-    agentIntervention: () => Effect.succeed(now - 30 * 60_000),
-    claimAutonomousAdmission: role =>
-      Effect.sync(() => {
-        claimedRole = role
-        return { allowed: true as const, admittedAt: now }
-      }),
-  })
-  const server = await Effect.runPromise(
-    startControlPlaneServer({ host: "127.0.0.1", port: 0, store, home }),
-  )
-  try {
-    const control = await fetch(
-      `${server.origin}/v1/usage/control?agentId=st0x-agent&cwd=${encodeURIComponent("/Users/example/code/st0x")}`,
-    )
-    assert.equal(control.status, 200)
-    const controlBody = (await control.json()) as {
-      allocation?: { configuredWeight: number; recencyFactor: number }
-    }
-    assert.equal(controlBody.allocation?.configuredWeight, 2)
-    assert.ok((controlBody.allocation?.recencyFactor ?? 0) > 0.25)
-
-    const admission = await fetch(
-      `${server.origin}/v1/usage/admit?role=reviewer&kind=workflow&requestedTokens=800000`,
-      { method: "POST" },
-    )
-    assert.equal(admission.status, 200)
-    const admissionBody = (await admission.json()) as {
-      admission: {
-        allowed: boolean
-        grantedTokens?: number
-        policy: { pace: string; throttleRatio: number }
-      }
-    }
-    assert.equal(admissionBody.admission.allowed, true)
-    assert.equal(claimedRole, "reviewer")
-    assert.ok((admissionBody.admission.grantedTokens ?? 0) >= 4_000)
-    assert.ok((admissionBody.admission.grantedTokens ?? 0) <= 800_000)
-    assert.ok(admissionBody.admission.policy.throttleRatio > 0)
-  } finally {
-    await Effect.runPromise(server.close)
-  }
-})
 
 test("registered enqueue is idempotent and unknown executable kinds fail closed", async () =>
   withServer(async origin => {
@@ -753,7 +417,7 @@ test("workers claim due jobs with server-issued leases and stale completion is f
   }))
 
 test("harness jobs accept only a matching bounded typed handoff", async () =>
-  withServer(async origin => {
+  withServer(async (origin) => {
     const id = await enqueueJob(origin, harnessEnqueueBody)
     const claimed = await claimJob(origin, "harness-supervisor")
     const endpoint = `${origin}/v1/jobs/${id}/complete`
@@ -826,7 +490,7 @@ test("harness jobs accept only a matching bounded typed handoff", async () =>
   }))
 
 test("the harness completion envelope accepts exactly a lease token and a handoff", async () =>
-  withServer(async origin => {
+  withServer(async (origin) => {
     const id = await enqueueJob(origin, harnessEnqueueBody)
     const claimed = await claimJob(origin, "harness-supervisor")
     const complete = async (body: unknown): Promise<Response> =>
@@ -854,7 +518,7 @@ test("the harness completion envelope accepts exactly a lease token and a handof
   }))
 
 test("a blocked harness attempt with retries left answers with the retrying job", async () =>
-  withServer(async origin => {
+  withServer(async (origin) => {
     const id = await enqueueJob(origin, harnessEnqueueBody)
     const claimed = await claimJob(origin, "harness-supervisor")
 
@@ -892,7 +556,7 @@ test("a blocked harness attempt with retries left answers with the retrying job"
   }))
 
 test("a blocked harness handoff ends the attempt and keeps its evidence", async () =>
-  withServer(async origin => {
+  withServer(async (origin) => {
     const id = await enqueueJob(origin, {
       ...harnessEnqueueBody,
       maxAttempts: 1,
@@ -927,7 +591,7 @@ test("a blocked harness handoff ends the attempt and keeps its evidence", async 
   }))
 
 test("completing a job that does not exist reports it as missing", async () =>
-  withServer(async origin => {
+  withServer(async (origin) => {
     const missing = await fetch(`${origin}/v1/jobs/absent-job/complete`, {
       method: "POST",
       headers: { "content-type": "application/json" },

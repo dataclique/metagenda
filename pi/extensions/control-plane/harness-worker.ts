@@ -3,18 +3,15 @@ import { Data, Effect } from "effect"
 import {
   buildHarnessLaunchPlan,
   type HarnessLaunchPlan,
-  type LaunchEnvironment,
-  type RegisteredWorkspaceRoots,
 } from "./harness-adapter.ts"
 import {
   decodeHarnessReviewHandoff,
-  harnessHandoffAttemptMatch,
-  toJobId,
+  decodeHarnessReviewPayload,
+  harnessHandoffMatchesAttempt,
+  isSafeHarnessJobId,
   type HarnessReviewHandoff,
   type HarnessReviewPayload,
 } from "./harness-protocol.ts"
-import { decodeStoredHarnessReviewPayload } from "./job-runtime.ts"
-import type { CanonicalPath } from "./review-duty-profile.ts"
 
 export interface HarnessExecution {
   readonly exitCode: number
@@ -40,9 +37,7 @@ export interface HarnessWorkerOptions {
   readonly workerId: string
   readonly leaseTtlMs: number
   readonly retryDelayMs: number
-  readonly allowedRoots: RegisteredWorkspaceRoots
-  readonly home: CanonicalPath
-  readonly environment: LaunchEnvironment
+  readonly allowedRoots: readonly string[]
   readonly spawner: HarnessSpawner
 }
 
@@ -65,12 +60,7 @@ export const runNextHarnessAttempt = (
     if (claimed === undefined) return { outcome: "idle" } as const
     if (claimed.kind !== "harness.review")
       return { outcome: "unsupported", jobId: claimed.id } as const
-    const attempt = yield* prepareAttempt(
-      claimed,
-      options.allowedRoots,
-      options.home,
-      options.environment,
-    )
+    const attempt = yield* prepareAttempt(claimed, options.allowedRoots)
     if (attempt.kind === "rejected")
       return yield* failAttempt(options, claimed, attempt.reason)
     const execution = yield* Effect.either(options.spawner(attempt.plan))
@@ -228,7 +218,7 @@ const claimDueJob = (
       !isRecord(body) ||
       !isRecord(body.job) ||
       typeof body.job.id !== "string" ||
-      toJobId(body.job.id) === undefined ||
+      !isSafeHarnessJobId(body.job.id) ||
       !Number.isSafeInteger(body.job.attempt) ||
       typeof body.job.leaseToken !== "string" ||
       body.job.leaseToken.length < 1 ||
@@ -258,13 +248,11 @@ type PreparedAttempt =
 
 const prepareAttempt = (
   claimed: ClaimedJob,
-  allowedRoots: RegisteredWorkspaceRoots,
-  home: CanonicalPath,
-  environment: LaunchEnvironment,
+  allowedRoots: readonly string[],
 ): Effect.Effect<PreparedAttempt, HarnessWorkerError> =>
   Effect.gen(function* () {
     const payload = yield* Effect.either(
-      decodeStoredHarnessReviewPayload(claimed.payload),
+      decodeHarnessReviewPayload(claimed.payload),
     )
     if (payload._tag === "Left")
       return {
@@ -273,12 +261,10 @@ const prepareAttempt = (
       } as const
     const plan = yield* Effect.either(
       buildHarnessLaunchPlan(
-        payload.right,
+        claimed.payload,
         claimed.id,
         claimed.attempt,
         allowedRoots,
-        home,
-        environment,
       ),
     )
     if (plan._tag === "Left")
@@ -334,8 +320,7 @@ const extractHandoff = (
             }),
         ),
         handoff =>
-          harnessHandoffAttemptMatch(handoff, payload, jobId, attempt)
-            .outcome === "matched"
+          harnessHandoffMatchesAttempt(handoff, payload, jobId, attempt)
             ? Effect.succeed(handoff)
             : executorFailure("executor handoff does not match the attempt"),
       ),

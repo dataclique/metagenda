@@ -214,19 +214,15 @@ main {
 }
 
 .metrics {
-  min-height: 100%;
-  padding: 8px;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(132px, 100%), 1fr));
-  align-content: start;
+  grid-template-columns: repeat(4, 1fr);
   gap: 8px;
-  margin: 0;
+  margin-bottom: 10px;
 }
 .metric {
   position: relative;
-  min-width: 0;
-  min-height: 64px;
-  padding: 10px 12px;
+  min-height: 72px;
+  padding: 12px 14px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-rows: auto auto;
@@ -626,26 +622,34 @@ main {
   color: var(--green);
 }
 
+.workspace-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(420px, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+.workspace-grid.empty-jobs {
+  grid-template-columns: minmax(260px, 0.55fr) minmax(520px, 1.45fr);
+}
+.panel {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: linear-gradient(155deg, var(--panel-strong), var(--panel));
+  box-shadow:
+    0 16px 44px rgba(0, 0, 0, 0.42),
+    0 0 40px rgba(152, 60, 141, 0.05);
+}
 .panel-heading {
-  position: sticky;
-  z-index: 4;
-  top: 0;
-  min-height: 46px;
-  padding: 9px 12px;
+  min-height: 58px;
+  padding: 13px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--line);
-  background: rgba(8, 11, 26, 0.96);
-  backdrop-filter: blur(10px);
-}
-.panel-heading .eyebrow {
-  margin-bottom: 3px;
-  font-size: 8px;
 }
 .panel-heading h3 {
   margin: 0;
-  font-size: 15px;
+  font-size: 18px;
   letter-spacing: -0.02em;
 }
 .count {
@@ -775,74 +779,6 @@ main {
 .job-schedule.stale strong {
   color: var(--magenta);
 }
-.backlog-summary {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1px;
-  padding: 1px;
-  border-bottom: 1px solid var(--line);
-  background: var(--line);
-}
-.backlog-summary > div {
-  min-width: 0;
-  padding: 10px 12px;
-  background: var(--void);
-}
-.backlog-summary span,
-.backlog-row-counts span {
-  color: #60798f;
-  font:
-    400 9px "SFMono-Regular",
-    Menlo,
-    monospace;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-.backlog-summary strong {
-  display: block;
-  margin-top: 4px;
-  color: var(--ink);
-  font-size: 17px;
-}
-.backlog-list {
-  padding: 6px 10px 10px;
-}
-.backlog-row {
-  display: grid;
-  grid-template-columns: minmax(140px, 1fr) minmax(120px, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  min-height: 58px;
-  padding: 8px 6px;
-  border-bottom: 1px solid rgba(156, 190, 218, 0.09);
-}
-.backlog-row:last-child {
-  border-bottom: 0;
-}
-.backlog-row strong,
-.backlog-row span {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.backlog-row strong {
-  color: var(--ink);
-  font-size: 12px;
-}
-.backlog-row > div > span,
-.backlog-row p {
-  margin: 3px 0 0;
-  color: #698399;
-  font:
-    400 9px "SFMono-Regular",
-    Menlo,
-    monospace;
-}
-.backlog-row-counts {
-  display: flex;
-  gap: 9px;
-}
 .empty-state {
   min-height: 82px;
   display: flex;
@@ -952,238 +888,6 @@ main {
   letter-spacing: 0.1em;
 }
 
-.control-plane-dock-shell {
-  height: max(640px, calc(100dvh - 158px));
-  min-height: 0;
-  min-width: 0;
-  margin-top: 8px;
-}
-.control-plane-dock-shell > .dv-dockview {
-  height: 100%;
-  min-height: 0;
-  min-width: 0;
-}
-.control-plane-dockview-theme {
-  --dv-background-color: var(--void);
-  --dv-group-view-background-color: var(--void);
-  --dv-tabs-and-actions-container-background-color: #0c101e;
-  --dv-tabs-and-actions-container-height: 30px;
-  --dv-tabs-and-actions-container-font-size: 10px;
-  --dv-activegroup-visiblepanel-tab-background-color: #171128;
-  --dv-activegroup-hiddenpanel-tab-background-color: transparent;
-  --dv-inactivegroup-visiblepanel-tab-background-color: #101526;
-  --dv-inactivegroup-hiddenpanel-tab-background-color: transparent;
-  --dv-activegroup-visiblepanel-tab-color: var(--ink);
-  --dv-activegroup-hiddenpanel-tab-color: var(--muted);
-  --dv-inactivegroup-visiblepanel-tab-color: #b8cad9;
-  --dv-inactivegroup-hiddenpanel-tab-color: var(--muted);
-  --dv-tab-divider-color: var(--line);
-  --dv-separator-border: var(--line);
-  --dv-paneview-header-border-color: var(--line);
-  --dv-border-radius: 8px;
-  --dv-icon-hover-background-color: rgba(41, 231, 255, 0.12);
-  --dv-floating-box-shadow: 0 18px 50px rgba(0, 0, 0, 0.62);
-  --dv-drag-over-background-color: rgba(41, 231, 255, 0.18);
-  --dv-drag-over-border-color: var(--cyan);
-  --dv-sash-color: rgba(183, 156, 255, 0.16);
-  --dv-active-sash-color: var(--cyan);
-  --dv-active-sash-transition-delay: 0s;
-}
-.control-plane-dockview-theme .dv-groupview {
-  overflow: hidden;
-  border: 1px solid rgba(183, 156, 255, 0.22);
-  border-radius: 6px;
-  background: #080b1a;
-  box-shadow: none;
-}
-.control-plane-dockview-theme .dv-groupview.dv-active-group {
-  border-color: rgba(41, 231, 255, 0.42);
-}
-.control-plane-dockview-theme .dv-tabs-and-actions-container {
-  border-bottom: 1px solid var(--line);
-}
-.control-plane-dockview-theme
-  .dv-split-view-container.dv-horizontal
-  > .dv-sash-container
-  > .dv-sash {
-  width: 8px;
-  margin-left: -2px;
-}
-.control-plane-dockview-theme
-  .dv-split-view-container.dv-vertical
-  > .dv-sash-container
-  > .dv-sash {
-  height: 8px;
-  margin-top: -2px;
-}
-.control-plane-dockview-theme .dv-sash:hover,
-.control-plane-dockview-theme .dv-sash.dv-active {
-  background: rgba(41, 231, 255, 0.72);
-}
-.control-plane-dockview-theme .dv-tab {
-  min-width: 0;
-  max-width: 180px;
-}
-.control-plane-dockview-theme .dv-default-tab {
-  box-sizing: border-box;
-  gap: 5px;
-  padding-inline: 10px;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-}
-.control-plane-dock-panel-body {
-  box-sizing: border-box;
-  height: 100%;
-  min-height: 0;
-  min-width: 0;
-  overflow: auto;
-  overscroll-behavior: contain;
-  container-type: inline-size;
-  color: var(--ink);
-  scrollbar-color: rgba(183, 156, 255, 0.42) transparent;
-  scrollbar-width: thin;
-}
-.dock-projection {
-  min-height: 100%;
-  background: transparent;
-}
-@container (max-width: 860px) {
-  .metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .usage-grid {
-    grid-template-columns: minmax(0, 1fr) minmax(280px, 0.85fr);
-  }
-  .project-usage {
-    grid-column: 1 / -1;
-    border-top: 1px solid var(--line);
-  }
-  .allowance-card {
-    border-right: 0;
-  }
-}
-@container (max-width: 560px) {
-  .metrics,
-  .usage-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .usage-chart,
-  .allowance-card {
-    border-right: 0;
-    border-bottom: 1px solid var(--line);
-  }
-  .project-usage {
-    grid-column: auto;
-    border-top: 0;
-  }
-  .job-row {
-    grid-template-columns: 3px minmax(0, 1fr);
-  }
-  .job-attempt,
-  .job-schedule {
-    display: none;
-  }
-  .backlog-summary {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .backlog-row {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 4px;
-  }
-  .backlog-row-counts {
-    flex-wrap: wrap;
-  }
-}
-.control-plane-dock-actions {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding-right: 5px;
-}
-.control-plane-dock-actions > button,
-.control-plane-dock-actions summary,
-.control-plane-dock-watermark button {
-  min-height: 20px;
-  padding: 3px 8px;
-  color: #b8cad9;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  background: rgba(8, 11, 26, 0.9);
-  font:
-    500 9px "SFMono-Regular",
-    Menlo,
-    monospace;
-  cursor: pointer;
-}
-.control-plane-dock-actions summary {
-  display: grid;
-  width: 20px;
-  box-sizing: border-box;
-  place-items: center;
-  padding: 0;
-  list-style: none;
-  font-size: 14px;
-}
-.control-plane-dock-actions summary::-webkit-details-marker {
-  display: none;
-}
-.control-plane-dock-actions > button:hover,
-.control-plane-dock-actions summary:hover,
-.control-plane-dock-watermark button:hover {
-  color: var(--cyan);
-  border-color: rgba(41, 231, 255, 0.45);
-}
-.control-plane-dock-menu {
-  position: absolute;
-  z-index: 30;
-  top: calc(100% + 5px);
-  right: 0;
-  width: 180px;
-  overflow: hidden;
-  padding: 5px;
-  color: var(--muted);
-  border: 1px solid var(--line-strong);
-  border-radius: 8px;
-  background: #0c101e;
-  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.55);
-}
-.control-plane-dock-menu button,
-.control-plane-dock-menu span {
-  display: block;
-  width: 100%;
-  box-sizing: border-box;
-  padding: 7px 9px;
-  color: #b8cad9;
-  border: 0;
-  border-radius: 4px;
-  background: transparent;
-  text-align: left;
-  font-size: 10px;
-}
-.control-plane-dock-menu button:hover {
-  color: var(--ink);
-  background: rgba(41, 231, 255, 0.1);
-}
-.control-plane-dock-watermark {
-  display: grid;
-  height: 100%;
-  box-sizing: border-box;
-  place-content: center;
-  gap: 12px;
-  padding: 24px;
-  color: var(--muted);
-  text-align: center;
-}
-.control-plane-dock-watermark div {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 7px;
-}
-
 footer {
   min-height: 40px;
   display: flex;
@@ -1216,6 +920,10 @@ footer {
   }
   .allowance-card {
     border-right: 0;
+  }
+  .workspace-grid,
+  .workspace-grid.empty-jobs {
+    grid-template-columns: 1fr;
   }
   .runtime-strip {
     align-items: flex-start;

@@ -25,7 +25,6 @@ test("control-plane config is loopback-only with a state-root database", () => {
       host: "127.0.0.1",
       port: 43_121,
       databasePath: "/Users/example/state/pi/control-plane/jobs.sqlite",
-      registryRoot: "/Users/example/state/pi/agent-registry",
       home: "/Users/example",
       dashboardDirectory: "/nix/store/dashboard",
     },
@@ -36,7 +35,6 @@ test("control-plane config is loopback-only with a state-root database", () => {
       host: "127.0.0.1",
       port: 43_121,
       databasePath: "/Users/example/.local/state/pi/control-plane/jobs.sqlite",
-      registryRoot: "/Users/example/.local/state/pi/agent-registry",
       home: "/Users/example",
     },
   )
@@ -55,10 +53,7 @@ test("control-plane startup logs the bounded typed failure", () => {
     },
   )
   assert.equal(result.status, 1)
-  assert.match(
-    result.stderr,
-    /invalid_config: HOME must be a canonical absolute path/,
-  )
+  assert.match(result.stderr, /invalid_config: HOME must be an absolute path/)
   assert.doesNotMatch(result.stderr, /stopped with an internal error/)
 })
 

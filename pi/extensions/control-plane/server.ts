@@ -6,44 +6,12 @@ import {
 } from "node:http"
 import { readFile } from "node:fs/promises"
 import { isAbsolute, join } from "node:path"
-import { Clock, Data, Effect, Either } from "effect"
-import type { BacklogStore } from "../agent-registry/backlog.ts"
-import {
-  type RegistryError,
-  type RegistryStore,
-} from "../agent-registry/registry.ts"
-import {
-  governedAllowanceCheckpoints,
-  isAllowancePool,
-  isAllowanceSource,
-  providerCallAllowanceCheckpoints,
-  type AllowancePool,
-  type ProviderAllowanceCheckpoint,
-} from "./allowance-pool.ts"
-import { sampleCodexWeeklyAllowance } from "./codex-allowance.ts"
+import { Clock, Data, Effect } from "effect"
 import { decodeHarnessReviewHandoff } from "./harness-protocol.ts"
-import {
-  decodeJobSpec,
-  isRegisteredKindFilter,
-  JobRuntimeError,
-  type Job,
-} from "./job-runtime.ts"
+import { decodeJobSpec, JobRuntimeError, type Job } from "./job-runtime.ts"
 import type { CanonicalPath } from "./review-duty-profile.ts"
-import { ThrottleActivity } from "./throttle-activity.ts"
 import {
-  agentAllocation,
-  allowanceRunway,
-  calibrateProviderTokens,
-  isAutonomousRole,
-  providerTokenPolicy,
-  rolePollingPolicy,
-  usagePolicy,
-  workflowTokenBudget,
-  type AutonomousRole,
-  type ProviderUsagePoint,
-} from "./usage-policy.ts"
-import { dashboardBacklogProjection } from "./backlog-projection.ts"
-import {
+  isRegisteredKindFilter,
   JobStoreError,
   type SqliteJobStore,
   type StoredJob,
@@ -150,26 +118,8 @@ export type ControlPlaneFailure =
  */
 export type ControlPlaneJobStore = Pick<
   SqliteJobStore,
-  | "enqueue"
-  | "get"
-  | "list"
-  | "claimDue"
-  | "complete"
-  | "fail"
-  | "recoverExpired"
-  | "recordUsage"
-  | "listUsage"
-  | "recordAllowanceCheckpoint"
-  | "listAllowanceCheckpoints"
-  | "claimAutonomousAdmission"
-  | "recordAgentIntervention"
-  | "agentIntervention"
-  | "reserveProviderCall"
-  | "settleProviderCall"
+  "enqueue" | "get" | "list" | "claimDue" | "complete" | "fail"
 >
-
-export type ControlPlaneRegistryStore = RegistryStore &
-  BacklogStore<RegistryError>
 
 export interface ControlPlaneServerOptions {
   readonly host: string
@@ -179,7 +129,6 @@ export interface ControlPlaneServerOptions {
   readonly home: CanonicalPath
   readonly dashboardDirectory?: string
   readonly codexExecutable?: string
-  readonly registryStore?: ControlPlaneRegistryStore
 }
 
 interface UsageSamplingStatus {
@@ -308,8 +257,7 @@ const sendRequestFailure = (
       sendError(response, 400, "invalid_json", "request body is malformed JSON")
     else if (failure.code === "invalid_payload")
       sendError(response, 400, "invalid_input", "request payload is invalid")
-    else
-      sendError(response, 400, "invalid_request", "request could not be read")
+    else sendError(response, 400, "invalid_request", "request could not be read")
   })
 
 const sendRuntimeFailure = (
@@ -332,556 +280,11 @@ const sendStoreFailure = (
     if (failure.code === "not_found")
       sendError(response, 404, "not_found", "job was not found")
     else if (failure.code === "idempotency_conflict")
-      sendError(
-        response,
-        409,
-        "idempotency_conflict",
-        "job key conflicts with existing input",
-      )
+      sendError(response, 409, "idempotency_conflict", "job key conflicts with existing input")
     else if (failure.code === "capacity")
       sendError(response, 503, "capacity", "job store is at capacity")
-    else
-      sendError(response, 500, "internal_error", "control plane request failed")
+    else sendError(response, 500, "internal_error", "control plane request failed")
   })
-
-const handleAgents = (
-  request: IncomingMessage,
-  response: ServerResponse,
-  registryStore: RegistryStore | undefined,
-): Effect.Effect<void> => {
-  if (request.method !== "GET") {
-    sendError(response, 405, "method_not_allowed", "method is not allowed")
-    return Effect.void
-  }
-  if (!registryStore) {
-    sendJson(response, 200, { agents: [] })
-    return Effect.void
-  }
-  const now = Date.now()
-  return Effect.matchEffect(registryStore.snapshot(now), {
-    onFailure: () =>
-      Effect.sync(() =>
-        sendError(
-          response,
-          500,
-          "internal_error",
-          "agent registry snapshot failed",
-        ),
-      ),
-    onSuccess: registry =>
-      Effect.sync(() =>
-        sendJson(response, 200, {
-          agents: (registry.agents ?? []).map(agent => ({
-            id: agent.identity.id,
-            presence: "runtime" as const,
-            label: agent.label,
-            cwd: agent.cwd,
-            ...(agent.identity.model ? { model: agent.identity.model } : {}),
-            usage: agent.usage,
-            activities: agent.activities ?? [],
-            roles: registry.leases
-              .filter(
-                lease =>
-                  lease.owner.id === agent.identity.id &&
-                  lease.status === "active",
-              )
-              .map(({ project, role, mode }) => ({ project, role, mode })),
-            heartbeatAt: agent.heartbeatAt,
-            expiresAt: agent.expiresAt,
-          })),
-        }),
-      ),
-  })
-}
-
-const handleBacklog = (
-  request: IncomingMessage,
-  response: ServerResponse,
-  registryStore: ControlPlaneRegistryStore | undefined,
-): Effect.Effect<void> => {
-  if (request.method !== "GET") {
-    sendError(response, 405, "method_not_allowed", "method is not allowed")
-    return Effect.void
-  }
-  if (!registryStore) {
-    sendJson(response, 200, dashboardBacklogProjection([]))
-    return Effect.void
-  }
-  const projection = Effect.gen(function* () {
-    const projects = yield* registryStore.backlogProjects()
-    const states = yield* Effect.all(
-      projects.map(project =>
-        Effect.map(registryStore.backlogSnapshot(project), state => ({
-          project,
-          state,
-        })),
-      ),
-      { concurrency: 1 },
-    )
-    return dashboardBacklogProjection(states)
-  })
-  return Effect.matchEffect(projection, {
-    onFailure: () =>
-      Effect.sync(() =>
-        sendError(response, 500, "internal_error", "backlog projection failed"),
-      ),
-    onSuccess: value => Effect.sync(() => sendJson(response, 200, value)),
-  })
-}
-
-const handleUsage = (
-  request: IncomingMessage,
-  response: ServerResponse,
-  store: ControlPlaneJobStore,
-  sampling: UsageSamplingStatus,
-  activity: ThrottleActivity,
-): Effect.Effect<void, ControlPlaneFailure> => {
-  const now = Date.now()
-  const since = Math.max(0, now - USAGE_HISTORY_WINDOW_MS)
-  if (request.method === "GET")
-    return Effect.map(
-      Effect.all({
-        samples: store.listUsage(since),
-        checkpoints: store.listAllowanceCheckpoints(since),
-      }),
-      ({ samples, checkpoints }) =>
-        sendJson(response, 200, {
-          samples,
-          checkpoints,
-          sampling,
-          control: openAiControlSnapshot(checkpoints, samples, now, activity),
-        }),
-    )
-  if (request.method !== "POST") {
-    sendError(response, 405, "method_not_allowed", "method is not allowed")
-    return Effect.void
-  }
-  if (
-    request.headers["content-type"]?.split(";", 1)[0]?.trim() !==
-    "application/json"
-  ) {
-    sendError(
-      response,
-      415,
-      "unsupported_media_type",
-      "application/json is required",
-    )
-    return Effect.void
-  }
-  return Effect.gen(function* () {
-    const input = yield* Effect.flatMap(readBody(request), parseJson)
-    const isRefill =
-      isRecord(input) &&
-      exactKeys(input, [
-        "provider",
-        "pool",
-        "source",
-        "capturedAt",
-        "remainingPercent",
-        "event",
-      ]) &&
-      input.event === "refill"
-    const isSample =
-      isRecord(input) &&
-      exactKeys(input, [
-        "provider",
-        "pool",
-        "source",
-        "capturedAt",
-        "remainingPercent",
-        "resetAt",
-      ]) &&
-      typeof input.resetAt === "number"
-    if (
-      !isRecord(input) ||
-      (!isRefill && !isSample) ||
-      !isAllowancePool(input.provider, input.pool) ||
-      !isAllowanceSource(input.source) ||
-      typeof input.capturedAt !== "number" ||
-      typeof input.remainingPercent !== "number"
-    ) {
-      return yield* Effect.fail(
-        new JobStoreError({
-          code: "invalid_input",
-          message: "allowance checkpoint shape is invalid",
-        }),
-      )
-    }
-    const checkpoint = yield* store.recordAllowanceCheckpoint({
-      provider: input.provider,
-      pool: input.pool as AllowancePool,
-      source: input.source,
-      capturedAt: input.capturedAt,
-      remainingPercent: input.remainingPercent,
-      ...(isRefill
-        ? { event: "refill" as const }
-        : { resetAt: input.resetAt as number }),
-    })
-    sendJson(response, 201, { checkpoint })
-  })
-}
-
-const handleUsageControl = (
-  request: IncomingMessage,
-  response: ServerResponse,
-  store: ControlPlaneJobStore,
-  activity: ThrottleActivity,
-  url: URL,
-): Effect.Effect<void, ControlPlaneFailure> => {
-  if (request.method !== "GET") {
-    sendError(response, 405, "method_not_allowed", "method is not allowed")
-    return Effect.void
-  }
-  const agentId = url.searchParams.get("agentId")
-  const cwd = url.searchParams.get("cwd")
-  const keys = [...url.searchParams.keys()]
-  if (
-    keys.some(key => key !== "agentId" && key !== "cwd") ||
-    (agentId === null) !== (cwd === null) ||
-    (agentId !== null && (agentId.length < 1 || agentId.length > 128)) ||
-    (cwd !== null && (!isAbsolute(cwd) || cwd.length > 4_096))
-  ) {
-    sendError(response, 400, "invalid_payload", "throttle scope is invalid")
-    return Effect.void
-  }
-  const now = Date.now()
-  const since = Math.max(0, now - USAGE_HISTORY_WINDOW_MS)
-  return Effect.gen(function* () {
-    const { samples, checkpoints } = yield* Effect.all({
-      samples: store.listUsage(since),
-      checkpoints: store.listAllowanceCheckpoints(since),
-    })
-    const control = openAiControlSnapshot(checkpoints, samples, now, activity)
-    if (agentId === null || cwd === null) {
-      sendJson(response, 200, control)
-      return
-    }
-    const interactionAt = yield* store.agentIntervention(agentId)
-    sendJson(response, 200, {
-      ...control,
-      allocation: agentAllocation(cwd, interactionAt, now),
-    })
-  })
-}
-
-const handleUsageAdmission = (
-  request: IncomingMessage,
-  response: ServerResponse,
-  store: ControlPlaneJobStore,
-  activity: ThrottleActivity,
-  url: URL,
-): Effect.Effect<void, ControlPlaneFailure> => {
-  if (request.method !== "POST") {
-    sendError(response, 405, "method_not_allowed", "method is not allowed")
-    return Effect.void
-  }
-  const role = url.searchParams.get("role")
-  const kind = url.searchParams.get("kind") ?? "turn"
-  const requestedText = url.searchParams.get("requestedTokens")
-  const keys = [...url.searchParams.keys()]
-  const requestedTokens =
-    requestedText === null || !/^\d+$/u.test(requestedText)
-      ? undefined
-      : Number(requestedText)
-  const validTurn = kind === "turn" && requestedText === null
-  const validWorkflow =
-    kind === "workflow" &&
-    requestedTokens !== undefined &&
-    Number.isSafeInteger(requestedTokens) &&
-    requestedTokens >= 4_000 &&
-    requestedTokens <= 5_000_000
-  if (
-    !role ||
-    !isAutonomousRole(role) ||
-    keys.some(
-      key => key !== "role" && key !== "kind" && key !== "requestedTokens",
-    ) ||
-    (!validTurn && !validWorkflow)
-  ) {
-    sendError(response, 400, "invalid_payload", "usage admission is invalid")
-    return Effect.void
-  }
-
-  const now = Date.now()
-  const since = Math.max(0, now - USAGE_HISTORY_WINDOW_MS)
-  return Effect.gen(function* () {
-    const { samples, checkpoints } = yield* Effect.all({
-      samples: store.listUsage(since),
-      checkpoints: store.listAllowanceCheckpoints(since),
-    })
-    const control = openAiControlSnapshot(checkpoints, samples, now, activity)
-    const rolePolicy = rolePollingPolicy(
-      role,
-      control.policy.pace,
-      control.policy.throttleRatio,
-    )
-    const workflowBudget =
-      validWorkflow && requestedTokens !== undefined
-        ? workflowTokenBudget(requestedTokens, rolePolicy)
-        : undefined
-    const retryAt = Math.max(
-      now + control.policy.minimumIntervalMs,
-      control.policy.planningHorizonAt ?? 0,
-    )
-    if (rolePolicy.tokenScale <= 0 || workflowBudget?.allowed === false) {
-      activity.record({
-        at: now,
-        kind: validWorkflow ? "workflow" : "turn",
-        outcome: "blocked",
-        role,
-        ...(requestedTokens === undefined ? {} : { requestedTokens }),
-        retryAt,
-      })
-      sendJson(response, 200, {
-        admission: {
-          allowed: false,
-          retryAt,
-          policy: control.policy,
-          ...(validWorkflow ? { grantedTokens: 0 } : {}),
-        },
-      })
-      return
-    }
-    const admission = yield* store.claimAutonomousAdmission(
-      role,
-      now,
-      control.policy.minimumIntervalMs,
-      rolePolicy.effectiveIntervalMs,
-    )
-    if (!admission.allowed) {
-      activity.record({
-        at: now,
-        kind: validWorkflow ? "workflow" : "turn",
-        outcome: "deferred",
-        role,
-        ...(requestedTokens === undefined ? {} : { requestedTokens }),
-        retryAt: admission.retryAt,
-      })
-      sendJson(response, 200, {
-        admission: {
-          allowed: false,
-          retryAt: admission.retryAt,
-          policy: control.policy,
-          ...(validWorkflow ? { grantedTokens: 0 } : {}),
-        },
-      })
-      return
-    }
-    const grantedTokens = workflowBudget?.grantedTokens
-    activity.record({
-      at: now,
-      kind: validWorkflow ? "workflow" : "turn",
-      outcome:
-        grantedTokens !== undefined && grantedTokens < (requestedTokens ?? 0)
-          ? "scaled"
-          : "admitted",
-      role,
-      ...(requestedTokens === undefined ? {} : { requestedTokens }),
-      ...(grantedTokens === undefined ? {} : { grantedTokens }),
-    })
-    sendJson(response, 200, {
-      admission: {
-        allowed: true,
-        policy: control.policy,
-        ...(grantedTokens === undefined ? {} : { grantedTokens }),
-      },
-    })
-  })
-}
-
-const validProviderReservationInput = (
-  input: unknown,
-  now: number,
-): input is {
-  readonly reservationId: string
-  readonly agentId: string
-  readonly cwd: string
-  readonly role: AutonomousRole
-  readonly provider: "openai"
-  readonly requestedTokens: number
-  readonly lane: "human" | "responsive" | "autonomous"
-  readonly ownerInteractionAt: number | null
-} =>
-  isRecord(input) &&
-  exactKeys(input, [
-    "reservationId",
-    "agentId",
-    "cwd",
-    "role",
-    "provider",
-    "requestedTokens",
-    "lane",
-    "ownerInteractionAt",
-  ]) &&
-  typeof input.reservationId === "string" &&
-  input.reservationId.length > 0 &&
-  input.reservationId.length <= 128 &&
-  typeof input.agentId === "string" &&
-  input.agentId.length > 0 &&
-  input.agentId.length <= 128 &&
-  typeof input.cwd === "string" &&
-  input.cwd.startsWith("/") &&
-  input.cwd.length <= 4_096 &&
-  isAutonomousRole(input.role) &&
-  input.provider === "openai" &&
-  Number.isSafeInteger(input.requestedTokens) &&
-  (input.requestedTokens as number) >= 1 &&
-  (input.requestedTokens as number) <= 2_000_000 &&
-  (input.lane === "human" ||
-    input.lane === "responsive" ||
-    input.lane === "autonomous") &&
-  (input.ownerInteractionAt === null ||
-    (typeof input.ownerInteractionAt === "number" &&
-      Number.isSafeInteger(input.ownerInteractionAt) &&
-      input.ownerInteractionAt >= 0 &&
-      input.ownerInteractionAt <= now))
-
-const handleProviderCallReserve = (
-  request: IncomingMessage,
-  response: ServerResponse,
-  store: ControlPlaneJobStore,
-  activity: ThrottleActivity,
-): Effect.Effect<void, ControlPlaneFailure> => {
-  if (request.method !== "POST") {
-    sendError(response, 405, "method_not_allowed", "method is not allowed")
-    return Effect.void
-  }
-  if (!hasJsonContentType(request)) {
-    sendError(
-      response,
-      415,
-      "unsupported_media_type",
-      "application/json is required",
-    )
-    return Effect.void
-  }
-  return Effect.gen(function* () {
-    const now = yield* Clock.currentTimeMillis
-    const input = yield* Effect.flatMap(readBody(request), parseJson)
-    if (!validProviderReservationInput(input, now))
-      return yield* Effect.fail(
-        serverError("invalid_payload", "provider reservation is invalid"),
-      )
-
-    const since = Math.max(0, now - USAGE_HISTORY_WINDOW_MS)
-    const { samples, checkpoints } = yield* Effect.all({
-      samples: store.listUsage(since),
-      checkpoints: store.listAllowanceCheckpoints(since),
-    })
-    const control = openAiControlSnapshot(checkpoints, samples, now, activity)
-    const budget = control.providerBudget
-    if (!budget) {
-      const retryAt = Math.max(
-        now + 60_000,
-        control.policy.planningHorizonAt ?? 0,
-      )
-      activity.record({
-        at: now,
-        kind: "provider-call",
-        outcome: "blocked",
-        role: input.role,
-        requestedTokens: input.requestedTokens,
-        retryAt,
-      })
-      sendJson(response, 200, { reservation: { allowed: false, retryAt } })
-      return
-    }
-
-    if (input.ownerInteractionAt !== null) {
-      yield* store.recordAgentIntervention({
-        agentId: input.agentId,
-        cwd: input.cwd,
-        ownerInteractionAt: input.ownerInteractionAt,
-      })
-      activity.ownerInteracted(input.ownerInteractionAt, now)
-    }
-    const storedInteractionAt = yield* store.agentIntervention(input.agentId)
-    const ownerInteractionAt = Math.max(
-      input.ownerInteractionAt ?? 0,
-      storedInteractionAt ?? 0,
-    )
-    const allocation = agentAllocation(
-      input.cwd,
-      ownerInteractionAt === 0 ? undefined : ownerInteractionAt,
-      now,
-    )
-    const reservation = yield* store.reserveProviderCall({
-      reservationId: input.reservationId,
-      agentId: input.agentId,
-      role: input.role,
-      provider: input.provider,
-      requestedTokens: input.requestedTokens,
-      capacityTokens: budget.capacityTokens,
-      windowMs: budget.windowMs,
-      minimumIntervalMs: control.policy.minimumIntervalMs,
-      allocationWeight: allocation.effectiveWeight,
-      now,
-    })
-    if (reservation.allowed)
-      activity.providerReserved(
-        reservation.reservationId,
-        input.role,
-        reservation.reservedTokens,
-        now,
-      )
-    else
-      activity.record({
-        at: now,
-        kind: "provider-call",
-        outcome: "deferred",
-        role: input.role,
-        requestedTokens: input.requestedTokens,
-        retryAt: reservation.retryAt,
-      })
-    sendJson(response, 200, { reservation })
-  })
-}
-
-const handleProviderCallSettle = (
-  request: IncomingMessage,
-  response: ServerResponse,
-  store: ControlPlaneJobStore,
-  activity: ThrottleActivity,
-): Effect.Effect<void, ControlPlaneFailure> => {
-  if (request.method !== "POST") {
-    sendError(response, 405, "method_not_allowed", "method is not allowed")
-    return Effect.void
-  }
-  if (!hasJsonContentType(request)) {
-    sendError(
-      response,
-      415,
-      "unsupported_media_type",
-      "application/json is required",
-    )
-    return Effect.void
-  }
-  return Effect.gen(function* () {
-    const input = yield* Effect.flatMap(readBody(request), parseJson)
-    if (
-      !isRecord(input) ||
-      !exactKeys(input, ["reservationId", "actualTokens"]) ||
-      typeof input.reservationId !== "string" ||
-      input.reservationId.length === 0 ||
-      input.reservationId.length > 128 ||
-      typeof input.actualTokens !== "number" ||
-      !Number.isSafeInteger(input.actualTokens) ||
-      input.actualTokens < 0 ||
-      input.actualTokens > 2_000_000
-    )
-      return yield* Effect.fail(
-        serverError("invalid_payload", "provider settlement is invalid"),
-      )
-    const now = yield* Clock.currentTimeMillis
-    const settlement = yield* store.settleProviderCall({
-      reservationId: input.reservationId,
-      actualTokens: input.actualTokens,
-      now,
-    })
-    activity.providerSettled(settlement.reservationId, now)
-    sendJson(response, 200, { settlement })
-  })
-}
 
 /**
  * Reports the stored jobs and enqueues new ones. A job whose stored document
@@ -895,7 +298,7 @@ const handleJobs = (
   home: CanonicalPath,
 ): Effect.Effect<void, ControlPlaneFailure> => {
   if (request.method === "GET") {
-    return Effect.flatMap(store.list(), stored =>
+    return Effect.flatMap(store.list(), (stored) =>
       Effect.sync(() =>
         sendJson(response, 200, {
           jobs: stored.flatMap(readableJob),
@@ -922,16 +325,6 @@ const handleJobs = (
     const body = yield* readBody(request)
     const input = yield* parseJson(body)
     const spec = yield* decodeJobSpec(input, home)
-    if (spec.kind === "harness.research") {
-      const now = yield* Clock.currentTimeMillis
-      if (spec.runAt < now - MAX_RESEARCH_SCHEDULE_SKEW_MS)
-        return yield* Effect.fail(
-          serverError(
-            "invalid_payload",
-            "harness research schedule is implausibly old",
-          ),
-        )
-    }
     const result = yield* store.enqueue(spec)
     sendJson(response, result.created ? 201 : 200, { job: result.job })
   })
@@ -998,7 +391,6 @@ const handleClaim = (
       )
     }
     const now = yield* Clock.currentTimeMillis
-    yield* store.recoverExpired(now, 0)
     const job = yield* store.claimDue(
       input.workerId,
       randomUUID(),
@@ -1071,14 +463,7 @@ const handleComplete = (
       const now = yield* Clock.currentTimeMillis
       const publish =
         handoff.status === "blocked" || handoff.status === "failed"
-          ? store.fail(
-              id,
-              leaseToken,
-              now,
-              HARNESS_RETRY_DELAY_MS,
-              summary,
-              result,
-            )
+          ? store.fail(id, leaseToken, now, HARNESS_RETRY_DELAY_MS, summary, result)
           : store.complete(id, leaseToken, now, summary, result)
       const job = yield* publish
       sendJson(response, 200, { job })
@@ -1216,18 +601,14 @@ const handleRequest = (
   response: ServerResponse,
   store: ControlPlaneJobStore,
   home: CanonicalPath,
-  registryStore: ControlPlaneRegistryStore | undefined,
-  usageSampling: UsageSamplingStatus,
-  throttleActivity: ThrottleActivity,
   dashboardDirectory?: string,
 ): Effect.Effect<void> => {
-  const route: Effect.Effect<URL, ControlPlaneFailure> = Effect.try({
-    try: () => new URL(request.url ?? "/", "http://127.0.0.1"),
+  const route: Effect.Effect<string, ControlPlaneFailure> = Effect.try({
+    try: () => new URL(request.url ?? "/", "http://127.0.0.1").pathname,
     catch: () => serverError("request_failed", "request URL is malformed"),
   })
   return Effect.catchTags(
-    Effect.flatMap(route, url => {
-      const { pathname: path } = url
+    Effect.flatMap(route, (path) => {
       if (path === "/v1/health") {
         if (request.method !== "GET") {
           sendError(
@@ -1245,49 +626,8 @@ const handleRequest = (
         })
         return Effect.void
       }
-      if (path === "/v1/agents")
-        return handleAgents(request, response, registryStore)
-      if (path === "/v1/backlog")
-        return handleBacklog(request, response, registryStore)
-      if (path === "/v1/usage")
-        return handleUsage(
-          request,
-          response,
-          store,
-          usageSampling,
-          throttleActivity,
-        )
-      if (path === "/v1/usage/control")
-        return handleUsageControl(
-          request,
-          response,
-          store,
-          throttleActivity,
-          url,
-        )
-      if (path === "/v1/usage/admit")
-        return handleUsageAdmission(
-          request,
-          response,
-          store,
-          throttleActivity,
-          url,
-        )
-      if (path === "/v1/usage/provider-calls/reserve")
-        return handleProviderCallReserve(
-          request,
-          response,
-          store,
-          throttleActivity,
-        )
-      if (path === "/v1/usage/provider-calls/settle")
-        return handleProviderCallSettle(
-          request,
-          response,
-          store,
-          throttleActivity,
-        )
-      if (path === "/v1/jobs") return handleJobs(request, response, store, home)
+      if (path === "/v1/jobs")
+        return handleJobs(request, response, store, home)
       if (path === "/v1/worker/claim")
         return handleClaim(request, response, store)
       const completeMatch =
@@ -1314,9 +654,10 @@ const handleRequest = (
       return Effect.void
     }),
     {
-      ControlPlaneServerError: failure => sendRequestFailure(response, failure),
-      JobRuntimeError: failure => sendRuntimeFailure(response, failure),
-      JobStoreError: failure => sendStoreFailure(response, failure),
+      ControlPlaneServerError: (failure) =>
+        sendRequestFailure(response, failure),
+      JobRuntimeError: (failure) => sendRuntimeFailure(response, failure),
+      JobStoreError: (failure) => sendStoreFailure(response, failure),
     },
   )
 }
@@ -1460,9 +801,6 @@ export const startControlPlaneServer = (
           response,
           options.store,
           options.home,
-          options.registryStore,
-          usageSampling,
-          throttleActivity,
           options.dashboardDirectory,
         ),
       )

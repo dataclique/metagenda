@@ -1,4 +1,3 @@
-import { homedir } from "node:os"
 import { resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { Data, Effect, Either } from "effect"
@@ -8,11 +7,6 @@ import {
   type HarnessAttemptOutcome,
   type HarnessWorkerError,
 } from "./harness-worker.ts"
-import {
-  toCanonicalWorkspaceRoot,
-  type RegisteredWorkspaceRoots,
-} from "./harness-adapter.ts"
-import { canonicalPath } from "./review-duty-profile.ts"
 
 export interface HarnessWorkerConfig {
   readonly origin: string
@@ -21,7 +15,7 @@ export interface HarnessWorkerConfig {
   readonly leaseTtlMs: number
   readonly retryDelayMs: number
   readonly executorTimeoutMs: number
-  readonly allowedRoots: RegisteredWorkspaceRoots
+  readonly allowedRoots: readonly string[]
 }
 
 export interface HarnessWorkerLoopOptions {
@@ -135,18 +129,16 @@ export const parseHarnessWorkerConfig = (
     )
   }
   const configuredRoots = environment.PI_HARNESS_ALLOWED_ROOTS
-  const configuredRootValues =
+  const allowedRoots =
     typeof configuredRoots === "string" && configuredRoots.length > 0
       ? configuredRoots.split(":")
       : []
-  const allowedRoots = configuredRootValues.flatMap(root => {
-    const canonical = toCanonicalWorkspaceRoot(root)
-    return canonical === undefined ? [] : [canonical]
-  })
   if (
     allowedRoots.length < 1 ||
     allowedRoots.length > 16 ||
-    allowedRoots.length !== configuredRootValues.length
+    !allowedRoots.every(
+      root => root.startsWith("/") && root.length > 1 && root.length <= 1_024,
+    )
   ) {
     return Effect.fail(
       configError(
@@ -230,27 +222,24 @@ if (isMainModule) {
       }
       return Effect.sync(() => clearTimeout(timer))
     })
-  const runtimeHome = canonicalPath(homedir())
-  const program = runtimeHome
-    ? Effect.flatMap(parseHarnessWorkerConfig(process.env), config =>
-        runHarnessWorkerLoop({
-          runAttempt: runNextHarnessAttempt({
-            origin: config.origin,
-            workerId: config.workerId,
-            leaseTtlMs: config.leaseTtlMs,
-            retryDelayMs: config.retryDelayMs,
-            allowedRoots: config.allowedRoots,
-            home: runtimeHome,
-            environment: process.env,
-            spawner: spawnHarnessExecutor(config.executorTimeoutMs),
-          }),
-          pollIntervalMs: config.pollIntervalMs,
-          shouldStop: () => stopped,
-          sleep: interruptibleSleep,
-          log: line => console.log(line),
+  const program = Effect.flatMap(
+    parseHarnessWorkerConfig(process.env),
+    config =>
+      runHarnessWorkerLoop({
+        runAttempt: runNextHarnessAttempt({
+          origin: config.origin,
+          workerId: config.workerId,
+          leaseTtlMs: config.leaseTtlMs,
+          retryDelayMs: config.retryDelayMs,
+          allowedRoots: config.allowedRoots,
+          spawner: spawnHarnessExecutor(config.executorTimeoutMs),
         }),
-      )
-    : Effect.fail(configError("home directory is not canonical"))
+        pollIntervalMs: config.pollIntervalMs,
+        shouldStop: () => stopped,
+        sleep: interruptibleSleep,
+        log: line => console.log(line),
+      }),
+  )
   void Effect.runPromise(Effect.either(program)).then(
     result => {
       if (Either.isLeft(result)) {

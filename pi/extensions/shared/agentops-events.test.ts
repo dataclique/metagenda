@@ -181,53 +181,6 @@ test("agent-correctable local tool diagnostics do not become agentops incidents"
   }
 })
 
-test("bounded browser request diagnostics stay agent-correctable while runtime failures route", () => {
-  for (const summary of [
-    "Loopback API returned HTTP 400",
-    "Loopback API returned HTTP 404",
-    "Loopback API returned HTTP 405",
-    "Loopback response exceeded the 51200-byte limit.",
-  ]) {
-    assert.equal(shouldRouteToolFailureToAgentops("browser", summary), false)
-  }
-  assert.equal(
-    shouldRouteToolFailureToAgentops(
-      "browser",
-      "Loopback operator unavailable",
-    ),
-    true,
-  )
-  assert.equal(
-    shouldRouteToolFailureToAgentops("browser", "fetch failed"),
-    true,
-  )
-})
-
-test("typed LSP usage diagnostics stay agent-correctable while server failures route", () => {
-  assert.equal(
-    shouldRouteToolFailureToAgentops(
-      "lsp",
-      "Could not find occurrence 1 of writeShellApplication on line 13",
-    ),
-    false,
-  )
-  assert.equal(
-    shouldRouteToolFailureToAgentops(
-      "lsp",
-      "Language server did not publish diagnostics before the timeout",
-    ),
-    false,
-  )
-  assert.equal(
-    shouldRouteToolFailureToAgentops("lsp", "Rename returned no edits"),
-    false,
-  )
-  assert.equal(
-    shouldRouteToolFailureToAgentops("lsp", "Language server request failed"),
-    true,
-  )
-})
-
 test("local tool runtime failures and managed-tool failures still route", () => {
   assert.equal(
     shouldRouteToolFailureToAgentops(

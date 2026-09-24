@@ -15,10 +15,3 @@ test("request observability subscribes at extension load and exposes its log pat
   assert.match(source, /registerCommand\("request-log"/u)
   assert.match(source, /session_shutdown/u)
 })
-
-test("request observability surfaces typed filesystem degradation without throwing", () => {
-  assert.match(source, /RequestLifecycleLoggingFailure/u)
-  assert.match(source, /loggingFailure/u)
-  assert.match(source, /process\.stderr\.write/u)
-  assert.match(source, /failure\.operation.*failure\.code/su)
-})

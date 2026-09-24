@@ -32,12 +32,6 @@ const AGENT_CORRECTABLE_TOOL_NAMES = new Set([
 const PI_RUNTIME_FAILURE =
   /(?:classifier (?:became )?unavailable|internal (?:pi|tool|extension) error|stale (?:extension )?context|this operation was aborted|agent is already processing a prompt|expandedText is not defined)/i
 
-const AGENT_CORRECTABLE_BROWSER_USAGE_DIAGNOSTIC =
-  /^(?:Loopback API returned HTTP (?:400|404|405)|Loopback response exceeded the \d+-byte limit\.)$/i
-
-const AGENT_CORRECTABLE_LSP_USAGE_DIAGNOSTIC =
-  /^(?:Could not find occurrence \d+ of .{1,256} on line \d+|Language server did not publish diagnostics before the timeout|Rename returned no edits)$/i
-
 const PROVIDER_SAFETY_REFUSAL =
   /^Codex error: This content was flagged for possible cybersecurity risk\./i
 
@@ -123,21 +117,9 @@ export const agentTurnIncidentAfterRun = (
 export const shouldRouteToolFailureToAgentops = (
   toolName: string,
   summary: string,
-): boolean => {
-  if (AGENT_CORRECTABLE_TOOL_NAMES.has(toolName))
-    return PI_RUNTIME_FAILURE.test(summary)
-  if (
-    toolName === "browser" &&
-    AGENT_CORRECTABLE_BROWSER_USAGE_DIAGNOSTIC.test(summary)
-  )
-    return false
-  if (
-    toolName === "lsp" &&
-    AGENT_CORRECTABLE_LSP_USAGE_DIAGNOSTIC.test(summary)
-  )
-    return false
-  return true
-}
+): boolean =>
+  !AGENT_CORRECTABLE_TOOL_NAMES.has(toolName) ||
+  PI_RUNTIME_FAILURE.test(summary)
 
 export const agentopsIncidentKey = (incident: AgentopsIncident): string =>
   createHash("sha256")

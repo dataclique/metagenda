@@ -6,7 +6,6 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent"
 import {
   installRequestLifecycleLogging,
   requestLifecycleLogPath,
-  type RequestLifecycleLoggingFailure,
 } from "./core.ts"
 
 const logPath = requestLifecycleLogPath(
@@ -17,32 +16,11 @@ const logPath = requestLifecycleLogPath(
 
 export default function requestObservabilityExtension(pi: ExtensionAPI) {
   const lifecycleChannel = channel("pi.request.lifecycle")
-  let loggingFailure: RequestLifecycleLoggingFailure | undefined
-  const uninstall = installRequestLifecycleLogging(
-    lifecycleChannel,
-    logPath,
-    failure => {
-      loggingFailure = failure
-      try {
-        process.stderr.write(
-          `Request lifecycle logging disabled: ${failure.operation} failed (${failure.code})\n`,
-        )
-      } catch {
-        // The typed failure remains available through /request-log.
-      }
-    },
-  )
+  const uninstall = installRequestLifecycleLogging(lifecycleChannel, logPath)
 
   pi.registerCommand("request-log", {
     description: "Show this Pi process's structured request lifecycle log",
     handler: async (_args, ctx) => {
-      if (loggingFailure) {
-        ctx.ui.notify(
-          `Request lifecycle logging disabled: ${loggingFailure.operation} failed (${loggingFailure.code})`,
-          "warning",
-        )
-        return
-      }
       ctx.ui.notify(logPath, "info")
     },
   })

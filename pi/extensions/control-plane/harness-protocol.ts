@@ -144,11 +144,12 @@ const CREDENTIAL_SEGMENTS = [".ssh", ".gnupg", ".aws"] as const
 export const isCredentialBearingPath = (path: string): boolean =>
   path
     .split("/")
-    .filter(segment => segment.length > 0)
-    .map(segment => segment.toLowerCase())
+    .filter((segment) => segment.length > 0)
+    .map((segment) => segment.toLowerCase())
     .some(
-      segment =>
-        includesAny(CREDENTIAL_SEGMENTS, segment) || segment.startsWith(".env"),
+      (segment) =>
+        includesAny(CREDENTIAL_SEGMENTS, segment) ||
+        segment.startsWith(".env"),
     )
 
 const REVIEW_KINDS = ["own", "assigned", "auto"] as const
@@ -212,8 +213,7 @@ const decodeIdentity = (
 }
 
 const SAFE_JOB_ID = /^[A-Za-z0-9][A-Za-z0-9:._-]{0,127}$/u
-const SAFE_EVIDENCE =
-  /^(?:check|commit|head|pr|review|test|workflow):[A-Za-z0-9][A-Za-z0-9:./_#@-]{0,220}$/u
+const SAFE_EVIDENCE = /^(?:check|commit|head|pr|review|test|workflow):[A-Za-z0-9][A-Za-z0-9:./_#@-]{0,220}$/u
 const UNSAFE_CONTROL = /[\u0000-\u001f\u007f]/u
 const HANDOFF_KEYS = [
   "protocolVersion",
@@ -259,7 +259,7 @@ export const decodeHarnessReviewPayload = (
   if (value.lane === "claude-code-max") {
     if (!hasExactKeys(value, COMMON_KEYS))
       return invalid("Claude review payload contains unknown fields")
-    return Effect.flatMap(decodeIdentity(value, home), identity => {
+    return Effect.flatMap(decodeIdentity(value, home), (identity) => {
       if (identity.kind === "assigned") {
         if (value.task !== "review-pr" || value.isolation !== "read-only")
           return invalid(
@@ -284,6 +284,28 @@ export const decodeHarnessReviewPayload = (
         lane: "claude-code-max",
         task: "review-loop",
         isolation: "approved-worktree",
+      })
+    })
+  }
+  if (value.lane === "cursor-subscription") {
+    if (!hasExactKeys(value, [...COMMON_KEYS, "model"]))
+      return invalid("Cursor review payload contains unknown fields")
+    return Effect.flatMap(decodeIdentity(value, home), (identity) => {
+      if (
+        value.task !== "review-probe" ||
+        value.isolation !== "read-only" ||
+        identity.kind === "auto" ||
+        !isOneOf(CURSOR_REVIEW_MODELS, value.model)
+      ) {
+        return invalid("Cursor review lane must be a registered read-only probe")
+      }
+      return Effect.succeed<HarnessReviewPayload>({
+        ...identity,
+        kind: identity.kind,
+        lane: "cursor-subscription",
+        task: "review-probe",
+        model: value.model,
+        isolation: "read-only",
       })
     })
   }
@@ -424,18 +446,18 @@ const HANDOFF_MISMATCH_MESSAGES: Readonly<
   Record<HarnessHandoffMismatch, string>
 > = {
   "job-id": "handoff job identifier does not match the leased job",
-  "attempt": "handoff attempt does not match the leased attempt",
-  "lane": "handoff lane does not match the leased payload",
-  "repository": "handoff repository does not match the leased payload",
+  attempt: "handoff attempt does not match the leased attempt",
+  lane: "handoff lane does not match the leased payload",
+  repository: "handoff repository does not match the leased payload",
   "pull-request": "handoff pull request does not match the leased payload",
   "input-head": "handoff input head does not match the leased payload",
   "read-only-mutation":
     "read-only isolation forbids a moved head or a fixed-findings status",
   "unchanged-head":
     "fixed findings require an output head distinct from the input head",
-  "moved-head": "only fixed findings may hand back an output head that moved",
-  "unverified":
-    "a verified terminal status requires a clean Fable verification",
+  "moved-head":
+    "only fixed findings may hand back an output head that moved",
+  unverified: "a verified terminal status requires a clean Fable verification",
 }
 
 const handoffMismatch = (

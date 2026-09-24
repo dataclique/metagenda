@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { channel } from "node:diagnostics_channel"
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { mkdtempSync, readFileSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import test from "node:test"
@@ -11,7 +11,6 @@ import {
   requestLifecycleLogPath,
   safeLifecycleEvent,
   type RequestLifecycleEvent,
-  type RequestLifecycleLoggingFailure,
 } from "./core.ts"
 
 test("request lifecycle log path is explicit and process-scoped", () => {
@@ -68,70 +67,6 @@ test("Effect logging writes queryable JSON and drops unsafe channel messages", (
     assert.equal(JSON.stringify(logged).includes("authorization"), false)
   } finally {
     uninstall()
-    rmSync(directory, { recursive: true, force: true })
-  }
-})
-
-test("request lifecycle logging fails closed when the filesystem rejects a write", () => {
-  const directory = mkdtempSync(
-    join(tmpdir(), "pi-request-observability-full-"),
-  )
-  const lifecycleChannel = channel(
-    `pi.request.lifecycle.filesystem-failure.${process.pid}`,
-  )
-  const failures: RequestLifecycleLoggingFailure[] = []
-  const uninstall = installRequestLifecycleLogging(
-    lifecycleChannel,
-    directory,
-    failure => {
-      failures.push(failure)
-      throw new Error("diagnostic sink failed")
-    },
-  )
-  try {
-    const event = {
-      schemaVersion: 1,
-      signal: "pi.provider.phase",
-      phase: RequestLifecyclePhase.TransportStarted,
-      requestId: "filesystem-failure",
-      timestamp: 1_787_277_600_000,
-      elapsedMs: 91,
-      pid: 99754,
-      project: "st0x",
-    }
-    assert.doesNotThrow(() => lifecycleChannel.publish(event))
-    assert.doesNotThrow(() => lifecycleChannel.publish(event))
-    assert.deepEqual(failures, [
-      { operation: "append", code: "EISDIR", logPath: directory },
-    ])
-  } finally {
-    uninstall()
-    rmSync(directory, { recursive: true, force: true })
-  }
-})
-
-test("request lifecycle logging fails closed when its directory cannot be prepared", () => {
-  const directory = mkdtempSync(
-    join(tmpdir(), "pi-request-observability-prepare-"),
-  )
-  const parentFile = join(directory, "not-a-directory")
-  writeFileSync(parentFile, "occupied")
-  const logPath = join(parentFile, "request.jsonl")
-  const lifecycleChannel = channel(
-    `pi.request.lifecycle.prepare-failure.${process.pid}`,
-  )
-  const failures: RequestLifecycleLoggingFailure[] = []
-  try {
-    assert.doesNotThrow(() =>
-      installRequestLifecycleLogging(lifecycleChannel, logPath, failure =>
-        failures.push(failure),
-      ),
-    )
-    assert.equal(failures.length, 1)
-    assert.equal(failures[0]?.operation, "prepare")
-    assert.equal(failures[0]?.logPath, logPath)
-    assert.match(failures[0]?.code ?? "", /^(?:EEXIST|ENOTDIR)$/u)
-  } finally {
     rmSync(directory, { recursive: true, force: true })
   }
 })

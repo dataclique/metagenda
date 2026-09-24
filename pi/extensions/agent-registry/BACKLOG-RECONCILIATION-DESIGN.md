@@ -23,12 +23,6 @@ A local todo projection can therefore report zero active work while executable w
 - The HUD must remain bounded and model-free. It consumes a cached typed projection; it never scans trackers or runs semantic deduplication during render.
 - No model output may merge requirements, transfer authority, assign work, publish, or mark work terminal.
 
-## Conversation capture versus declared work
-
-Raw owner and bridge messages are retained as `unreconciled` provenance, not automatically classified as tasks. Message-only records, including legacy `ready` records, do not count as external actionable work. External work requires a registry-request, tracker-item, or backlog-document source; branch todos belong to the local projection. A matching ready declared source or pending branch todo promotes an unreconciled capture without dropping its conversation provenance.
-
-The project-wide projection is an inventory across agents. Operational wakes separately require the current agent's live operational lease and, for assigned work, matching ownership. Wakes show at most five exact source/item references without message bodies; the total actionable count remains separate. Changed selected references refresh diagnostics, while observation-only churn does not create another wake.
-
 ## Caller-first contract
 
 ```ts
@@ -45,8 +39,7 @@ const ingestion =
   })
 
 const view = yield * backlog.view({ project, now })
-// Project inventory is not per-agent wake eligibility.
-// Raw conversation capture alone does not establish executable work.
+// view.actionable > 0 OR view.unreconciled > 0 prevents an empty-work claim.
 
 const assigned =
   yield *
@@ -188,7 +181,7 @@ No adapter writes SQLite directly. No HUD or dashboard caller reduces lifecycle 
 
 ## State transitions
 
-- `unreconciled -> ready`: a matching declared work source or branch-todo snapshot establishes ready work; merely capturing conversation text does not.
+- `unreconciled -> ready`: every requirement has a typed project and no unresolved dedupe candidate.
 - `ready -> assigned`: exact live lease/runtime pair.
 - `assigned -> implementing`: bounded implementation reference and execution acknowledgment.
 - `implementing -> in-review`: immutable bounded review reference.

@@ -9,27 +9,7 @@ import {
   legacyAgentopsResearchJobs,
   reconcileLegacyAgentopsResearchJobs,
 } from "./research-ownership.ts"
-import { makeSqliteJobStore, type SqliteJobStore } from "./sqlite-job-store.ts"
-
-const insertPersistedJob = (store: SqliteJobStore, job: Job): void => {
-  store.unsafeDatabaseForTests
-    .prepare(
-      `INSERT INTO jobs (
-         job_id, kind, idempotency_key, state, run_at,
-         lease_until, updated_at, document
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .run(
-      job.id,
-      job.spec.kind,
-      job.spec.idempotencyKey ?? null,
-      job.state,
-      job.spec.runAt,
-      job.state === "leased" ? job.leaseUntil : null,
-      job.updatedAt,
-      JSON.stringify(job),
-    )
-}
+import { makeSqliteJobStore } from "./sqlite-job-store.ts"
 
 const legacyResearch = (
   id: string,
@@ -104,15 +84,24 @@ test("legacy agentops research reconciliation cancels only active mislabeled job
     makeSqliteJobStore(join(root, "jobs.sqlite")),
   )
   try {
-    insertPersistedJob(store, jobs[1])
-    insertPersistedJob(store, jobs[0])
-    insertPersistedJob(store, jobs[3])
+    await Effect.runPromise(store.enqueue(jobs[1].spec, "legacy-leased", 1_000))
+    await Effect.runPromise(
+      store.claimDueResearch(
+        "agentops-yielduck",
+        "legacy-worker",
+        "legacy-token",
+        1_000,
+        9_000,
+      ),
+    )
+    await Effect.runPromise(store.enqueue(jobs[0].spec, "legacy-ready", 1_001))
+    await Effect.runPromise(store.enqueue(jobs[3].spec, "project-ready", 1_001))
 
     const result = await Effect.runPromise(
       reconcileLegacyAgentopsResearchJobs(store, 2_000),
     )
     assert.deepEqual(result, {
-      cancelled: ["legacy-leased", "legacy-ready"],
+      cancelled: ["legacy-ready", "legacy-leased"],
     })
     const cancelledReady = await Effect.runPromise(store.get("legacy-ready"))
     assert.equal(cancelledReady.state, "cancelled")

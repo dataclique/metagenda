@@ -33,8 +33,7 @@ const canonical = (value: string): CanonicalPath => {
 
 const commit = (value: string): CommitSha => {
   const sha = toCommitSha(value)
-  if (sha === undefined)
-    throw new Error(`fixture is not a commit sha: ${value}`)
+  if (sha === undefined) throw new Error(`fixture is not a commit sha: ${value}`)
   return sha
 }
 
@@ -74,7 +73,7 @@ const harnessSpec: RegisteredJobSpec = {
     kind: "own",
     inputHeadSha: harnessHeadSha,
     repositoryRoot: canonical(`${home}/code/0xgleb/example`),
-    isolation: "approved-worktree",
+    isolation: "read-only",
   },
   runAt: 2_000,
   maxAttempts: 2,
@@ -128,10 +127,7 @@ test("the untrusted enqueue boundary accepts only registered bounded job payload
   )
   assert.equal(
     errorCode(
-      decodeJobSpec(
-        { ...reviewSpec, payload: { profile: "unknown-review" } },
-        home,
-      ),
+      decodeJobSpec({ ...reviewSpec, payload: { profile: "unknown-review" } }, home),
     ),
     "invalid_input",
   )
@@ -162,9 +158,7 @@ test("a harness payload is admitted only for a checkout registered under the sta
 })
 
 test("a stored harness job stays readable when the home it was admitted under moves", () => {
-  const stored = run(
-    createJob({ ...harnessSpec, runAt: 1_000 }, "job-h", 1_000, home),
-  )
+  const stored = run(createJob({ ...harnessSpec, runAt: 1_000 }, "job-h", 1_000, home))
   assert.deepEqual(run(decodeStoredJob(stored)), stored)
   assert.equal(
     errorCode(decodeJobSpec(stored.spec, canonical("/Users/other"))),
@@ -221,10 +215,7 @@ test("persisted jobs reject impossible state-specific combinations", () => {
     { ...succeeded, finishedAt: succeeded.updatedAt + 1 },
     { ...failed, attempt: failed.spec.maxAttempts - 1 },
     { ...cancelledBeforeClaim, attempt: 1 },
-    {
-      ...succeeded,
-      result: { kind: "harness.review", handoff: matchingHandoff },
-    },
+    { ...succeeded, result: { kind: "harness.review", handoff: matchingHandoff } },
     { ...failed, result: { kind: "harness.review", handoff: matchingHandoff } },
   ]
 
@@ -304,9 +295,7 @@ test("cancellation is immediate before claim and cooperative after claim", () =>
 })
 
 test("failed and abandoned attempts retry only within the persisted attempt limit", () => {
-  const retrying = run(
-    failJob(leasedJob(), "lease-a", 2_000, 60_000, "transient"),
-  )
+  const retrying = run(failJob(leasedJob(), "lease-a", 2_000, 60_000, "transient"))
   if (retrying.state !== "retry_wait") assert.fail("expected a retrying job")
   assert.equal(retrying.spec.runAt, 62_000)
   assert.equal(retrying.lastAttemptSummary, "transient")
@@ -461,7 +450,9 @@ test("a retried harness attempt keeps why it stopped without carrying its eviden
   )
   assert.deepEqual(run(decodeStoredJob(retrying)), retrying)
   assert.equal(
-    errorCode(decodeStoredJob({ ...retrying, lastAttemptSummary: undefined })),
+    errorCode(
+      decodeStoredJob({ ...retrying, lastAttemptSummary: undefined }),
+    ),
     "invalid_input",
   )
 })

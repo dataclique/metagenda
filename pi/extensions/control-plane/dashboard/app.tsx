@@ -31,7 +31,6 @@ import {
   type AllowanceChartPoint,
   type AllowanceHistoryEvent,
 } from "./allowance-chart.ts"
-import { ControlPlaneDock } from "./ControlPlaneDock.tsx"
 
 type JobState =
   | "scheduled"
@@ -96,31 +95,6 @@ interface DashboardThrottleActivity {
   }[]
 }
 
-interface DashboardBacklogCounts {
-  readonly ready: number
-  readonly assigned: number
-  readonly implementing: number
-  readonly inReview: number
-  readonly publishing: number
-  readonly blocked: number
-  readonly unreconciled: number
-  readonly totalOpen: number
-  readonly terminal: number
-  readonly implementationEvidence: number
-  readonly reviewEvidence: number
-  readonly publicationEvidence: number
-  readonly terminalEvidence: number
-}
-
-interface DashboardBacklogProject extends DashboardBacklogCounts {
-  readonly project: string
-}
-
-interface DashboardBacklogProjection {
-  readonly totals: DashboardBacklogCounts
-  readonly projects: readonly DashboardBacklogProject[]
-}
-
 interface UsageHistory {
   readonly samples: readonly AgentUsageSample[]
   readonly checkpoints: readonly AllowanceCheckpoint[]
@@ -146,20 +120,6 @@ const stateLabel: Readonly<Record<JobState, string>> = {
   succeeded: "Succeeded",
   failed: "Failed",
   cancelled: "Cancelled",
-}
-
-const backlogStageLabel = (project: DashboardBacklogProject): string => {
-  const stages = [
-    [project.implementing, "implementing"],
-    [project.inReview, "review"],
-    [project.publishing, "publishing"],
-    [project.assigned, "assigned"],
-    [project.ready, "ready"],
-  ] as const
-  return stages
-    .filter(([count]) => count > 0)
-    .map(([count, label]) => `${count} ${label}`)
-    .join(" · ")
 }
 
 const formatTokens = (value: number): string =>
@@ -383,81 +343,6 @@ const decodeAgents = (value: unknown): readonly AgentPresence[] | undefined => {
   return agents
 }
 
-const BACKLOG_COUNT_KEYS = [
-  "ready",
-  "assigned",
-  "implementing",
-  "inReview",
-  "publishing",
-  "blocked",
-  "unreconciled",
-  "totalOpen",
-  "terminal",
-  "implementationEvidence",
-  "reviewEvidence",
-  "publicationEvidence",
-  "terminalEvidence",
-] as const satisfies readonly (keyof DashboardBacklogCounts)[]
-
-const decodeBacklogCounts = (
-  value: unknown,
-): DashboardBacklogCounts | undefined => {
-  if (
-    !isRecord(value) ||
-    !BACKLOG_COUNT_KEYS.every(
-      key =>
-        typeof value[key] === "number" &&
-        Number.isSafeInteger(value[key]) &&
-        Number(value[key]) >= 0,
-    )
-  )
-    return undefined
-  const counts = value as unknown as DashboardBacklogCounts
-  if (
-    counts.totalOpen !==
-    counts.ready +
-      counts.assigned +
-      counts.implementing +
-      counts.inReview +
-      counts.publishing +
-      counts.blocked +
-      counts.unreconciled
-  )
-    return undefined
-  return counts
-}
-
-const decodeBacklog = (
-  value: unknown,
-): DashboardBacklogProjection | undefined => {
-  if (!isRecord(value) || !Array.isArray(value.projects)) return undefined
-  const totals = decodeBacklogCounts(value.totals)
-  if (!totals || value.projects.length > 1_024) return undefined
-  const projects: DashboardBacklogProject[] = []
-  for (const candidate of value.projects) {
-    const counts = decodeBacklogCounts(candidate)
-    if (
-      !counts ||
-      !isRecord(candidate) ||
-      typeof candidate.project !== "string" ||
-      !candidate.project.startsWith("/") ||
-      candidate.project.length > 1_024
-    )
-      return undefined
-    projects.push({ project: candidate.project, ...counts })
-  }
-  if (
-    new Set(projects.map(project => project.project)).size !== projects.length
-  )
-    return undefined
-  for (const key of BACKLOG_COUNT_KEYS)
-    if (
-      totals[key] !== projects.reduce((sum, project) => sum + project[key], 0)
-    )
-      return undefined
-  return { totals, projects }
-}
-
 const decodeJobs = (value: unknown): readonly Job[] | undefined => {
   if (!isRecord(value) || !Array.isArray(value.jobs)) return undefined
   const decoded = value.jobs.map(candidate =>
@@ -482,29 +367,24 @@ interface DashboardSnapshot {
   readonly health: Health
   readonly agents: readonly AgentPresence[]
   readonly jobs: readonly Job[]
-  readonly backlog: DashboardBacklogProjection
   readonly usage: UsageHistory
   readonly refreshedAt: number
 }
 
 const fetchSnapshot = async (): Promise<DashboardSnapshot | undefined> => {
-  const [healthResult, agentsResult, jobsResult, backlogResult, usageResult] =
+  const [healthResult, agentsResult, jobsResult, usageResult] =
     await Promise.all([
       fetchJson("/v1/health"),
       fetchJson("/v1/agents"),
       fetchJson("/v1/jobs"),
-      fetchJson("/v1/backlog"),
       fetchJson("/v1/usage"),
     ])
   const health = healthResult.ok ? decodeHealth(healthResult.value) : undefined
   const agents = agentsResult.ok ? decodeAgents(agentsResult.value) : undefined
   const jobs = jobsResult.ok ? decodeJobs(jobsResult.value) : undefined
-  const backlog = backlogResult.ok
-    ? decodeBacklog(backlogResult.value)
-    : undefined
   const usage = usageResult.ok ? decodeUsage(usageResult.value) : undefined
-  return health && agents && jobs && backlog && usage
-    ? { health, agents, jobs, backlog, usage, refreshedAt: Date.now() }
+  return health && agents && jobs && usage
+    ? { health, agents, jobs, usage, refreshedAt: Date.now() }
     : undefined
 }
 
@@ -537,14 +417,6 @@ const App = () => {
     agents().filter(({ presence }) => presence === "bridge-endpoint"),
   )
   const jobs = createMemo(() => snapshot()?.jobs ?? [])
-  const backlog = createMemo(() => snapshot()?.backlog)
-  const backlogProjects = createMemo(() =>
-    [...(backlog()?.projects ?? [])].sort(
-      (left, right) =>
-        right.totalOpen - left.totalOpen ||
-        left.project.localeCompare(right.project),
-    ),
-  )
   const health = createMemo(() => snapshot()?.health)
   const usageHistory = createMemo(() => snapshot()?.usage)
   const latestUsage = createMemo(() => {
@@ -914,485 +786,374 @@ const App = () => {
           </div>
         </Show>
 
-        <ControlPlaneDock
-          panels={{
-            overview: () => (
-              <section class="metrics" aria-label="Runtime summary">
-                <article class="metric cyan">
-                  <div class="metric-icon">◉</div>
-                  <p>Agents online</p>
-                  <strong>{onlineAgents().length}</strong>
-                  <span>
-                    {unassignedRuntimes().length + bridgeEndpoints().length}{" "}
-                    inactive or unverified sessions excluded
-                  </span>
-                </article>
-                <article class="metric lilac">
-                  <div class="metric-icon">≋</div>
-                  <p>Backlog open</p>
-                  <strong>{backlog()?.totals.totalOpen ?? 0}</strong>
-                  <span>
-                    {backlog()?.totals.unreconciled ?? 0} unreconciled ·{" "}
-                    {backlog()?.totals.blocked ?? 0} blocked
-                  </span>
-                </article>
-                <article class="metric lilac">
-                  <div class="metric-icon">◷</div>
-                  <p>Waiting</p>
-                  <strong>{waiting().length}</strong>
-                  <span>scheduled or ready</span>
-                </article>
-                <article class="metric amber">
-                  <div class="metric-icon">◇</div>
-                  <p>Attention</p>
-                  <strong>{attention().length}</strong>
-                  <span>retrying or failed</span>
-                </article>
-                <article class="metric green">
-                  <div class="metric-icon">✓</div>
-                  <p>Terminal</p>
-                  <strong>{terminal().length}</strong>
-                  <span>durable outcomes</span>
-                </article>
-              </section>
-            ),
-            runway: () => (
-              <section class="usage-panel dock-projection">
-                <div class="panel-heading">
-                  <div>
-                    <p class="eyebrow">SUBSCRIPTION RUNWAY</p>
-                    <h3>Fleet usage</h3>
-                  </div>
-                  <span
-                    class={`count sampling-${usageHistory()?.sampling.status ?? "unavailable"}`}
-                  >
-                    {usageHistory()?.sampling.status ?? "unavailable"}
-                  </span>
-                </div>
-                <div class="usage-grid">
-                  <div class="usage-chart">
-                    <div class="usage-summary">
-                      <div>
-                        <span>Recorded tokens</span>
-                        <strong>{formatTokens(recordedTokens())}</strong>
-                      </div>
-                      <div>
-                        <span>Sessions retained</span>
-                        <strong>{latestUsage().length}</strong>
-                      </div>
-                      <div>
-                        <span>History points</span>
-                        <strong>{usageTrend().length}</strong>
-                      </div>
-                    </div>
-                    <svg
-                      viewBox="0 0 100 28"
-                      role="img"
-                      aria-label="Cumulative recorded token usage"
-                      preserveAspectRatio="none"
-                    >
-                      <path
-                        class="chart-grid"
-                        d="M0 7H100 M0 14H100 M0 21H100"
-                      />
-                      <Show
-                        when={trendPolyline()}
-                        fallback={
-                          <text x="50" y="15" class="chart-empty">
-                            Waiting for durable samples
-                          </text>
-                        }
-                      >
-                        <polyline class="usage-line" points={trendPolyline()} />
-                      </Show>
-                    </svg>
-                  </div>
+        <section class="metrics" aria-label="Runtime summary">
+          <article class="metric cyan">
+            <div class="metric-icon">◉</div>
+            <p>Agents online</p>
+            <strong>{onlineAgents().length}</strong>
+            <span>
+              {unassignedRuntimes().length + bridgeEndpoints().length} inactive
+              or unverified sessions excluded
+            </span>
+          </article>
+          <article class="metric lilac">
+            <div class="metric-icon">◷</div>
+            <p>Waiting</p>
+            <strong>{waiting().length}</strong>
+            <span>scheduled or ready</span>
+          </article>
+          <article class="metric amber">
+            <div class="metric-icon">◇</div>
+            <p>Attention</p>
+            <strong>{attention().length}</strong>
+            <span>retrying or failed</span>
+          </article>
+          <article class="metric green">
+            <div class="metric-icon">✓</div>
+            <p>Terminal</p>
+            <strong>{terminal().length}</strong>
+            <span>durable outcomes</span>
+          </article>
+        </section>
 
-                  <div
-                    class="allowance-card"
-                    classList={{ stale: allowanceIsStale() }}
-                  >
-                    <div class="allowance-heading">
-                      <div>
-                        <span>
-                          {activeAllowanceLabel()}
-                          <button
-                            class="allowance-info"
-                            type="button"
-                            aria-label="Allowance chart methodology"
-                            title={allowanceMethodology}
-                          >
-                            ?
-                          </button>
-                        </span>
-                        <strong>{actualRemainingLabel()}</strong>
-                      </div>
-                      <div classList={{ ahead: (runwayDelta() ?? 0) < 0 }}>
-                        <span>Target now</span>
-                        <strong>{targetLabel()}</strong>
-                      </div>
-                    </div>
-                    <svg
-                      viewBox="0 0 100 28"
-                      role="img"
-                      aria-label="ChatGPT and Codex weekly allowance histories with active runway target"
-                      preserveAspectRatio="none"
-                    >
-                      <path
-                        class="chart-grid"
-                        d="M0 7H100 M0 14H100 M0 21H100"
-                      />
-                      <Show when={allowanceTargetPolyline()}>
-                        <polyline
-                          class="allowance-target"
-                          points={allowanceTargetPolyline()}
-                        />
-                      </Show>
-                      <For each={allowancePolylines()}>
-                        {points => (
-                          <polyline
-                            class="allowance-line chatgpt"
-                            points={points}
-                          />
-                        )}
-                      </For>
-                      <For each={codexAllowancePolylines()}>
-                        {points => (
-                          <polyline
-                            class="allowance-line codex"
-                            points={points}
-                          />
-                        )}
-                      </For>
-                      <For each={chartEvents()}>
-                        {checkpoint => (
-                          <line
-                            class={`allowance-event ${checkpoint.evidence}`}
-                            x1={chartX(checkpoint.capturedAt)}
-                            x2={chartX(checkpoint.capturedAt)}
-                            y1="0"
-                            y2="28"
-                          />
-                        )}
-                      </For>
-                      <For each={chartCheckpoints()}>
-                        {checkpoint => (
-                          <ellipse
-                            class={`allowance-point chatgpt ${checkpoint.evidence}${checkpoint.event ? " event" : ""}`}
-                            cx={chartX(checkpoint.capturedAt)}
-                            cy={allowanceY(checkpoint.remainingPercent)}
-                            rx={checkpoint.event ? "0.22" : "0.12"}
-                            ry={checkpoint.event ? "1.1" : "0.7"}
-                          >
-                            <Show when={checkpoint.event}>
-                              <title>
-                                {allowanceEventDetail(checkpoint.event)}
-                              </title>
-                            </Show>
-                          </ellipse>
-                        )}
-                      </For>
-                      <For each={codexChartCheckpoints()}>
-                        {checkpoint => (
-                          <ellipse
-                            class="allowance-point codex observed"
-                            cx={chartX(checkpoint.capturedAt)}
-                            cy={allowanceY(checkpoint.remainingPercent)}
-                            rx="0.12"
-                            ry="0.7"
-                          />
-                        )}
-                      </For>
-                      <Show when={combinedChartCheckpoints().length > 0}>
-                        <line
-                          class="allowance-now"
-                          x1={allowanceNowX()}
-                          x2={allowanceNowX()}
-                          y1="0"
-                          y2="28"
-                        />
-                      </Show>
-                    </svg>
-                    <div class="runway-note">
-                      <span>{runwayLabel()}</span>
-                      <span>{resetLabel()}</span>
-                    </div>
-                    <div
-                      class={`throttle-note${
-                        (usageHistory()?.control.activity?.pausedRoles.length ??
-                          0) > 0
-                          ? " active"
-                          : ""
-                      }`}
-                    >
-                      <strong>{throttleLabel()}</strong>
-                      <span>{burnLabel()}</span>
-                    </div>
-                    <div
-                      class="allowance-events"
-                      aria-label="ChatGPT allowance timeline events"
-                    >
-                      <For each={chartEvents()}>
-                        {checkpoint => (
-                          <span class={checkpoint.evidence}>
-                            {allowanceEventLabel(checkpoint.event)}
-                          </span>
-                        )}
-                      </For>
-                    </div>
-                  </div>
-
-                  <div class="project-usage">
-                    <p class="eyebrow">PROJECT ALLOCATION</p>
-                    <Show
-                      when={projectUsage().length > 0}
-                      fallback={
-                        <p class="allocation-empty">No usage allocation yet.</p>
-                      }
-                    >
-                      <For each={projectUsage().slice(0, 6)}>
-                        {({ project, tokens }) => (
-                          <div class="allocation-row">
-                            <div>
-                              <strong>{project}</strong>
-                              <span>{formatTokens(tokens)}</span>
-                            </div>
-                            <span class="allocation-track">
-                              <span
-                                style={{
-                                  width: `${Math.max(2, (tokens / Math.max(1, recordedTokens())) * 100)}%`,
-                                }}
-                              />
-                            </span>
-                          </div>
-                        )}
-                      </For>
-                    </Show>
-                  </div>
+        <section class="panel usage-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">SUBSCRIPTION RUNWAY</p>
+              <h3>Fleet usage</h3>
+            </div>
+            <span
+              class={`count sampling-${usageHistory()?.sampling.status ?? "unavailable"}`}
+            >
+              {usageHistory()?.sampling.status ?? "unavailable"}
+            </span>
+          </div>
+          <div class="usage-grid">
+            <div class="usage-chart">
+              <div class="usage-summary">
+                <div>
+                  <span>Recorded tokens</span>
+                  <strong>{formatTokens(recordedTokens())}</strong>
                 </div>
-              </section>
-            ),
-            jobs: () => (
-              <article class="jobs-panel dock-projection">
-                <div class="panel-heading">
-                  <div>
-                    <p class="eyebrow">WORK QUEUE</p>
-                    <h3>Agent jobs</h3>
-                  </div>
-                  <span class="count">{jobs().length} total</span>
+                <div>
+                  <span>Sessions retained</span>
+                  <strong>{latestUsage().length}</strong>
                 </div>
-
+                <div>
+                  <span>History points</span>
+                  <strong>{usageTrend().length}</strong>
+                </div>
+              </div>
+              <svg
+                viewBox="0 0 100 28"
+                role="img"
+                aria-label="Cumulative recorded token usage"
+                preserveAspectRatio="none"
+              >
+                <path class="chart-grid" d="M0 7H100 M0 14H100 M0 21H100" />
                 <Show
-                  when={orderedJobs().length > 0}
+                  when={trendPolyline()}
                   fallback={
-                    <div class="empty-state">
-                      <span class="empty-dot" aria-hidden="true" />
-                      <div>
-                        <h4>No durable jobs</h4>
-                        <p>Scheduled work will appear here.</p>
-                      </div>
-                    </div>
+                    <text x="50" y="15" class="chart-empty">
+                      Waiting for durable samples
+                    </text>
                   }
                 >
-                  <div class="job-list">
-                    <For each={orderedJobs()}>
-                      {job => {
-                        const schedule = jobSchedulePresentation(job)
-                        return (
-                          <div class="job-row">
-                            <div class={`state-rail ${job.state}`} />
-                            <div class="job-main">
-                              <div class="job-title">
-                                <strong>{job.spec.payload.profile}</strong>
-                                <span class={`badge ${job.state}`}>
-                                  {stateLabel[job.state]}
-                                </span>
-                              </div>
-                              <p>
-                                {job.spec.kind} · {job.spec.payload.task} ·{" "}
-                                {job.id.slice(0, 8)}
-                              </p>
-                            </div>
-                            <div class="job-attempt">
-                              <span>Attempt</span>
-                              <strong>
-                                {job.attempt}/{job.spec.maxAttempts}
-                              </strong>
-                            </div>
-                            <div
-                              class="job-schedule"
-                              classList={{ stale: schedule.stale }}
-                            >
-                              <span>{schedule.label}</span>
-                              <strong>{schedule.value}</strong>
-                            </div>
-                          </div>
-                        )
-                      }}
-                    </For>
-                  </div>
+                  <polyline class="usage-line" points={trendPolyline()} />
                 </Show>
-              </article>
-            ),
-            backlog: () => (
-              <article class="backlog-panel dock-projection">
-                <div class="panel-heading">
-                  <div>
-                    <p class="eyebrow">UNIFIED WORK</p>
-                    <h3>Durable backlog</h3>
-                  </div>
-                  <span class="count">
-                    {backlog()?.totals.totalOpen ?? 0} open
+              </svg>
+            </div>
+
+            <div
+              class="allowance-card"
+              classList={{ stale: allowanceIsStale() }}
+            >
+              <div class="allowance-heading">
+                <div>
+                  <span>
+                    {activeAllowanceLabel()}
+                    <button
+                      class="allowance-info"
+                      type="button"
+                      aria-label="Allowance chart methodology"
+                      title={allowanceMethodology}
+                    >
+                      ?
+                    </button>
                   </span>
+                  <strong>{actualRemainingLabel()}</strong>
                 </div>
-
-                <div
-                  class="backlog-summary"
-                  aria-label="Backlog lifecycle totals"
-                >
-                  <div>
-                    <span>Executable</span>
-                    <strong>
-                      {(backlog()?.totals.ready ?? 0) +
-                        (backlog()?.totals.assigned ?? 0) +
-                        (backlog()?.totals.implementing ?? 0) +
-                        (backlog()?.totals.inReview ?? 0) +
-                        (backlog()?.totals.publishing ?? 0)}
-                    </strong>
-                  </div>
-                  <div>
-                    <span>Blocked</span>
-                    <strong>{backlog()?.totals.blocked ?? 0}</strong>
-                  </div>
-                  <div>
-                    <span>Unreconciled</span>
-                    <strong>{backlog()?.totals.unreconciled ?? 0}</strong>
-                  </div>
-                  <div>
-                    <span>Terminal</span>
-                    <strong>{backlog()?.totals.terminal ?? 0}</strong>
-                  </div>
+                <div classList={{ ahead: (runwayDelta() ?? 0) < 0 }}>
+                  <span>Target now</span>
+                  <strong>{targetLabel()}</strong>
                 </div>
+              </div>
+              <svg
+                viewBox="0 0 100 28"
+                role="img"
+                aria-label="ChatGPT and Codex weekly allowance histories with active runway target"
+                preserveAspectRatio="none"
+              >
+                <path class="chart-grid" d="M0 7H100 M0 14H100 M0 21H100" />
+                <Show when={allowanceTargetPolyline()}>
+                  <polyline
+                    class="allowance-target"
+                    points={allowanceTargetPolyline()}
+                  />
+                </Show>
+                <For each={allowancePolylines()}>
+                  {points => (
+                    <polyline class="allowance-line chatgpt" points={points} />
+                  )}
+                </For>
+                <For each={codexAllowancePolylines()}>
+                  {points => (
+                    <polyline class="allowance-line codex" points={points} />
+                  )}
+                </For>
+                <For each={chartEvents()}>
+                  {checkpoint => (
+                    <line
+                      class={`allowance-event ${checkpoint.evidence}`}
+                      x1={chartX(checkpoint.capturedAt)}
+                      x2={chartX(checkpoint.capturedAt)}
+                      y1="0"
+                      y2="28"
+                    />
+                  )}
+                </For>
+                <For each={chartCheckpoints()}>
+                  {checkpoint => (
+                    <ellipse
+                      class={`allowance-point chatgpt ${checkpoint.evidence}${checkpoint.event ? " event" : ""}`}
+                      cx={chartX(checkpoint.capturedAt)}
+                      cy={allowanceY(checkpoint.remainingPercent)}
+                      rx={checkpoint.event ? "0.22" : "0.12"}
+                      ry={checkpoint.event ? "1.1" : "0.7"}
+                    >
+                      <Show when={checkpoint.event}>
+                        <title>{allowanceEventDetail(checkpoint.event)}</title>
+                      </Show>
+                    </ellipse>
+                  )}
+                </For>
+                <For each={codexChartCheckpoints()}>
+                  {checkpoint => (
+                    <ellipse
+                      class="allowance-point codex observed"
+                      cx={chartX(checkpoint.capturedAt)}
+                      cy={allowanceY(checkpoint.remainingPercent)}
+                      rx="0.12"
+                      ry="0.7"
+                    />
+                  )}
+                </For>
+                <Show when={combinedChartCheckpoints().length > 0}>
+                  <line
+                    class="allowance-now"
+                    x1={allowanceNowX()}
+                    x2={allowanceNowX()}
+                    y1="0"
+                    y2="28"
+                  />
+                </Show>
+              </svg>
+              <div class="runway-note">
+                <span>{runwayLabel()}</span>
+                <span>{resetLabel()}</span>
+              </div>
+              <div
+                class={`throttle-note${
+                  (usageHistory()?.control.activity?.pausedRoles.length ?? 0) >
+                  0
+                    ? " active"
+                    : ""
+                }`}
+              >
+                <strong>{throttleLabel()}</strong>
+                <span>{burnLabel()}</span>
+              </div>
+              <div
+                class="allowance-events"
+                aria-label="ChatGPT allowance timeline events"
+              >
+                <For each={chartEvents()}>
+                  {checkpoint => (
+                    <span class={checkpoint.evidence}>
+                      {allowanceEventLabel(checkpoint.event)}
+                    </span>
+                  )}
+                </For>
+              </div>
+            </div>
 
-                <Show
-                  when={backlogProjects().length > 0}
-                  fallback={
-                    <div class="empty-state">
-                      <span class="empty-dot" aria-hidden="true" />
+            <div class="project-usage">
+              <p class="eyebrow">PROJECT ALLOCATION</p>
+              <Show
+                when={projectUsage().length > 0}
+                fallback={
+                  <p class="allocation-empty">No usage allocation yet.</p>
+                }
+              >
+                <For each={projectUsage().slice(0, 6)}>
+                  {({ project, tokens }) => (
+                    <div class="allocation-row">
                       <div>
-                        <h4>No reconciled backlog projects</h4>
-                        <p>
-                          Declared work sources will appear after ingestion.
-                        </p>
+                        <strong>{project}</strong>
+                        <span>{formatTokens(tokens)}</span>
                       </div>
+                      <span class="allocation-track">
+                        <span
+                          style={{
+                            width: `${Math.max(2, (tokens / Math.max(1, recordedTokens())) * 100)}%`,
+                          }}
+                        />
+                      </span>
                     </div>
-                  }
-                >
-                  <div class="backlog-list">
-                    <For each={backlogProjects()}>
-                      {project => (
-                        <div class="backlog-row">
-                          <div>
-                            <strong>{project.project.split("/").at(-1)}</strong>
-                            <span title={project.project}>
-                              {project.project}
+                  )}
+                </For>
+              </Show>
+            </div>
+          </div>
+        </section>
+
+        <section
+          class="workspace-grid"
+          classList={{ "empty-jobs": jobs().length === 0 }}
+        >
+          <article class="panel jobs-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">WORK QUEUE</p>
+                <h3>Agent jobs</h3>
+              </div>
+              <span class="count">{jobs().length} total</span>
+            </div>
+
+            <Show
+              when={orderedJobs().length > 0}
+              fallback={
+                <div class="empty-state">
+                  <span class="empty-dot" aria-hidden="true" />
+                  <div>
+                    <h4>No durable jobs</h4>
+                    <p>Scheduled work will appear here.</p>
+                  </div>
+                </div>
+              }
+            >
+              <div class="job-list">
+                <For each={orderedJobs()}>
+                  {job => {
+                    const schedule = jobSchedulePresentation(job)
+                    return (
+                      <div class="job-row">
+                        <div class={`state-rail ${job.state}`} />
+                        <div class="job-main">
+                          <div class="job-title">
+                            <strong>{job.spec.payload.profile}</strong>
+                            <span class={`badge ${job.state}`}>
+                              {stateLabel[job.state]}
                             </span>
                           </div>
                           <p>
-                            {backlogStageLabel(project) ||
-                              "no executable phase"}
+                            {job.spec.kind} · {job.spec.payload.task} ·{" "}
+                            {job.id.slice(0, 8)}
                           </p>
-                          <div class="backlog-row-counts">
-                            <span>{project.totalOpen} open</span>
-                            <span>{project.blocked} blocked</span>
-                            <span>{project.unreconciled} unreconciled</span>
-                          </div>
                         </div>
-                      )}
-                    </For>
-                  </div>
-                </Show>
-              </article>
-            ),
-            agents: () => (
-              <aside class="runtime-panel dock-projection">
-                <div class="panel-heading">
-                  <div>
-                    <p class="eyebrow">LIVE FLEET</p>
-                    <h3>Registered agents</h3>
-                  </div>
-                  <span class="count">{onlineAgents().length} online</span>
-                </div>
-                <Show
-                  when={onlineAgents().length > 0}
-                  fallback={
-                    <p class="agent-empty">No lifecycle-verified agents.</p>
-                  }
-                >
-                  <div class="agent-list">
-                    <For each={onlineAgents()}>
-                      {agent => (
-                        <div class="agent-row">
-                          <span class="health-dot" />
-                          <div>
-                            <strong>{agent.label}</strong>
-                            <p>
-                              {agent.model ?? "external harness"} · {agent.cwd}
+                        <div class="job-attempt">
+                          <span>Attempt</span>
+                          <strong>
+                            {job.attempt}/{job.spec.maxAttempts}
+                          </strong>
+                        </div>
+                        <div
+                          class="job-schedule"
+                          classList={{ stale: schedule.stale }}
+                        >
+                          <span>{schedule.label}</span>
+                          <strong>{schedule.value}</strong>
+                        </div>
+                      </div>
+                    )
+                  }}
+                </For>
+              </div>
+            </Show>
+          </article>
+
+          <aside class="panel runtime-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">LIVE FLEET</p>
+                <h3>Registered agents</h3>
+              </div>
+              <span class="count">{onlineAgents().length} online</span>
+            </div>
+            <Show
+              when={onlineAgents().length > 0}
+              fallback={
+                <p class="agent-empty">No lifecycle-verified agents.</p>
+              }
+            >
+              <div class="agent-list">
+                <For each={onlineAgents()}>
+                  {agent => (
+                    <div class="agent-row">
+                      <span class="health-dot" />
+                      <div>
+                        <strong>{agent.label}</strong>
+                        <p>
+                          {agent.model ?? "external harness"} · {agent.cwd}
+                        </p>
+                        <Show
+                          when={agent.activities.length > 0}
+                          fallback={
+                            <p class="agent-activity idle">
+                              Standing by
+                              {agent.roles.length > 0
+                                ? ` · ${agent.roles.map(({ role }) => role).join(", ")}`
+                                : ""}
                             </p>
-                            <Show
-                              when={agent.activities.length > 0}
-                              fallback={
-                                <p class="agent-activity idle">
-                                  Standing by
-                                  {agent.roles.length > 0
-                                    ? ` · ${agent.roles.map(({ role }) => role).join(", ")}`
-                                    : ""}
-                                </p>
-                              }
-                            >
-                              <For each={agent.activities}>
-                                {activity => (
-                                  <p
-                                    class={`agent-activity ${activity.status}`}
-                                  >
-                                    <span>
-                                      {activity.status === "in_progress"
-                                        ? "In progress"
-                                        : activity.status === "in_review"
-                                          ? "In review"
-                                          : "Next"}
-                                    </span>
-                                    #{activity.todoId} {activity.text}
-                                  </p>
-                                )}
-                              </For>
-                            </Show>
-                          </div>
-                        </div>
-                      )}
-                    </For>
-                  </div>
-                </Show>
-                <Show
-                  when={
-                    unassignedRuntimes().length + bridgeEndpoints().length > 0
-                  }
-                >
-                  <p class="agent-empty">
-                    {unassignedRuntimes().length} unassigned runtimes and
-                    {` ${bridgeEndpoints().length} `}monitor-only bridge
-                    endpoints are excluded from the live-agent total.
-                  </p>
-                </Show>
-                <div class="read-only-note">
-                  <span>VIEW ONLY</span>
-                  Browser controls remain disabled until each command has a
-                  reviewed typed boundary.
-                </div>
-              </aside>
-            ),
-          }}
-        />
+                          }
+                        >
+                          <For each={agent.activities}>
+                            {activity => (
+                              <p class={`agent-activity ${activity.status}`}>
+                                <span>
+                                  {activity.status === "in_progress"
+                                    ? "In progress"
+                                    : activity.status === "in_review"
+                                      ? "In review"
+                                      : "Next"}
+                                </span>
+                                #{activity.todoId} {activity.text}
+                              </p>
+                            )}
+                          </For>
+                        </Show>
+                      </div>
+                    </div>
+                  )}
+                </For>
+              </div>
+            </Show>
+            <Show
+              when={unassignedRuntimes().length + bridgeEndpoints().length > 0}
+            >
+              <p class="agent-empty">
+                {unassignedRuntimes().length} unassigned runtimes and
+                {` ${bridgeEndpoints().length} `}monitor-only bridge endpoints
+                are excluded from the live-agent total.
+              </p>
+            </Show>
+            <div class="read-only-note">
+              <span>VIEW ONLY</span>
+              Browser controls remain disabled until each command has a reviewed
+              typed boundary.
+            </div>
+          </aside>
+        </section>
       </main>
 
       <footer>

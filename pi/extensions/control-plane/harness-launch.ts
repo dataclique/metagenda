@@ -1,4 +1,7 @@
-import type { HarnessReviewPayload } from "./harness-protocol.ts"
+import type {
+  CursorReviewModel,
+  HarnessReviewPayload,
+} from "./harness-protocol.ts"
 
 /**
  * Source-fixed launch tables for the subscription harness lanes.
@@ -50,7 +53,7 @@ export const allowlistedLaunchPrefix = (
 ): readonly string[] => [
   "env",
   "-i",
-  ...LAUNCH_ENVIRONMENT_ALLOWLIST.flatMap(name => {
+  ...LAUNCH_ENVIRONMENT_ALLOWLIST.flatMap((name) => {
     const value = environment[name]
     return value === undefined ? [] : [`${name}=${value}`]
   }),
@@ -74,6 +77,20 @@ export const claudeSubscriptionCommand = (
   "--permission-mode",
   CLAUDE_PERMISSION_MODES[isolation],
 ]
+
+export const CURSOR_PROBE_COMMAND = [
+  "cursor-agent",
+  "-p",
+  "--mode",
+  "plan",
+] as const
+
+export const CURSOR_MODEL_ARGUMENTS: Readonly<
+  Record<CursorReviewModel, string>
+> = {
+  "grok-4.5": "grok-4.5-xhigh",
+  "composer-2.5": "composer-2.5",
+}
 
 const CLAUDE_HEADLESS_COMMAND = [
   "claude",

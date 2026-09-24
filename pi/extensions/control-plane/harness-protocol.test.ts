@@ -26,8 +26,7 @@ const canonical = (value: string): CanonicalPath => {
 
 const commit = (value: string): CommitSha => {
   const sha = toCommitSha(value)
-  if (sha === undefined)
-    throw new Error(`fixture is not a commit sha: ${value}`)
+  if (sha === undefined) throw new Error(`fixture is not a commit sha: ${value}`)
   return sha
 }
 
@@ -58,15 +57,16 @@ const claudePayload: HarnessReviewPayload = {
 }
 
 const cursorPayload: HarnessReviewPayload = {
-  lane: "claude-code-max",
-  task: "review-loop",
+  lane: "cursor-subscription",
+  task: "review-probe",
+  model: "grok-4.5",
   profile: "personal-review",
   repository: "0xgleb/example",
   pullRequest: 7,
   kind: "own",
   inputHeadSha: headSha,
   repositoryRoot: canonical("/Users/example/code/0xgleb/example"),
-  isolation: "approved-worktree",
+  isolation: "read-only",
 }
 
 const automaticPayload: HarnessReviewPayload = {
@@ -82,8 +82,9 @@ const automaticPayload: HarnessReviewPayload = {
 }
 
 const rainlanguagePayload: HarnessReviewPayload = {
-  lane: "claude-code-max",
-  task: "review-pr",
+  lane: "cursor-subscription",
+  task: "review-probe",
+  model: "composer-2.5",
   profile: "st0x-review",
   repository: "rainlanguage/rain.orderbook",
   pullRequest: 12,
@@ -109,13 +110,10 @@ test("registered harness review payloads decode exactly", () => {
   assert.deepEqual(decoded(cursorPayload), cursorPayload)
   const worktreeRoot =
     "/Users/example/code/st0x/example/.worktrees/feat/harness"
-  assert.deepEqual(
-    decoded({ ...claudePayload, repositoryRoot: worktreeRoot }),
-    {
-      ...claudePayload,
-      repositoryRoot: worktreeRoot,
-    },
-  )
+  assert.deepEqual(decoded({ ...claudePayload, repositoryRoot: worktreeRoot }), {
+    ...claudePayload,
+    repositoryRoot: worktreeRoot,
+  })
 })
 
 test("st0x review duty reaches the rainlanguage checkout workspace", () => {
@@ -178,10 +176,7 @@ test("automatic review decodes for its registered repository and checkout", () =
     { ...automaticPayload, repositoryRoot: worktreeRoot },
   )
   assert.equal(
-    errorCode({
-      ...automaticPayload,
-      repositoryRoot: "/Users/example/dotconfig",
-    }),
+    errorCode({ ...automaticPayload, repositoryRoot: "/Users/example/dotconfig" }),
     "invalid_input",
   )
   assert.equal(
@@ -378,7 +373,7 @@ test("bounded versioned harness handoffs decode and match the live attempt", () 
   )
   const cursorHandoff: HarnessReviewHandoff = {
     ...handoff,
-    lane: "claude-code-max",
+    lane: "cursor-subscription",
     repository: cursorPayload.repository,
     pullRequest: cursorPayload.pullRequest,
     inputHeadSha: cursorPayload.inputHeadSha,
@@ -390,12 +385,21 @@ test("bounded versioned harness handoffs decode and match the live attempt", () 
   )
   assert.deepEqual(
     harnessHandoffAttemptMatch(
+      { ...cursorHandoff, lane: "claude-code-max" },
+      cursorPayload,
+      jobA,
+      1,
+    ),
+    mismatched("lane"),
+  )
+  assert.deepEqual(
+    harnessHandoffAttemptMatch(
       { ...cursorHandoff, status: "findings_fixed" },
       cursorPayload,
       jobA,
       1,
     ),
-    mismatched("unchanged-head"),
+    mismatched("read-only-mutation"),
   )
   assert.deepEqual(
     harnessHandoffAttemptMatch(
@@ -465,9 +469,7 @@ test("fixed findings require a head the review actually moved", () => {
 
 test("a rejected handoff names the invariant it violated", () => {
   const result = Effect.runSync(
-    Effect.either(
-      requireHandoffMatchesAttempt(handoff, claudePayload, jobB, 1),
-    ),
+    Effect.either(requireHandoffMatchesAttempt(handoff, claudePayload, jobB, 1)),
   )
   assert.equal(Either.isLeft(result), true)
   if (Either.isLeft(result)) {
@@ -570,12 +572,7 @@ test("handoff evidence never names a credential-bearing path", () => {
 
 test("only fixed findings hand back a head the review moved", () => {
   const movedHead = commit("d".repeat(40))
-  for (const status of [
-    "clean",
-    "findings_pending",
-    "blocked",
-    "failed",
-  ] as const)
+  for (const status of ["clean", "findings_pending", "blocked", "failed"] as const)
     assert.deepEqual(
       harnessHandoffAttemptMatch(
         {

@@ -65,16 +65,6 @@ export interface RequestLifecycleChannel {
   unsubscribe(listener: (message: unknown) => void): void
 }
 
-export interface RequestLifecycleLoggingFailure {
-  readonly operation: "prepare" | "append"
-  readonly code: string
-  readonly logPath: string
-}
-
-export type RequestLifecycleLoggingFailureHandler = (
-  failure: RequestLifecycleLoggingFailure,
-) => void
-
 const RequestLifecycleEventSchema = Schema.Struct({
   schemaVersion: Schema.Literal(1),
   signal: Schema.Literal(
@@ -132,62 +122,21 @@ export const requestLifecycleLogPath = (
 ): string =>
   `${stateHome ?? `${userHome}/.local/state`}/pi/logs/request-lifecycle-${pid}.jsonl`
 
-const filesystemErrorCode = (error: unknown): string => {
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    typeof error.code === "string"
-  ) {
-    return error.code
-  }
-  return "UNKNOWN"
-}
-
 export const installRequestLifecycleLogging = (
   channel: RequestLifecycleChannel,
   logPath: string,
-  onFailure: RequestLifecycleLoggingFailureHandler = () => undefined,
 ): (() => void) => {
-  let active = true
-  let subscribed = false
-
-  const failClosed = (
-    operation: RequestLifecycleLoggingFailure["operation"],
-    error: unknown,
-  ): void => {
-    if (!active) return
-    active = false
-    try {
-      onFailure({ operation, code: filesystemErrorCode(error), logPath })
-    } catch {
-      // A diagnostics callback must never turn observability failure into a crash.
-    }
-  }
-
-  try {
-    mkdirSync(dirname(logPath), { recursive: true, mode: 0o700 })
-  } catch (error) {
-    failClosed("prepare", error)
-    return () => undefined
-  }
-
+  mkdirSync(dirname(logPath), { recursive: true, mode: 0o700 })
   const fileLogger = Logger.structuredLogger.pipe(
-    Logger.map(entry => {
-      if (!active) return
-      try {
-        appendFileSync(logPath, `${JSON.stringify(entry)}\n`, {
-          encoding: "utf8",
-          mode: 0o600,
-        })
-      } catch (error) {
-        failClosed("append", error)
-      }
-    }),
+    Logger.map(entry =>
+      appendFileSync(logPath, `${JSON.stringify(entry)}\n`, {
+        encoding: "utf8",
+        mode: 0o600,
+      }),
+    ),
   )
   const loggerLayer = Logger.replace(Logger.defaultLogger, fileLogger)
   const listener = (message: unknown) => {
-    if (!active) return
     const event = safeLifecycleEvent(message)
     if (!event) return
     Effect.logInfo(event.signal).pipe(
@@ -211,8 +160,5 @@ export const installRequestLifecycleLogging = (
     )
   }
   channel.subscribe(listener)
-  subscribed = true
-  return () => {
-    if (subscribed) channel.unsubscribe(listener)
-  }
+  return () => channel.unsubscribe(listener)
 }

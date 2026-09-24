@@ -27,8 +27,7 @@ const canonical = (value: string): CanonicalPath => {
 
 const commit = (value: string): CommitSha => {
   const sha = toCommitSha(value)
-  if (sha === undefined)
-    throw new Error(`fixture is not a commit sha: ${value}`)
+  if (sha === undefined) throw new Error(`fixture is not a commit sha: ${value}`)
   return sha
 }
 
@@ -99,7 +98,7 @@ const claudePayload: HarnessReviewPayload = {
   isolation: "read-only",
 }
 
-const retiredCursorPayload = {
+const cursorPayload: HarnessReviewPayload = {
   lane: "cursor-subscription",
   task: "review-probe",
   model: "grok-4.5",
@@ -110,7 +109,7 @@ const retiredCursorPayload = {
   inputHeadSha: headSha,
   repositoryRoot: canonical("/Users/example/code/0xgleb/example"),
   isolation: "read-only",
-} as const
+}
 
 const ownReviewPayload: HarnessReviewPayload = {
   ...claudePayload,
@@ -132,7 +131,7 @@ const automaticPayload: HarnessReviewPayload = {
 }
 
 const registeredRoots = (roots: readonly string[]): RegisteredWorkspaceRoots =>
-  roots.map(root => {
+  roots.map((root) => {
     const registered = toCanonicalWorkspaceRoot(root)
     if (registered === undefined)
       throw new Error(`fixture is not a canonical workspace root: ${root}`)
@@ -143,8 +142,9 @@ const registeredRoots = (roots: readonly string[]): RegisteredWorkspaceRoots =>
  * Registered roots as a caller that skipped the validating constructor would
  * hand them over, so the launch-time canonical check stays exercised.
  */
-const unvalidatedRoots = (roots: readonly string[]): RegisteredWorkspaceRoots =>
-  roots as RegisteredWorkspaceRoots
+const unvalidatedRoots = (
+  roots: readonly string[],
+): RegisteredWorkspaceRoots => roots as RegisteredWorkspaceRoots
 
 const allowedRoots = registeredRoots([
   "/Users/example/code/st0x/example",
@@ -291,8 +291,36 @@ test("approved-worktree work never nests inside another worktree", () => {
   )
 })
 
-test("the retired Cursor lane never launches", () => {
-  assert.equal(planErrorCode(retiredCursorPayload), "invalid_input")
+test("the cursor lane builds an exact read-only plan-mode probe", () => {
+  const launch = plan(cursorPayload, "job-b", 2)
+  assert.equal(launch.lane, "cursor-subscription")
+  assert.equal(launch.cwd, cursorPayload.repositoryRoot)
+  assert.deepEqual(launch.argv.slice(0, launch.argv.length - 1), [
+    ...LAUNCH_PREFIX,
+    "cursor-agent",
+    "-p",
+    "--mode",
+    "plan",
+    "--model",
+    "grok-4.5-xhigh",
+    "--trust",
+    "--workspace",
+    cursorPayload.repositoryRoot,
+  ])
+  assert.equal(
+    launch.argv.at(-1),
+    `You are a read-only Cursor review probe for 0xgleb/example#7, input head ${headSha}, profile personal-review. Inspect the pull request in plan mode without mutating any file, branch, or review state, and report bounded findings only. At completion, return exactly one bounded harness handoff v1 for job job-b attempt 2 with matching lane, repository, pull request, and input head SHA. Never include prompts, reasoning, credentials, diffs, or raw logs, and never treat model output as approval or merge authority.`,
+  )
+})
+
+test("cursor models map only to registered subscription identifiers", () => {
+  const launch = plan({ ...cursorPayload, model: "composer-2.5" })
+  assert.equal(launch.argv.includes("composer-2.5"), true)
+  assert.equal(planErrorCode({ ...cursorPayload, model: "auto" }), "invalid_input")
+  assert.equal(
+    planErrorCode({ ...cursorPayload, model: "claude-api" }),
+    "invalid_input",
+  )
 })
 
 test("the launch environment is an allowlist, so an unenumerated provider variable never reaches a harness", () => {
@@ -308,6 +336,7 @@ test("the launch environment is an allowlist, so an unenumerated provider variab
   ])
   for (const launch of [
     plan(claudePayload),
+    plan(cursorPayload, "job-b", 2),
     plan(ownReviewPayload),
     plan(automaticPayload, "job-auto", 1),
   ]) {
@@ -452,6 +481,7 @@ test("stale or malformed job identity never launches", () => {
 test("built argv never contains retired Cursor or unsafe flags", () => {
   for (const launch of [
     plan(claudePayload),
+    plan(cursorPayload),
     plan(ownReviewPayload),
     plan(automaticPayload, "job-auto", 1),
   ])
