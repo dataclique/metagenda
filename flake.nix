@@ -62,6 +62,7 @@
           devenv-up = self.devShells.${system}.default.config.procfileScript;
           fj = pkgs.callPackage ./tooling/fj { };
           pi-skills = pkgs.callPackage ./pi/skills.nix { };
+          pi-source = pkgs.callPackage ./pi/source.nix { };
         };
 
         apps = {
@@ -116,6 +117,7 @@
 
         checks = {
           fj = packages.fj;
+          pi-source = packages.pi-source;
           work-core = pkgs.bun2nix.mkDerivation {
             pname = "metagenda-work-core-check";
             version = "0.1.0";
