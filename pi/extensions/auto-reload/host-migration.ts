@@ -46,13 +46,7 @@ export const needsManagedHostMigration = (input: {
 export const verifiedHostArtifacts = (input: {
   readonly launcher: string
   readonly expectedWrappedEntrypoint: string
-  readonly tui: string
-  readonly mainScreen: string
-}): boolean =>
-  input.launcher.includes(input.expectedWrappedEntrypoint) &&
-  input.tui.includes("renderSafely()") &&
-  input.tui.includes("this.renderSafely();") &&
-  input.mainScreen.includes("const pending = [root];")
+}): boolean => input.launcher.includes(input.expectedWrappedEntrypoint)
 
 export const hostMigrationArgv = (
   stableEntrypoint: string,
