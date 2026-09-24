@@ -80,11 +80,7 @@ const harness = (t: TestContext, provider: Provider) => {
     parseClassifierDecision,
     sanitizeProcessDiagnostic,
     unknownErrorMessage,
-    classifierCandidates: () => [
-      "openai-codex/gpt-5.6-terra",
-      "zai/glm-5.3",
-      "zai/glm-5.3",
-    ],
+    classifierCandidates: () => ["openai-codex/gpt-5.6-terra", "zai/glm-5.3"],
     markPreferredProvider: () => {},
   })
   const controller = new AbortController()
@@ -138,6 +134,18 @@ test("a valid classifier response after the old 20-second deadline survives", as
 })
 
 test("a third bounded attempt recovers two transient availability failures", async t => {
+  let calls = 0
+  const run = harness(t, async () =>
+    ++calls < 3 ? unavailable : success(allow),
+  )
+  await tick(t, 0)
+  await tick(t, 1_000)
+  await tick(t, 2_000)
+  assert.equal(run.attempts.length, 3)
+  assert.deepEqual(run.decision(), allow)
+})
+
+test("a transient failure of the final candidate earns one extra retry", async t => {
   let calls = 0
   const run = harness(t, async () =>
     ++calls < 3 ? unavailable : success(allow),

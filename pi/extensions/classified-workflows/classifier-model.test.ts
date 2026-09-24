@@ -26,7 +26,10 @@ test("classifier and goal evaluator accept the session model context", () => {
 test("each classifier attempt runs on its own tier candidate", () => {
   const start = source.indexOf("const candidates = classifierCandidates(ctx)")
   assert.notEqual(start, -1, "classify must resolve tier candidates")
-  const body = source.slice(start, start + 1200)
-  assert.match(body, /attempt < candidates\.length/)
-  assert.match(body, /"--model", candidates\[attempt\]/)
+  const body = source.slice(start, start + 1600)
+  assert.match(body, /attempt < attempts/)
+  assert.match(
+    body,
+    /"--model",\s*candidates\[Math\.min\(attempt, candidates\.length - 1\)\]/,
+  )
 })
