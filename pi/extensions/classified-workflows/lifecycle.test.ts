@@ -5973,14 +5973,8 @@ test("classifier availability failures retain one bounded actionable diagnostic"
     extensionSource,
     /Classifier was unavailable after \$\{attemptsStarted\} attempts; last failure: \$\{lastClassifierFailure\}/,
   )
-  assert.match(
-    extensionSource,
-    /let attemptsStarted = 0/,
-  )
-  assert.match(
-    extensionSource,
-    /attemptsStarted \+= 1/,
-  )
+  assert.match(extensionSource, /let attemptsStarted = 0/)
+  assert.match(extensionSource, /attemptsStarted \+= 1/)
   assert.match(
     extensionSource,
     /sanitizeProcessDiagnostic[\s\S]*?slice\(0, 500\)/,
