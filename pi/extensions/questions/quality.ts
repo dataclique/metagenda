@@ -128,7 +128,7 @@ const boundedProjectInstructions = async (
   }
 }
 
-interface JudgeContext {
+export interface JudgeContext {
   readonly cwd: string
   readonly getModel?: () => { provider: string; id: string } | undefined
 }

@@ -37,6 +37,7 @@ import {
   askQualityDepsFor,
   evaluateAskQuality,
   type AskQualityInput,
+  type JudgeContext,
 } from "./quality.ts"
 
 const QUESTION_MESSAGE = "pi.questions.list"
@@ -173,6 +174,11 @@ const parseAction = (
       }
     }
   })
+
+const judgeContextFor = (ctx: {
+  readonly cwd: string
+  readonly getModel?: () => { provider: string; id: string } | undefined
+}): JudgeContext => ctx
 
 const questionsExtension: (pi: ExtensionAPI) => void = pi => {
   registerRuntimeVersion(pi, "questions", "2026.09.25.1")
@@ -431,7 +437,8 @@ const questionsExtension: (pi: ExtensionAPI) => void = pi => {
     ctx.ui.setStatus(QUESTION_STATUS_KEY, undefined)
     ctx.ui.setWidget(QUESTION_STATUS_KEY, undefined)
   })
-  pi.events.on(QUESTION_ASK_EVENT, async (request: UserQuestionRequest) => {
+  pi.events.on(QUESTION_ASK_EVENT, async (data: unknown) => {
+    const request = data as UserQuestionRequest
     if (!latestCtx) return
     const question = request.question.trim().slice(0, 4_000)
     if (!question) return
@@ -448,7 +455,7 @@ const questionsExtension: (pi: ExtensionAPI) => void = pi => {
           ? { options: request.options }
           : {}),
       },
-      askQualityDepsFor({ cwd: latestCtx.cwd, getModel: latestCtx.getModel }),
+      askQualityDepsFor(judgeContextFor(latestCtx)),
     )
     if (!verdict.admissible) {
       latestCtx.ui.notify(
@@ -489,13 +496,11 @@ const questionsExtension: (pi: ExtensionAPI) => void = pi => {
     )
   })
 
-  pi.events.on(
-    QUESTION_REMOTE_RESOLUTION_EVENT,
-    (resolution: RemoteUserQuestionResolution) => {
-      if (!latestCtx) return
-      resolveQuestion(latestCtx, resolution.id, resolution.answer)
-    },
-  )
+  pi.events.on(QUESTION_REMOTE_RESOLUTION_EVENT, (data: unknown) => {
+    const resolution = data as RemoteUserQuestionResolution
+    if (!latestCtx) return
+    resolveQuestion(latestCtx, resolution.id, resolution.answer)
+  })
 
   pi.on("before_agent_start", event => {
     const content = pendingQuestionContext(state)
@@ -647,7 +652,7 @@ const questionsExtension: (pi: ExtensionAPI) => void = pi => {
         }
         const verdict = await evaluateAskQuality(
           qualityInput,
-          askQualityDepsFor({ cwd: ctx.cwd, getModel: ctx.getModel }),
+          askQualityDepsFor(judgeContextFor(ctx)),
         )
         if (!verdict.admissible) {
           const text = `Not queued: context-free clarification question. ${verdict.reason}\nRewrite it with concrete referents the user can act on (artifact, path, current behavior, interval, or numbers) and ask again.`
