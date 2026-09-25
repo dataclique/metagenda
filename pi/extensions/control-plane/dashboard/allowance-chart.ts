@@ -2,10 +2,7 @@ import type { ProviderAllowanceCheckpoint } from "../allowance-pool.ts"
 import type { AllowanceCheckpointInput } from "../usage-policy.ts"
 
 export type AllowanceHistoryEvent =
-  | "cycle-start"
-  | "provider-reset"
-  | "exhaustion"
-  | "bailout"
+  "cycle-start" | "provider-reset" | "exhaustion" | "bailout"
 
 export interface InferredAllowanceBailout {
   readonly capturedAt: number

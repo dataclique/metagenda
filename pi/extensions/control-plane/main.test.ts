@@ -53,7 +53,10 @@ test("control-plane startup logs the bounded typed failure", () => {
     },
   )
   assert.equal(result.status, 1)
-  assert.match(result.stderr, /invalid_config: HOME must be an absolute path/)
+  assert.match(
+    result.stderr,
+    /invalid_config: HOME must be a canonical absolute path/,
+  )
   assert.doesNotMatch(result.stderr, /stopped with an internal error/)
 })
 

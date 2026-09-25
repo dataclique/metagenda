@@ -17,7 +17,7 @@ import {
 import {
   decodeHarnessResearchHandoff,
   decodeHarnessResearchPayload,
-  harnessResearchHandoffMatchesAttempt,
+  validateNewHarnessResearchPayload,
   type HarnessResearchHandoff,
   type HarnessResearchPayload,
 } from "./harness-research-protocol.ts"
@@ -313,7 +313,7 @@ const enqueuePayloadDecoders = (home: CanonicalPath): JobPayloadDecoders => ({
   "harness.review": value =>
     asRuntimeError(decodeHarnessReviewPayload(value, home)),
   "harness.research": value =>
-    asRuntimeError(decodeHarnessResearchPayload(value)),
+    asRuntimeError(validateNewHarnessResearchPayload(value)),
 })
 
 /**
@@ -495,7 +495,7 @@ export const decodeJobSpec = (
   decodeSpecWith(value, enqueuePayloadDecoders(home))
 
 /** Decodes a job spec read back out of the store, by form only. */
-const decodeStoredJobSpec = (
+export const decodeStoredJobSpec = (
   value: unknown,
 ): Effect.Effect<RegisteredJobSpec, JobRuntimeError> =>
   decodeSpecWith(value, STORED_PAYLOAD_DECODERS)
@@ -779,7 +779,9 @@ export const createJob = (
   const jobId = toJobId(id)
   if (jobId === undefined) return invalid("job id must be bounded and safe")
   if (!isTimestamp(now)) return invalid("now must be a safe timestamp")
-  return Effect.map(decodeJobSpec(spec, home), decoded => ({
+  // Job creation validates the stored form only: the untrusted enqueue
+  // boundary (the HTTP route) applies the stricter admission decoders.
+  return Effect.map(decodeStoredJobSpec(spec), decoded => ({
     id: jobId,
     spec: decoded,
     state: decoded.runAt <= now ? "ready" : "scheduled",

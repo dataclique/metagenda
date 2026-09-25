@@ -31,12 +31,12 @@ import {
 } from "./sqlite-job-store.ts"
 import {
   allowanceRunway,
-  AutonomousRole,
   calibrateProviderTokens,
   providerTokenPolicy,
-  type ProviderUsagePoint,
   rolePollingPolicy,
   usagePolicy,
+  type AutonomousRole,
+  type ProviderUsagePoint,
 } from "./usage-policy.ts"
 import { ThrottleActivity } from "./throttle-activity.ts"
 import { sampleCodexWeeklyAllowance } from "./codex-allowance.ts"
@@ -154,6 +154,7 @@ export type ControlPlaneJobStore = Pick<
   | "claimDue"
   | "complete"
   | "fail"
+  | "recoverExpired"
   | "recordUsage"
   | "recordAllowanceCheckpoint"
 >
@@ -371,6 +372,21 @@ const handleJobs = (
     const body = yield* readBody(request)
     const input = yield* parseJson(body)
     const spec = yield* decodeJobSpec(input, home)
+    // Research jobs are scheduled near the present: a runAt far from now is
+    // a stale replay of an already-served plan, not fresh work.
+    if (spec.kind === "harness.research") {
+      const now = yield* Clock.currentTimeMillis
+      if (
+        Math.abs(now - spec.runAt) > MAX_RESEARCH_SCHEDULE_SKEW_MS &&
+        !("recurrence" in spec && spec.recurrence !== undefined)
+      )
+        return yield* Effect.fail(
+          serverError(
+            "invalid_payload",
+            "research job schedule is too far from the present",
+          ),
+        )
+    }
     const result = yield* store.enqueue(spec)
     sendJson(response, result.created ? 201 : 200, { job: result.job })
   })
@@ -431,6 +447,9 @@ const handleClaim = (
       typeof input.ttlMs !== "number" ||
       ("kinds" in input &&
         (!Array.isArray(input.kinds) ||
+          input.kinds.length < 1 ||
+          input.kinds.length > 8 ||
+          new Set(input.kinds).size !== input.kinds.length ||
           !input.kinds.every(isRegisteredJobKind)))
     ) {
       return yield* Effect.fail(
@@ -438,6 +457,11 @@ const handleClaim = (
       )
     }
     const now = yield* Clock.currentTimeMillis
+    // Expired leases are recovered inside the claim transaction window so a
+    // worker that died mid-attempt cannot hold the front of the queue. The
+    // retry delay is zero here: an expired lease is not a failed attempt,
+    // and the job stays immediately due for the next claiming worker.
+    yield* store.recoverExpired(now, 0)
     const job = yield* store.claimDue(
       input.workerId,
       randomUUID(),
