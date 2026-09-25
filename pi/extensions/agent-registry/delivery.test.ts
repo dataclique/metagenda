@@ -217,3 +217,14 @@ test("registry outcome handler stores the resolved full id, not the requested pr
   assert.match(source, /store\.completeRequest\(\{\s*requestId: target\.id,/)
   assert.match(source, /store\.failRequest\(\{\s*requestId: target\.id,/)
 })
+
+test("stale lease errors name the required request role and owned leases", () => {
+  assert.match(
+    source,
+    /this session does not own the request role: \$\{target\.project\}\/\$\{target\.role\} is required/,
+  )
+  assert.match(
+    source,
+    /active owned leases: \$\{[\s\S]*?candidate\.project\}\/\$\{candidate\.role\}/,
+  )
+})
