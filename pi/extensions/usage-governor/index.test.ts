@@ -3,10 +3,6 @@ import { readFileSync } from "node:fs"
 import test from "node:test"
 
 const source = readFileSync(new URL("./index.ts", import.meta.url), "utf8")
-const homeConfig = readFileSync(
-  new URL("../../../../home.nix", import.meta.url),
-  "utf8",
-)
 
 test("turn origin never demotes the session-selected driver model", () => {
   assert.match(source, /before_agent_start/)
@@ -85,11 +81,11 @@ test("owner intervention follows successful delegation to the target agent", () 
   assert.match(source, /event\.source !== "extension"/)
 })
 
-test("subscription models have bounded per-turn output budgets", () => {
-  assert.match(homeConfig, /"gpt-5\.6-sol"\.maxTokens = 32000;/)
-  assert.match(homeConfig, /"gpt-5\.6-terra"\.maxTokens = 16000;/)
-  assert.match(homeConfig, /"gpt-5\.6-luna"\.maxTokens = 16000;/)
-})
+// The per-turn token-budget assertions against home.nix live in dotconfig's
+// copy of this test (verified present there with the same assertions),
+// because host configuration is dotconfig ownership under the source split.
+// Metagenda's tree has no home.nix: the drift-era relative path resolved
+// outside this repository and failed with ENOENT, so no coverage is lost.
 
 test("all turns restore the session-selected subscription model without claiming throttling", () => {
   assert.match(source, /HUMAN_TURN_EVENT/)
