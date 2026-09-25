@@ -1,5 +1,6 @@
 import { globSync, lstatSync, unlinkSync } from "node:fs"
 import { basename, dirname, join, resolve } from "node:path"
+import { unquotedCommandSegments } from "../shared/unquoted-command-segments.ts"
 
 export { parseMemoryPressureCapacity } from "../shared/memory-capacity.ts"
 
@@ -60,7 +61,10 @@ const TARGETED_BUN_TEST =
 export const isExpensiveCommand: (command: string) => boolean = command =>
   !TARGETED_BUN_TEST.test(command) &&
   /(?:^|[;&|()]|\bsudo\s+)(?:\s*)(?:darwin-rebuild\s+(?:build|switch)|nixos-rebuild\s+(?:build|switch)|nix\s+(?:build|develop|flake\s+check)|cargo\s+(?:build|test|clippy|nextest)|(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?(?:build|test)|forge\s+(?:build|test)|docker\s+build|terraform\s+(?:plan|apply)|make(?:\s|$))/i.test(
-    command,
+    // Classify executable intent, not quoted data: a search pattern or prose
+    // argument naming a build command is not a build. Command substitutions
+    // inside double quotes still execute and stay classified.
+    unquotedCommandSegments(command),
   )
 
 export const resourcePressureDecision: (
