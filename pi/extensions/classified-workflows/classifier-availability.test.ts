@@ -59,6 +59,7 @@ const cancelled: ProcessResult = {
 const harness = (t: TestContext, provider: Provider) => {
   t.mock.timers.enable({ apis: ["setTimeout"] })
   const attempts: AbortSignal[] = []
+  const models: (string | undefined)[] = []
   const activities: boolean[] = []
   const classify: Classify = new Function(
     "dependencies",
@@ -72,8 +73,12 @@ const harness = (t: TestContext, provider: Provider) => {
     return classify;
   `,
   )({
-    runPi: (_args: string[], _cwd: string, signal: AbortSignal) => {
+    runPi: (args: string[], _cwd: string, signal: AbortSignal) => {
       attempts.push(signal)
+      const modelIndex = args.indexOf("--model")
+      models.push(
+        modelIndex >= 0 ? (args[modelIndex + 1] as string) : undefined,
+      )
       return provider(signal)
     },
     buildClassifierPrompt,
@@ -102,7 +107,7 @@ const harness = (t: TestContext, provider: Provider) => {
     controller.abort()
     await pending
   })
-  return { attempts, activities, controller, decision: () => decision }
+  return { attempts, models, activities, controller, decision: () => decision }
 }
 
 const tick = async (t: TestContext, milliseconds: number) => {
@@ -154,6 +159,11 @@ test("a transient failure of the final candidate earns one extra retry", async t
   await tick(t, 1_000)
   await tick(t, 2_000)
   assert.equal(run.attempts.length, 3)
+  assert.deepEqual(run.models, [
+    "openai-codex/gpt-5.6-terra",
+    "zai/glm-5.3",
+    "zai/glm-5.3",
+  ])
   assert.deepEqual(run.decision(), allow)
 })
 

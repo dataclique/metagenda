@@ -5971,7 +5971,15 @@ test("classifier availability failures retain one bounded actionable diagnostic"
   )
   assert.match(
     extensionSource,
-    /Classifier was unavailable after \$\{attempts\} attempts; last failure: \$\{lastClassifierFailure\}/,
+    /Classifier was unavailable after \$\{attemptsStarted\} attempts; last failure: \$\{lastClassifierFailure\}/,
+  )
+  assert.match(
+    extensionSource,
+    /let attemptsStarted = 0/,
+  )
+  assert.match(
+    extensionSource,
+    /attemptsStarted \+= 1/,
   )
   assert.match(
     extensionSource,

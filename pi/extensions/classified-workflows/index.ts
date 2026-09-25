@@ -729,6 +729,9 @@ async function classify(
     // candidate — the session model — so a single transient provider failure
     // cannot exhaust the whole classification budget.
     const attempts = candidates.length + (candidates.length > 1 ? 1 : 0)
+    // Attempts that actually started, for honest failure reporting when
+    // cancellation stops the loop before the configured budget is spent.
+    let attemptsStarted = 0
     for (let attempt = 0; attempt < attempts; attempt += 1) {
       const controller = new AbortController()
       const abort = () => controller.abort(signal?.reason)
@@ -745,6 +748,7 @@ async function classify(
       )
 
       try {
+        attemptsStarted += 1
         const result = await runPi(
           [
             "--mode",
@@ -819,7 +823,7 @@ async function classify(
     }
     return {
       verdict: "block",
-      reason: `Classifier was unavailable after ${attempts} attempts; last failure: ${lastClassifierFailure}`,
+      reason: `Classifier was unavailable after ${attemptsStarted} attempts; last failure: ${lastClassifierFailure}`,
       source: "classifier",
     }
   } finally {
