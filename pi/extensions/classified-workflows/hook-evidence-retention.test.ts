@@ -140,10 +140,11 @@ test("VCS words in arguments or comments do not identify the executable", () => 
   // ordinary retained evidence instead of excluding it as a VCS command.
   const proseEvidence = collectedResult("printf 'git'", "git")
   assert.equal(proseEvidence.length, 1)
-  assert.doesNotMatch(
+  assert.match(
     proseEvidence[0]?.split(" input=")[0] ?? "",
-    /commandVcsToken=/,
+    /commandVcsToken=absent/,
   )
+  assert.equal(isRetained("printf 'git'", "git"), true)
 })
 
 test("unsupported alias and assignment shapes retain conservative VCS filtering", () => {

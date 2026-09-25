@@ -466,12 +466,18 @@ const commandDirectoryIdentity = (
   }
 }
 
-const shellWords = (command: string): readonly string[] | undefined => {
+interface ShellWord {
+  readonly text: string
+  readonly quoted: boolean
+}
+
+const shellWords = (command: string): readonly ShellWord[] | undefined => {
   if (!command.trim() || /[\r\n]/.test(command)) return undefined
-  const words: string[] = []
+  const words: ShellWord[] = []
   let current = ""
   let quote: "single" | "double" | undefined
   let started = false
+  let quoted = false
   for (const character of command) {
     if (quote === "single") {
       if (character === "'") quote = undefined
@@ -490,14 +496,17 @@ const shellWords = (command: string): readonly string[] | undefined => {
     if (character === "'") {
       quote = "single"
       started = true
+      quoted = true
     } else if (character === '"') {
       quote = "double"
       started = true
+      quoted = true
     } else if (/\s/.test(character)) {
       if (started) {
-        words.push(current)
+        words.push({ text: current, quoted })
         current = ""
         started = false
+        quoted = false
       }
     } else {
       current += character
@@ -505,23 +514,50 @@ const shellWords = (command: string): readonly string[] | undefined => {
     }
   }
   if (quote) return undefined
-  if (started) words.push(current)
+  if (started) words.push({ text: current, quoted })
   return words.length > 0 ? words : undefined
 }
 
-const unsafeGitTokens = (words: readonly string[]): boolean => {
-  if (words.some(word => word.includes("/") && basename(word) === "git"))
+const unsafeGitTokens = (words: readonly ShellWord[]): boolean => {
+  // Quoted words are data except in executable position: a quoted argument
+  // naming git never makes the command a VCS command, while a quoted first
+  // word is still the executable being invoked.
+  const executable = (word: ShellWord, index: number): boolean =>
+    !word.quoted || index === 0
+  if (
+    words.some(
+      (word, index) =>
+        executable(word, index) &&
+        word.text.includes("/") &&
+        basename(word.text) === "git",
+    )
+  )
     return true
-  if (words.some(word => /^(?:cd|pushd|popd)$/.test(word))) return true
-  if (words.some(word => /^GIT_[A-Za-z0-9_]+=/.test(word))) return true
-  const gitIndex = words.findIndex(word => word === "git" || word === "^git")
+  if (
+    words.some(
+      (word, index) =>
+        executable(word, index) && /^(?:cd|pushd|popd)$/.test(word.text),
+    )
+  )
+    return true
+  if (
+    words.some(
+      (word, index) =>
+        executable(word, index) && /^GIT_[A-Za-z0-9_]+=/.test(word.text),
+    )
+  )
+    return true
+  const gitIndex = words.findIndex(
+    (word, index) =>
+      executable(word, index) && (word.text === "git" || word.text === "^git"),
+  )
   if (gitIndex < 0) return false
   if (gitIndex > 0) return true
   for (const word of words.slice(gitIndex + 1)) {
     // Git parses global options before the subcommand. For example, --git-dir
     // after rev-parse reports a path; it does not select another repository.
-    if (!word.startsWith("-")) return false
-    if (!gitGlobalOptionsWithoutValues.has(word)) return true
+    if (!word.text.startsWith("-")) return false
+    if (!gitGlobalOptionsWithoutValues.has(word.text)) return true
   }
   return false
 }
@@ -557,45 +593,101 @@ export const runtimeCommandLocationForSubject = (
   return directory ? { ...directory, command, directoryTransition } : undefined
 }
 
-// Only text outside quotes can form an executable Git invocation. Quoted
-// content is data — prose naming Git commands must never trip this gate,
-// while a Git token in unquoted position stays gated however deep the
+// Only text outside quotes can form an executable Git invocation — except
+// that command substitutions inside double quotes and quoted words in command
+// position DO execute. Quoted arguments stay data: prose naming Git commands
+// must never trip this gate, while real Git stays gated however deep the
 // composition. An unquoted backslash escapes the next character, so
 // shell-escaped Git spellings stay gated too.
-const unquotedCommandSegments = (command: string): string => {
+const atCommandPosition = (scanned: string): boolean => {
+  const significantTail = scanned.trimEnd()
+  return significantTail.length === 0 || /[;&|(\r\n]$/.test(significantTail)
+}
+
+export const unquotedCommandSegments = (command: string): string => {
   let result = ""
   let quote: "single" | "double" | undefined
+  let quotedAtBoundary = false
   let escaped = false
   let escapedInDouble = false
-  for (const character of command) {
+  let parenSubstitutionDepth = 0
+  let inBacktickSubstitution = false
+  for (let index = 0; index < command.length; index += 1) {
+    const character = command[index]
+    if (character === undefined) continue
     if (escaped) {
       escaped = false
       result += character
       continue
     }
-    if (quote === "double" && escapedInDouble) {
-      escapedInDouble = false
-      continue
-    }
     if (quote === "single") {
-      if (character === "'") quote = undefined
+      if (character === "'") {
+        quote = undefined
+        if (quotedAtBoundary) result += " "
+      } else if (quotedAtBoundary) result += character
       continue
     }
     if (quote === "double") {
+      if (escapedInDouble) {
+        escapedInDouble = false
+        continue
+      }
+      if (parenSubstitutionDepth > 0) {
+        if (character === "(") parenSubstitutionDepth += 1
+        else if (character === ")") {
+          parenSubstitutionDepth -= 1
+          if (parenSubstitutionDepth === 0) {
+            result += " "
+            continue
+          }
+        }
+        result += character
+        continue
+      }
+      if (inBacktickSubstitution) {
+        if (character === "`") {
+          inBacktickSubstitution = false
+          result += " "
+          continue
+        }
+        result += character
+        continue
+      }
       if (character === "\\") {
         escapedInDouble = true
         continue
       }
-      if (character === '"') quote = undefined
+      if (character === '"') {
+        quote = undefined
+        if (quotedAtBoundary) result += " "
+        continue
+      }
+      if (character === "$" && command[index + 1] === "(") {
+        parenSubstitutionDepth = 1
+        continue
+      }
+      if (character === "`") {
+        inBacktickSubstitution = true
+        continue
+      }
+      if (quotedAtBoundary) result += character
       continue
     }
     if (character === "\\") {
       escaped = true
       continue
     }
-    if (character === "'") quote = "single"
-    else if (character === '"') quote = "double"
-    else result += character
+    if (character === "'") {
+      quote = "single"
+      quotedAtBoundary = atCommandPosition(result)
+      continue
+    }
+    if (character === '"') {
+      quote = "double"
+      quotedAtBoundary = atCommandPosition(result)
+      continue
+    }
+    result += character
   }
   return result
 }

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto"
 import { sanitizeProcessDiagnostic } from "./protocol.ts"
 import {
   runtimeCommandLocationForSubject,
+  unquotedCommandSegments,
   unsafeRuntimeCommandLocationBlockReason,
   type RuntimeCommandLocation,
 } from "./project-context.ts"
@@ -1424,7 +1425,7 @@ export const selectRelevantExecutionEvidence = (
     isBashSubject &&
     typeof subjectCommand === "string" &&
     /(?:^|[\s;&|($`])\^?(?:git|(?:[^\s;&|$()]+\/)+git)(?=[\s;&|$()]|$)/i.test(
-      subjectCommand.replace(/["'\\]/g, ""),
+      unquotedCommandSegments(subjectCommand),
     )
   const subjectHasUnsafeGitLocation =
     (subjectHasGitCommand && !subjectCwd) ||

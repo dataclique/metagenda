@@ -96,6 +96,8 @@ test("quoted prose naming Git commands never trips the location gate", () => {
     "git -C /other/repo status",
     "git status; pwd",
     "g\\it status --short",
+    'echo "$(git -C /other/repo status)"',
+    'echo "`git status`"',
   ]) {
     assert.ok(
       unsafeRuntimeCommandLocationBlockReason(process.cwd(), {
