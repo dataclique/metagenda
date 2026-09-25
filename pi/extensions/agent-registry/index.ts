@@ -1784,7 +1784,12 @@ const registryExtension: (pi: ExtensionAPI) => void = pi => {
             Effect.fail(
               new RegistryError({
                 code: "stale_lease",
-                message: "this session does not own the request role",
+                message: `this session does not own the request role: ${target.project}/${target.role} is required; active owned leases: ${
+                  ownedLeases(snapshot, agent.id)
+                    .filter(candidate => candidate.status === "active")
+                    .map(candidate => `${candidate.project}/${candidate.role}`)
+                    .join(", ") || "none"
+                }`,
               }),
             ),
           )
