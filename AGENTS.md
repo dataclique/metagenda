@@ -1,5 +1,10 @@
 # AGENTS.md
 
+Metagenda is a public, source-available repository. A `package.json` setting of
+`"private": true` prevents registry publication; it does not make this
+repository private or prevent a public Git dependency. Follow the root Business
+Source License 1.1 and preserve third-party licenses and attribution.
+
 ## Repository map
 
 - [SPEC.md](./SPEC.md): target behavior and component boundaries.
@@ -26,8 +31,18 @@
 - Preserve unrelated working-tree and staged changes. Use the assigned checkout;
   isolate only for a concrete concurrency need, and clean up artifacts created
   by the agent.
-- Use GitButler only in a verified managed main checkout; use plain Git in
-  linked worktrees. Preserve branches and work when configuring tools.
+- Prefer GitButler in a verified managed main checkout for branch and PR
+  stacking; use plain Git in linked worktrees. If GitButler obstructs authorized
+  work, use plain Git without asking for permission to switch tools. Preserve
+  existing branches, staged changes, and working files, then return to GitButler
+  once the recovery is complete. This exception does not bypass authorization
+  policy or grant permission to merge, force-push, or discard unrelated work.
+- GitButler `unapply` removes a stack from the virtual workspace while retaining
+  it for reapplication; it is not branch deletion or discard. Verify the exact
+  stack and preserve endangered uncommitted changes. Unique retained commits are
+  not a reason to refuse unapply. A verified remote copy adds recovery evidence
+  but does not authorize publishing private or unreviewed work. Route classifier
+  refusals that conflate these operations to the tooling owner.
 - Keep PR titles lowercase, imperative, and outcome-focused. Use Motivation and
   Solution headings in descriptions, include relevant issue links, and report
   accurate validation results. Do not add authorship footers.
