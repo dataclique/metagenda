@@ -599,19 +599,40 @@ const autoReload: (pi: ExtensionAPI) => void = pi => {
         // try/catch cannot observe this command-boundary rejection: the
         // dispatcher reports handler errors separately. Restore the
         // pending-reload path so automatic reload retries instead of
-        // stalling until the next file change schedules it.
-        reportIncident(
-          "error",
-          "automatic extension reload",
-          `Automatic Pi reload failed: ${error instanceof Error ? error.message : "unknown error"}`,
-        )
-        if (!pending) pendingSince = Date.now()
-        pending = true
-        composerSafeSince = undefined
-        ctx.ui.setStatus(STATUS_KEY, "reload:retrying")
-        if (timer) clearTimeout(timer)
-        timer = setTimeout(() => void reloadWhenIdle(ctx), IDLE_RETRY_MS)
-        timer.unref?.()
+        // stalling until the next file change schedules it. A rejected
+        // reload may also have invalidated this extension runner: every
+        // context access below can itself throw, so recovery is
+        // best-effort and never lets a stale-context failure escape the
+        // handler. When the runner was replaced, the replacement session
+        // has already started and owns the retry surface instead.
+        try {
+          reportIncident(
+            "error",
+            "automatic extension reload",
+            `Automatic Pi reload failed: ${error instanceof Error ? error.message : "unknown error"}`,
+          )
+          if (!pending) pendingSince = Date.now()
+          pending = true
+          composerSafeSince = undefined
+          try {
+            ctx.ui.setStatus(STATUS_KEY, "reload:retrying")
+          } catch {
+            // Stale command context: the status surface is gone with it.
+          }
+          if (timer) clearTimeout(timer)
+          const retryReload = (): void => {
+            void reloadWhenIdle(ctx).catch(() => {
+              // Stale command context: this retry cannot run; the next
+              // file change or session start reschedules the reload.
+            })
+          }
+          timer = setTimeout(retryReload, IDLE_RETRY_MS)
+          timer.unref?.()
+        } catch {
+          // Stale extension runner: nothing on this runtime can schedule
+          // the retry. The pending state died with the runner; a replaced
+          // runner has already re-entered session_start.
+        }
       }
     },
   })
