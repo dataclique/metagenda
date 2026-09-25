@@ -11,6 +11,12 @@ import {
   sep,
 } from "node:path"
 import { Effect, Either } from "effect"
+import {
+  unquotedCommandSegments,
+  WRAPPER_COMMAND_PREFIXES as SHARED_WRAPPER_PREFIXES,
+} from "../shared/unquoted-command-segments.ts"
+
+export { unquotedCommandSegments }
 
 export interface RuntimeGitSnapshot {
   gitBranch?: string
@@ -471,20 +477,6 @@ interface ShellWord {
   readonly quoted: boolean
 }
 
-// Prefixes that still leave a following quoted word in executable position.
-const WRAPPER_COMMAND_PREFIXES = new Set([
-  "sudo",
-  "nice",
-  "nohup",
-  "env",
-  "command",
-  "time",
-  "watch",
-  "strace",
-  "stdbuf",
-  "xargs",
-])
-
 const shellWords = (command: string): readonly ShellWord[] | undefined => {
   if (!command.trim() || /[\r\n]/.test(command)) return undefined
   const words: ShellWord[] = []
@@ -545,7 +537,7 @@ const unsafeGitTokens = (words: readonly ShellWord[]): boolean => {
       .every(
         previous =>
           !previous.quoted &&
-          (WRAPPER_COMMAND_PREFIXES.has(previous.text) ||
+          (SHARED_WRAPPER_PREFIXES.has(previous.text) ||
             /^[A-Za-z_][A-Za-z0-9_]*=/.test(previous.text)),
       )
   if (
@@ -619,111 +611,10 @@ export const runtimeCommandLocationForSubject = (
 
 // Only text outside quotes can form an executable Git invocation — except
 // that command substitutions inside double quotes and quoted words in command
-// position DO execute. Quoted arguments stay data: prose naming Git commands
-// must never trip this gate, while real Git stays gated however deep the
-// composition. An unquoted backslash escapes the next character, so
-// shell-escaped Git spellings stay gated too.
-const wordStart = (scanned: string): string =>
-  scanned.replace(/[^\s;&|(]+$/, "")
-
-const atCommandPosition = (scanned: string): boolean => {
-  const significantTail = wordStart(scanned).trimEnd()
-  if (significantTail.length === 0) return true
-  if (/[;&|(\r\n]$/.test(significantTail)) return true
-  // A wrapper prefix or environment assignment leaves the next quoted
-  // word in executable position.
-  const lastWord = significantTail.split(/\s+/).at(-1) ?? ""
-  return (
-    WRAPPER_COMMAND_PREFIXES.has(lastWord) ||
-    /^[A-Za-z_][A-Za-z0-9_]*=/.test(lastWord)
-  )
-}
-
-export const unquotedCommandSegments = (command: string): string => {
-  let result = ""
-  let quote: "single" | "double" | undefined
-  let quotedAtBoundary = false
-  let escaped = false
-  let escapedInDouble = false
-  let parenSubstitutionDepth = 0
-  let inBacktickSubstitution = false
-  for (let index = 0; index < command.length; index += 1) {
-    const character = command[index]
-    if (character === undefined) continue
-    if (escaped) {
-      escaped = false
-      result += character
-      continue
-    }
-    if (quote === "single") {
-      if (character === "'") quote = undefined
-      else if (quotedAtBoundary) result += character
-      continue
-    }
-    if (quote === "double") {
-      if (escapedInDouble) {
-        escapedInDouble = false
-        continue
-      }
-      if (parenSubstitutionDepth > 0) {
-        if (character === "(") parenSubstitutionDepth += 1
-        else if (character === ")") {
-          parenSubstitutionDepth -= 1
-          if (parenSubstitutionDepth === 0) {
-            result += " "
-            continue
-          }
-        }
-        result += character
-        continue
-      }
-      if (inBacktickSubstitution) {
-        if (character === "`") {
-          inBacktickSubstitution = false
-          result += " "
-          continue
-        }
-        result += character
-        continue
-      }
-      if (character === "\\") {
-        escapedInDouble = true
-        continue
-      }
-      if (character === '"') {
-        quote = undefined
-        continue
-      }
-      if (character === "$" && command[index + 1] === "(") {
-        parenSubstitutionDepth = 1
-        index += 1
-        continue
-      }
-      if (character === "`") {
-        inBacktickSubstitution = true
-        continue
-      }
-      if (quotedAtBoundary) result += character
-      continue
-    }
-    if (character === "\\") {
-      escaped = true
-      continue
-    }
-    if (character === "'") {
-      quote = "single"
-      quotedAtBoundary = atCommandPosition(result)
-      continue
-    }
-    if (character === '"') {
-      quote = "double"
-      quotedAtBoundary = atCommandPosition(result)
-      continue
-    }
-    result += character
-  }
-  return result
-}
+// position DO execute. The shared quote-aware scanner
+// (../shared/unquoted-command-segments.ts, verified identical to the former
+// local implementation) implements that contract for both the location gate
+// and the resource guard.
 
 export const unsafeRuntimeCommandLocationBlockReason = (
   cwd: string,

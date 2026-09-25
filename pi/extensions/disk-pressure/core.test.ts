@@ -189,3 +189,21 @@ test("result cleanup unlinks only newly created direct symlinks without followin
   assert.deepEqual(cleanupNewResultSymlinks(root, before), ["result-2"])
   assert.deepEqual(resultSymlinkNames(root), new Set(["result"]))
 })
+
+test("quoted search patterns and prose naming build commands are not build intent", () => {
+  assert.equal(
+    isExpensiveCommand("rg -n 'cargo (build|test)' README.md"),
+    false,
+  )
+  assert.equal(isExpensiveCommand("rg 'x | nix build' docs"), false)
+  assert.equal(
+    isExpensiveCommand('echo "run darwin-rebuild switch now"'),
+    false,
+  )
+  assert.equal(
+    isExpensiveCommand("grep -rn 'make\\s+build' Makefile | wc -l"),
+    false,
+  )
+  assert.equal(isExpensiveCommand('echo "$(cargo build --release)"'), true)
+  assert.equal(isExpensiveCommand("cd /repo && nix flake check"), true)
+})
