@@ -7,15 +7,34 @@ import {
 import { readFile } from "node:fs/promises"
 import { isAbsolute, join } from "node:path"
 import { Clock, Data, Effect } from "effect"
+import {
+  governedAllowanceCheckpoints,
+  providerCallAllowanceCheckpoints,
+  type ProviderAllowanceCheckpoint,
+} from "./allowance-pool.ts"
 import { decodeHarnessReviewHandoff } from "./harness-protocol.ts"
-import { decodeJobSpec, JobRuntimeError, type Job } from "./job-runtime.ts"
+import {
+  decodeJobSpec,
+  isRegisteredJobKind,
+  JobRuntimeError,
+  type Job,
+} from "./job-runtime.ts"
 import type { CanonicalPath } from "./review-duty-profile.ts"
 import {
-  isRegisteredKindFilter,
   JobStoreError,
   type SqliteJobStore,
   type StoredJob,
 } from "./sqlite-job-store.ts"
+import {
+  allowanceRunway,
+  AutonomousRole,
+  calibrateProviderTokens,
+  providerTokenPolicy,
+  type ProviderUsagePoint,
+  rolePollingPolicy,
+  usagePolicy,
+} from "./usage-policy.ts"
+import { ThrottleActivity } from "./throttle-activity.ts"
 
 export const CONTROL_PLANE_PROTOCOL_VERSION = 1
 export const CONTROL_PLANE_SCHEMA_VERSION = 6
@@ -107,9 +126,7 @@ export class ControlPlaneServerError extends Data.TaggedError(
  * without being given a status here.
  */
 export type ControlPlaneFailure =
-  | ControlPlaneServerError
-  | JobRuntimeError
-  | JobStoreError
+  ControlPlaneServerError | JobRuntimeError | JobStoreError
 
 /**
  * The store operations a request can reach. Naming them keeps the routes
@@ -257,7 +274,8 @@ const sendRequestFailure = (
       sendError(response, 400, "invalid_json", "request body is malformed JSON")
     else if (failure.code === "invalid_payload")
       sendError(response, 400, "invalid_input", "request payload is invalid")
-    else sendError(response, 400, "invalid_request", "request could not be read")
+    else
+      sendError(response, 400, "invalid_request", "request could not be read")
   })
 
 const sendRuntimeFailure = (
@@ -280,10 +298,16 @@ const sendStoreFailure = (
     if (failure.code === "not_found")
       sendError(response, 404, "not_found", "job was not found")
     else if (failure.code === "idempotency_conflict")
-      sendError(response, 409, "idempotency_conflict", "job key conflicts with existing input")
+      sendError(
+        response,
+        409,
+        "idempotency_conflict",
+        "job key conflicts with existing input",
+      )
     else if (failure.code === "capacity")
       sendError(response, 503, "capacity", "job store is at capacity")
-    else sendError(response, 500, "internal_error", "control plane request failed")
+    else
+      sendError(response, 500, "internal_error", "control plane request failed")
   })
 
 /**
@@ -298,7 +322,7 @@ const handleJobs = (
   home: CanonicalPath,
 ): Effect.Effect<void, ControlPlaneFailure> => {
   if (request.method === "GET") {
-    return Effect.flatMap(store.list(), (stored) =>
+    return Effect.flatMap(store.list(), stored =>
       Effect.sync(() =>
         sendJson(response, 200, {
           jobs: stored.flatMap(readableJob),
@@ -384,7 +408,8 @@ const handleClaim = (
       typeof input.workerId !== "string" ||
       typeof input.ttlMs !== "number" ||
       ("kinds" in input &&
-        (!Array.isArray(input.kinds) || !isRegisteredKindFilter(input.kinds)))
+        (!Array.isArray(input.kinds) ||
+          !input.kinds.every(isRegisteredJobKind)))
     ) {
       return yield* Effect.fail(
         serverError("invalid_payload", "worker claim payload is invalid"),
@@ -463,7 +488,14 @@ const handleComplete = (
       const now = yield* Clock.currentTimeMillis
       const publish =
         handoff.status === "blocked" || handoff.status === "failed"
-          ? store.fail(id, leaseToken, now, HARNESS_RETRY_DELAY_MS, summary, result)
+          ? store.fail(
+              id,
+              leaseToken,
+              now,
+              HARNESS_RETRY_DELAY_MS,
+              summary,
+              result,
+            )
           : store.complete(id, leaseToken, now, summary, result)
       const job = yield* publish
       sendJson(response, 200, { job })
@@ -608,7 +640,7 @@ const handleRequest = (
     catch: () => serverError("request_failed", "request URL is malformed"),
   })
   return Effect.catchTags(
-    Effect.flatMap(route, (path) => {
+    Effect.flatMap(route, path => {
       if (path === "/v1/health") {
         if (request.method !== "GET") {
           sendError(
@@ -626,8 +658,7 @@ const handleRequest = (
         })
         return Effect.void
       }
-      if (path === "/v1/jobs")
-        return handleJobs(request, response, store, home)
+      if (path === "/v1/jobs") return handleJobs(request, response, store, home)
       if (path === "/v1/worker/claim")
         return handleClaim(request, response, store)
       const completeMatch =
@@ -654,10 +685,9 @@ const handleRequest = (
       return Effect.void
     }),
     {
-      ControlPlaneServerError: (failure) =>
-        sendRequestFailure(response, failure),
-      JobRuntimeError: (failure) => sendRuntimeFailure(response, failure),
-      JobStoreError: (failure) => sendStoreFailure(response, failure),
+      ControlPlaneServerError: failure => sendRequestFailure(response, failure),
+      JobRuntimeError: failure => sendRuntimeFailure(response, failure),
+      JobStoreError: failure => sendStoreFailure(response, failure),
     },
   )
 }

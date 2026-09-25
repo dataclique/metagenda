@@ -1,6 +1,6 @@
 import { isAbsolute, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
-import { Data, Effect } from "effect"
+import { Cause, Data, Effect, Exit } from "effect"
 import { canonicalPath, type CanonicalPath } from "./review-duty-profile.ts"
 import { startControlPlaneServer } from "./server.ts"
 import { makeSqliteJobStore } from "./sqlite-job-store.ts"
@@ -132,7 +132,7 @@ export const runControlPlane = (
 ): Effect.Effect<void, unknown> =>
   Effect.acquireUseRelease(
     makeSqliteJobStore(config.databasePath, config.home),
-    (store) =>
+    store =>
       Effect.acquireUseRelease(
         startControlPlaneServer({
           host: config.host,
@@ -143,7 +143,7 @@ export const runControlPlane = (
             ? { dashboardDirectory: config.dashboardDirectory }
             : {}),
         }),
-        (server) =>
+        server =>
           Effect.zipRight(
             Effect.sync(() =>
               console.log(`pi-control-plane listening on ${server.origin}`),
@@ -153,7 +153,6 @@ export const runControlPlane = (
       ),
     store => Effect.sync(() => store.close()),
   )
-}
 
 const isMainModule =
   process.argv[1] !== undefined &&
