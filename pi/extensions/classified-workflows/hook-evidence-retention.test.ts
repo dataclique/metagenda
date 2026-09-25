@@ -136,8 +136,15 @@ test("VCS words in arguments or comments do not identify the executable", () => 
       evidence,
     )
   }
-  // Existing command-location policy, not this patch, excludes this shape.
-  assert.deepEqual(collectedResult("printf 'git'", "git"), [])
+  // The quote-aware command-location policy keeps prose naming VCS words as
+  // ordinary retained evidence instead of excluding it as a VCS command.
+  const proseEvidence = collectedResult("printf 'git'", "git")
+  assert.equal(proseEvidence.length, 1)
+  assert.match(
+    proseEvidence[0]?.split(" input=")[0] ?? "",
+    /commandVcsToken=absent/,
+  )
+  assert.equal(isRetained("printf 'git'", "git"), true)
 })
 
 test("unsupported alias and assignment shapes retain conservative VCS filtering", () => {
