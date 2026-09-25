@@ -471,6 +471,20 @@ interface ShellWord {
   readonly quoted: boolean
 }
 
+// Prefixes that still leave a following quoted word in executable position.
+const WRAPPER_COMMAND_PREFIXES = new Set([
+  "sudo",
+  "nice",
+  "nohup",
+  "env",
+  "command",
+  "time",
+  "watch",
+  "strace",
+  "stdbuf",
+  "xargs",
+])
+
 const shellWords = (command: string): readonly ShellWord[] | undefined => {
   if (!command.trim() || /[\r\n]/.test(command)) return undefined
   const words: ShellWord[] = []
@@ -521,9 +535,19 @@ const shellWords = (command: string): readonly ShellWord[] | undefined => {
 const unsafeGitTokens = (words: readonly ShellWord[]): boolean => {
   // Quoted words are data except in executable position: a quoted argument
   // naming git never makes the command a VCS command, while a quoted first
-  // word is still the executable being invoked.
+  // word, a quoted word after wrapper prefixes, or a quoted word after
+  // environment assignments is still the executable being invoked.
   const executable = (word: ShellWord, index: number): boolean =>
-    !word.quoted || index === 0
+    !word.quoted ||
+    index === 0 ||
+    words
+      .slice(0, index)
+      .every(
+        previous =>
+          !previous.quoted &&
+          (WRAPPER_COMMAND_PREFIXES.has(previous.text) ||
+            /^[A-Za-z_][A-Za-z0-9_]*=/.test(previous.text)),
+      )
   if (
     words.some(
       (word, index) =>
@@ -599,9 +623,20 @@ export const runtimeCommandLocationForSubject = (
 // must never trip this gate, while real Git stays gated however deep the
 // composition. An unquoted backslash escapes the next character, so
 // shell-escaped Git spellings stay gated too.
+const wordStart = (scanned: string): string =>
+  scanned.replace(/[^\s;&|(]+$/, "")
+
 const atCommandPosition = (scanned: string): boolean => {
-  const significantTail = scanned.trimEnd()
-  return significantTail.length === 0 || /[;&|(\r\n]$/.test(significantTail)
+  const significantTail = wordStart(scanned).trimEnd()
+  if (significantTail.length === 0) return true
+  if (/[;&|(\r\n]$/.test(significantTail)) return true
+  // A wrapper prefix or environment assignment leaves the next quoted
+  // word in executable position.
+  const lastWord = significantTail.split(/\s+/).at(-1) ?? ""
+  return (
+    WRAPPER_COMMAND_PREFIXES.has(lastWord) ||
+    /^[A-Za-z_][A-Za-z0-9_]*=/.test(lastWord)
+  )
 }
 
 export const unquotedCommandSegments = (command: string): string => {
@@ -621,10 +656,8 @@ export const unquotedCommandSegments = (command: string): string => {
       continue
     }
     if (quote === "single") {
-      if (character === "'") {
-        quote = undefined
-        if (quotedAtBoundary) result += " "
-      } else if (quotedAtBoundary) result += character
+      if (character === "'") quote = undefined
+      else if (quotedAtBoundary) result += character
       continue
     }
     if (quote === "double") {
@@ -659,11 +692,11 @@ export const unquotedCommandSegments = (command: string): string => {
       }
       if (character === '"') {
         quote = undefined
-        if (quotedAtBoundary) result += " "
         continue
       }
       if (character === "$" && command[index + 1] === "(") {
         parenSubstitutionDepth = 1
+        index += 1
         continue
       }
       if (character === "`") {
