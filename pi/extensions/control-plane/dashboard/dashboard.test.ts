@@ -13,8 +13,8 @@ const browserRuntimeSources = [
   "../harness-research-protocol.ts",
   "../review-duty-profile.ts",
 ].map(path => readFileSync(new URL(path, import.meta.url), "utf8"))
-const homeConfig = readFileSync(
-  new URL("../../../../../home.nix", import.meta.url),
+const dashboardNix = readFileSync(
+  new URL("../../../dashboard.nix", import.meta.url),
   "utf8",
 )
 
@@ -108,7 +108,7 @@ test("dashboard remains observational until typed control commands exist", () =>
 })
 
 const localSpecifiers = (source: string): readonly string[] =>
-  [...source.matchAll(/from "(\.[^"]+)"/gu)].flatMap((match) =>
+  [...source.matchAll(/from "(\.[^"]+)"/gu)].flatMap(match =>
     match[1] === undefined ? [] : [match[1]],
   )
 
@@ -128,27 +128,39 @@ const localImportGraph = (
 const literal = (value: string): string =>
   value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")
 
-test("the Nix bundle stages the full local import graph beside node modules", () => {
+test("the dashboard derivation fileset stages the full local import graph", () => {
   const graph = localImportGraph(appUrl, new Map())
-  const imported = [...graph.keys()].filter((href) => href !== appUrl.href)
+  const imported = [...graph.keys()].filter(href => href !== appUrl.href)
   assert.ok(imported.length > 0, "app.tsx must reach at least one local module")
+  // The fileset roots are written relative to the repo root (./extensions/…).
+  const toFilesetEntry = (href: string): string => {
+    const afterExtensions = href.slice(href.indexOf("control-plane/"))
+    return `./extensions/${afterExtensions}`
+  }
   assert.match(
-    homeConfig,
-    /cp \$\{[^}]*\/dashboard\/app\.tsx\} src\/dashboard\/app\.tsx/u,
+    dashboardNix,
+    /\.\/extensions\/control-plane\/dashboard\/app\.tsx/u,
   )
   for (const href of imported) {
-    const name = literal(href.slice(href.lastIndexOf("/") + 1))
+    const entry = literal(toFilesetEntry(href))
     assert.match(
-      homeConfig,
-      new RegExp(`cp \\$\\{[^}]*/${name}\\} src/${name}`, "u"),
+      dashboardNix,
+      new RegExp(entry, "u"),
+      `${href} must be in the dashboard derivation fileset`,
     )
   }
   for (const [href, source] of graph)
-    assert.doesNotMatch(source, /from "node:/u, `${href} imports a Node builtin`)
-  assert.match(homeConfig, /ln -s .*node_modules.*src\/node_modules/)
-  assert.match(homeConfig, /node_modules\/\.bin\/babel dashboard\/app\.tsx/)
-  assert.match(homeConfig, /--presets=@babel\/preset-typescript,babel-preset-solid/)
-  assert.match(homeConfig, /esbuild dashboard\/app\.js/)
+    assert.doesNotMatch(
+      source,
+      /from "node:/u,
+      `${href} imports a Node builtin`,
+    )
+  assert.match(dashboardNix, /bun2nix\.mkDerivation/)
+  assert.match(dashboardNix, /bunDeps = bun2nix\.fetchBunDeps/)
+  assert.match(
+    dashboardNix,
+    /nu --no-config-file --no-history pi\/build-dashboard\.nu/,
+  )
 })
 
 test("dashboard assets are local, responsive, and share the terminal archeofuturism palette", () => {

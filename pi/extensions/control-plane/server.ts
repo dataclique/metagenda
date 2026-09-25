@@ -6,13 +6,17 @@ import {
 } from "node:http"
 import { readFile } from "node:fs/promises"
 import { isAbsolute, join } from "node:path"
-import { Clock, Data, Effect } from "effect"
+import { Clock, Data, Effect, Either } from "effect"
 import {
   governedAllowanceCheckpoints,
   providerCallAllowanceCheckpoints,
   type ProviderAllowanceCheckpoint,
 } from "./allowance-pool.ts"
 import { decodeHarnessReviewHandoff } from "./harness-protocol.ts"
+import {
+  decodeHarnessResearchHandoff,
+  harnessResearchHandoffMatchesAttempt,
+} from "./harness-research-protocol.ts"
 import {
   decodeJobSpec,
   isRegisteredJobKind,
@@ -35,6 +39,15 @@ import {
   usagePolicy,
 } from "./usage-policy.ts"
 import { ThrottleActivity } from "./throttle-activity.ts"
+import { sampleCodexWeeklyAllowance } from "./codex-allowance.ts"
+
+/** Minimal read-only registry snapshot source the usage sampler needs. */
+export interface RegistryUsageSource {
+  readonly snapshot: (
+    now: number,
+  ) => Effect.Effect<{ readonly agents?: readonly RegisteredAgent[] }, unknown>
+}
+import type { RegisteredAgent } from "../agent-registry/registry.ts"
 
 export const CONTROL_PLANE_PROTOCOL_VERSION = 1
 export const CONTROL_PLANE_SCHEMA_VERSION = 6
@@ -78,7 +91,7 @@ const openAiControlSnapshot = (
   activity: ThrottleActivity,
 ) => {
   const controlCheckpoints = openAiControlCheckpoints(checkpoints, now)
-  const latest = controlCheckpoints.toSorted(
+  const latest = [...controlCheckpoints].sort(
     (left, right) => right.capturedAt - left.capturedAt,
   )[0]
   const policy = usagePolicy(controlCheckpoints, now)
@@ -135,7 +148,14 @@ export type ControlPlaneFailure =
  */
 export type ControlPlaneJobStore = Pick<
   SqliteJobStore,
-  "enqueue" | "get" | "list" | "claimDue" | "complete" | "fail"
+  | "enqueue"
+  | "get"
+  | "list"
+  | "claimDue"
+  | "complete"
+  | "fail"
+  | "recordUsage"
+  | "recordAllowanceCheckpoint"
 >
 
 export interface ControlPlaneServerOptions {
@@ -146,6 +166,8 @@ export interface ControlPlaneServerOptions {
   readonly home: CanonicalPath
   readonly dashboardDirectory?: string
   readonly codexExecutable?: string
+  /** Read-only registry snapshot source for usage sampling. */
+  readonly registryStore?: RegistryUsageSource
 }
 
 interface UsageSamplingStatus {
@@ -423,7 +445,7 @@ const handleClaim = (
       input.ttlMs,
       "kinds" in input &&
         Array.isArray(input.kinds) &&
-        isRegisteredKindFilter(input.kinds)
+        input.kinds.every(isRegisteredJobKind)
         ? input.kinds
         : undefined,
     )
@@ -558,8 +580,8 @@ const handleFail = (
   id: string,
   request: IncomingMessage,
   response: ServerResponse,
-  store: SqliteJobStore,
-): Effect.Effect<void, unknown> => {
+  store: ControlPlaneJobStore,
+): Effect.Effect<void, ControlPlaneFailure> => {
   if (request.method !== "POST") {
     sendError(response, 405, "method_not_allowed", "method is not allowed")
     return Effect.void

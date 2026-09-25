@@ -92,6 +92,11 @@ export interface HarnessReviewResult {
   readonly handoff: HarnessReviewHandoff
 }
 
+export interface HarnessResearchResult {
+  readonly kind: "harness.research"
+  readonly handoff: HarnessResearchHandoff
+}
+
 export interface VerifiedHarnessReviewResult extends HarnessReviewResult {
   readonly handoff: VerifiedHarnessHandoff
 }
@@ -100,7 +105,7 @@ export interface UnsuccessfulHarnessReviewResult extends HarnessReviewResult {
   readonly handoff: UnsuccessfulHarnessHandoff
 }
 
-export type RegisteredJobResult = HarnessReviewResult
+export type RegisteredJobResult = HarnessReviewResult | HarnessResearchResult
 
 interface JobIdentity {
   readonly id: JobId
@@ -461,10 +466,23 @@ const decodeRegisteredSpec = (
   schedule: JobSchedule,
   decoders: JobPayloadDecoders,
 ): Effect.Effect<RegisteredJobSpec, JobRuntimeError> =>
-  Effect.gen(function* () {
-    const decoded = yield* decoders[kind](payload)
-    return { ...schedule, kind, payload: decoded }
-  })
+  kind === "review-duty.scan"
+    ? Effect.map(decoders[kind](payload), decoded => ({
+        ...schedule,
+        kind,
+        payload: decoded,
+      }))
+    : kind === "harness.review"
+      ? Effect.map(decoders[kind](payload), decoded => ({
+          ...schedule,
+          kind,
+          payload: decoded,
+        }))
+      : Effect.map(decoders[kind](payload), decoded => ({
+          ...schedule,
+          kind,
+          payload: decoded,
+        }))
 
 /**
  * Decodes a job spec offered to the enqueue boundary, binding any harness

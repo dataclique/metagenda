@@ -3,8 +3,6 @@ import { Data, Effect } from "effect"
 import {
   allowlistedLaunchPrefix,
   claudeSubscriptionCommand,
-  CURSOR_MODEL_ARGUMENTS,
-  CURSOR_PROBE_COMMAND,
   LAUNCH_ENVIRONMENT_ALLOWLIST,
   type LaunchEnvironment,
 } from "./harness-launch.ts"
@@ -101,19 +99,21 @@ export const buildHarnessLaunchPlan = (
   if (!Number.isSafeInteger(attempt) || attempt < 1 || attempt > 100)
     return invalid("harness launch requires a bounded attempt number")
   if (allowedRoots.length < 1 || !allowedRoots.every(isCanonicalRoot))
-    return invalid("harness launch requires canonical registered workspace roots")
+    return invalid(
+      "harness launch requires canonical registered workspace roots",
+    )
   return Effect.flatMap(
     Effect.mapError(
       decodeHarnessReviewPayload(payload, home),
-      (failure) =>
+      failure =>
         new HarnessAdapterError({
           code: "invalid_input",
           message: failure.message,
         }),
     ),
-    (decoded) =>
+    decoded =>
       rootIsRegistered(decoded.repositoryRoot, allowedRoots)
-        ? Effect.flatMap(launchDirectory(decoded, id, attempt), (cwd) =>
+        ? Effect.flatMap(launchDirectory(decoded, id, attempt), cwd =>
             rootIsRegistered(cwd, allowedRoots)
               ? Effect.succeed(
                   launchPlan(decoded, cwd, id, attempt, environment),
@@ -137,9 +137,8 @@ const rootIsRegistered = (
   allowedRoots: RegisteredWorkspaceRoots,
 ): boolean =>
   allowedRoots.some(
-    (allowed) =>
-      root === allowed ||
-      root.startsWith(`${allowed}/${WORKTREE_DIRECTORY}/`),
+    allowed =>
+      root === allowed || root.startsWith(`${allowed}/${WORKTREE_DIRECTORY}/`),
   )
 
 /**
@@ -178,46 +177,19 @@ const claudePrompt = (
     ? `You are a fresh Claude Code subscription-harness review executor for ${payload.repository}#${payload.pullRequest}, kind ${payload.kind}, input head ${payload.inputHeadSha}, profile ${payload.profile}. Verify the unchanged input head, then invoke the shared review-pr skill exactly. Assigned work is read-only: no checkout, no mutation, empty-body pending inline-only, and never a submitted verdict. Run an independent native Fable verification before handoff; report blocked if it is unavailable. Never use an Anthropic API provider, SDK, curl, or paid API key. ${handoffContract(jobId, attempt)}`
     : `You are a fresh Claude Code subscription-harness review executor for ${payload.repository}#${payload.pullRequest}, kind ${payload.kind}, input head ${payload.inputHeadSha}, profile ${payload.profile}. Verify the unchanged input head, then invoke the shared review-loop skill exactly inside the approved-worktree isolation at ${cwd}; fix only verified findings and follow delivery rules without merging. Run an independent native Fable verification before handoff; report blocked if it is unavailable. Never use an Anthropic API provider, SDK, curl, or paid API key. ${handoffContract(jobId, attempt)}`
 
-const cursorPrompt = (
-  payload: Extract<
-    HarnessReviewPayload,
-    { readonly lane: "cursor-subscription" }
-  >,
-  jobId: JobId,
-  attempt: number,
-): string =>
-  `You are a read-only Cursor review probe for ${payload.repository}#${payload.pullRequest}, input head ${payload.inputHeadSha}, profile ${payload.profile}. Inspect the pull request in plan mode without mutating any file, branch, or review state, and report bounded findings only. ${handoffContract(jobId, attempt)}`
-
 const launchPlan = (
   payload: HarnessReviewPayload,
   cwd: CanonicalPath,
   jobId: JobId,
   attempt: number,
   environment: LaunchEnvironment,
-): HarnessLaunchPlan =>
-  payload.lane === "claude-code-max"
-    ? {
-        lane: payload.lane,
-        cwd,
-        environmentAllowlist: LAUNCH_ENVIRONMENT_ALLOWLIST,
-        argv: [
-          ...allowlistedLaunchPrefix(environment),
-          ...claudeSubscriptionCommand(payload.isolation),
-          claudePrompt(payload, cwd, jobId, attempt),
-        ],
-      }
-    : {
-        lane: payload.lane,
-        cwd,
-        environmentAllowlist: LAUNCH_ENVIRONMENT_ALLOWLIST,
-        argv: [
-          ...allowlistedLaunchPrefix(environment),
-          ...CURSOR_PROBE_COMMAND,
-          "--model",
-          CURSOR_MODEL_ARGUMENTS[payload.model],
-          "--trust",
-          "--workspace",
-          cwd,
-          cursorPrompt(payload, jobId, attempt),
-        ],
-      }
+): HarnessLaunchPlan => ({
+  lane: payload.lane,
+  cwd,
+  environmentAllowlist: LAUNCH_ENVIRONMENT_ALLOWLIST,
+  argv: [
+    ...allowlistedLaunchPrefix(environment),
+    ...claudeSubscriptionCommand(payload.isolation),
+    claudePrompt(payload, cwd, jobId, attempt),
+  ],
+})

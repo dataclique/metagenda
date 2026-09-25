@@ -1,6 +1,11 @@
 import { Effect } from "effect"
 import type { Job } from "./job-runtime.ts"
-import type { JobStoreError, SqliteJobStore } from "./sqlite-job-store.ts"
+import type { JobRuntimeError } from "./job-runtime.ts"
+import type {
+  JobStoreError,
+  SqliteJobStore,
+  StoredJob,
+} from "./sqlite-job-store.ts"
 
 const isActiveJob = (
   job: Job,
@@ -27,9 +32,15 @@ export const legacyAgentopsResearchJobs = (
 export const reconcileLegacyAgentopsResearchJobs = (
   store: SqliteJobStore,
   now: number,
-): Effect.Effect<{ readonly cancelled: readonly string[] }, JobStoreError> =>
+): Effect.Effect<
+  { readonly cancelled: readonly string[] },
+  JobStoreError | JobRuntimeError
+> =>
   Effect.gen(function* () {
-    const jobs = yield* store.list()
+    const stored = yield* store.list()
+    const jobs: readonly Job[] = stored.flatMap(row =>
+      row.outcome === "readable" ? [row.job] : [],
+    )
     const legacy = legacyAgentopsResearchJobs(jobs)
     yield* Effect.forEach(legacy, job => store.cancel(job.id, now), {
       concurrency: 1,

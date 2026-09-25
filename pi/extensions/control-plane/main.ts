@@ -130,29 +130,28 @@ const waitForShutdown = (): Effect.Effect<void> =>
 export const runControlPlane = (
   config: ControlPlaneConfig,
 ): Effect.Effect<void, unknown> =>
-  Effect.acquireUseRelease(
-    makeSqliteJobStore(config.databasePath, config.home),
-    store =>
-      Effect.acquireUseRelease(
-        startControlPlaneServer({
-          host: config.host,
-          port: config.port,
-          store,
-          home: config.home,
-          ...(config.dashboardDirectory
-            ? { dashboardDirectory: config.dashboardDirectory }
-            : {}),
-        }),
-        server =>
-          Effect.zipRight(
-            Effect.sync(() =>
-              console.log(`pi-control-plane listening on ${server.origin}`),
-            ),
-            waitForShutdown(),
-          ),
-      ),
-    store => Effect.sync(() => store.close()),
-  )
+  Effect.gen(function* () {
+    const store = yield* makeSqliteJobStore(config.databasePath, config.home)
+    try {
+      const server = yield* startControlPlaneServer({
+        host: config.host,
+        port: config.port,
+        store,
+        home: config.home,
+        ...(config.dashboardDirectory
+          ? { dashboardDirectory: config.dashboardDirectory }
+          : {}),
+      })
+      try {
+        console.log(`pi-control-plane listening on ${server.origin}`)
+        yield* waitForShutdown()
+      } finally {
+        yield* Effect.orDie(server.close)
+      }
+    } finally {
+      yield* Effect.sync(() => store.close())
+    }
+  })
 
 const isMainModule =
   process.argv[1] !== undefined &&
