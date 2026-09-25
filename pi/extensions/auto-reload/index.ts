@@ -78,15 +78,6 @@ interface HostMigrationPlan {
   readonly sessionFile: string
 }
 
-interface ReloadableContext extends ExtensionContext {
-  reload(): Promise<void>
-}
-
-const isReloadableContext: (
-  ctx: ExtensionContext,
-) => ctx is ReloadableContext = ctx =>
-  "reload" in ctx && typeof ctx.reload === "function"
-
 export type ManagedGenerationChange = "unchanged" | "content-changed"
 
 export interface ManagedGenerationTracker {
@@ -277,7 +268,7 @@ const autoReload: (pi: ExtensionAPI) => void = pi => {
   let hostMigrationTimer: ReturnType<typeof setTimeout> | undefined
   let generationReconciler: ManagedGenerationReconciler | undefined
   let reloadExecutionScheduler:
-    ReloadExecutionScheduler<ReloadableContext> | undefined
+    ReloadExecutionScheduler<ExtensionContext> | undefined
   let agentRunActive = false
   let sessionStartActive = false
   let pending = false
@@ -296,10 +287,9 @@ const autoReload: (pi: ExtensionAPI) => void = pi => {
     if (event.source !== "extension") recordHumanInput()
   })
 
-  pi.events.on(
-    AUTO_RELOAD_PENDING_REQUEST_EVENT,
-    (report: AutoReloadPendingReporter) => report(pending),
-  )
+  pi.events.on(AUTO_RELOAD_PENDING_REQUEST_EVENT, data => {
+    ;(data as AutoReloadPendingReporter)(pending)
+  })
 
   pi.events.on(MANUAL_RELOAD_REQUEST_EVENT, () => {
     if (timer) clearTimeout(timer)
@@ -350,21 +340,9 @@ const autoReload: (pi: ExtensionAPI) => void = pi => {
         return undefined
       const stableRoot = piPackageRoot(stableEntrypoint)
       const expectedWrappedEntrypoint = join(stableRoot, "bin", ".pi-wrapped")
-      const tuiRoot = join(
-        stableRoot,
-        "lib",
-        "node_modules",
-        "pi-monorepo",
-        "node_modules",
-        "@earendil-works",
-        "pi-tui",
-        "dist",
-      )
       const verified = verifiedHostArtifacts({
         launcher: readFileSync(stableEntrypoint, "utf8"),
         expectedWrappedEntrypoint,
-        tui: readFileSync(join(tuiRoot, "tui.js"), "utf8"),
-        mainScreen: readFileSync(join(tuiRoot, "tui-main-screen.js"), "utf8"),
       })
       if (!verified) {
         reportIncident(
@@ -427,6 +405,23 @@ const autoReload: (pi: ExtensionAPI) => void = pi => {
         ctx.sessionManager.getBranch(),
         false,
       )
+      if (typeof process.execve !== "function") {
+        if (!failureReported) {
+          failureReported = true
+          reportIncident(
+            "error",
+            "replace running Pi host",
+            "This runtime does not expose process.execve for in-place host replacement",
+          )
+        }
+        ctx.ui.setStatus(STATUS_KEY, "reload:host-migration-retrying")
+        hostMigrationTimer = setTimeout(
+          migrateWhenIdle,
+          HOST_MIGRATION_FAILURE_RETRY_MS,
+        )
+        hostMigrationTimer.unref?.()
+        return
+      }
       try {
         process.execve(
           plan.stableEntrypoint,
@@ -531,7 +526,7 @@ const autoReload: (pi: ExtensionAPI) => void = pi => {
     watchers = []
   }
 
-  const performReload = async (ctx: ReloadableContext) => {
+  const performReload = async (ctx: ExtensionContext) => {
     if (!pending) return
     // Scheduling is asynchronous. A new turn, draft, queued prompt, workflow,
     // or compaction can start after the idle decision. Recheck every surface
@@ -568,7 +563,15 @@ const autoReload: (pi: ExtensionAPI) => void = pi => {
       changedLabels.clear()
     }
     try {
-      await ctx.reload()
+      // The stock command boundary owns the reload: the registered command
+      // executes with the command context, which natively exposes reload().
+      // Queueing it as a follow-up keeps the editor draft untouched and runs
+      // at the command boundary without starting a model turn.
+      pi.events.emit(MANUAL_RELOAD_REQUEST_EVENT, undefined)
+      pi.sendUserMessage("/auto-reload-now", {
+        deliverAs: "followUp",
+        expandPromptTemplates: true,
+      })
     } catch (error) {
       reportIncident(
         "error",
@@ -586,6 +589,13 @@ const autoReload: (pi: ExtensionAPI) => void = pi => {
 
   reloadExecutionScheduler = createReloadExecutionScheduler(performReload)
 
+  pi.registerCommand("auto-reload-now", {
+    description: "Reload Pi resources now (automatic reload dispatch)",
+    async handler(_args, ctx) {
+      await ctx.reload()
+    },
+  })
+
   const managedWorkIsActive = (): boolean => {
     let active = false
     const reportActivity: AutoReloadActivityReporter = reported => {
@@ -595,7 +605,7 @@ const autoReload: (pi: ExtensionAPI) => void = pi => {
     return active
   }
 
-  const reloadWhenIdle = async (ctx: ReloadableContext) => {
+  const reloadWhenIdle = async (ctx: ExtensionContext) => {
     if (!pending) return
     const now = Date.now()
     const managedWorkActive = managedWorkIsActive()
@@ -634,7 +644,7 @@ const autoReload: (pi: ExtensionAPI) => void = pi => {
   }
 
   const scheduleReload = (
-    ctx: ReloadableContext,
+    ctx: ExtensionContext,
     changedPath: string | null,
     aiRoot: string,
   ) => {
@@ -664,9 +674,7 @@ const autoReload: (pi: ExtensionAPI) => void = pi => {
     const configRoot = join(homedir(), ".config")
     const aiRoot = join(configRoot, "ai")
     const watchPaths = managedPiWatchPaths(aiRoot)
-    const generationTracker = isReloadableContext(ctx)
-      ? createManagedGenerationTracker(watchPaths)
-      : undefined
+    const generationTracker = createManagedGenerationTracker(watchPaths)
     const summaryEntry = branch
       .filter(
         entry =>
@@ -770,7 +778,10 @@ const autoReload: (pi: ExtensionAPI) => void = pi => {
             return
           }
           try {
-            pi.sendMessage(message, { triggerTurn: true, deliverAs })
+            pi.sendMessage(message, {
+              triggerTurn: true,
+              deliverAs: "followUp",
+            })
             recordDelivery()
           } catch {
             reportIncident(
@@ -819,19 +830,8 @@ const autoReload: (pi: ExtensionAPI) => void = pi => {
       }
     }
     if (hostMigrationPlan) scheduleHostMigration(ctx, hostMigrationPlan)
-    if (!isReloadableContext(ctx)) {
-      const summary =
-        "Automatic Pi reload requires the managed reload-context host patch"
-      reportIncident("warning", "reload context preflight", summary)
-      ctx.ui.notify(
-        "Automatic Pi reload requires the managed reload-context host patch; restart after applying the Nix generation.",
-        "warning",
-      )
-      sessionStartActive = false
-      return
-    }
     generationReconciler = createManagedGenerationReconciler({
-      tracker: generationTracker ?? createManagedGenerationTracker(watchPaths),
+      tracker: generationTracker,
       settleMs: GENERATION_RECONCILE_MS,
       onContentChange: changedPath => scheduleReload(ctx, changedPath, aiRoot),
     })
@@ -932,14 +932,14 @@ const autoReload: (pi: ExtensionAPI) => void = pi => {
 
   pi.on("agent_end", async (_event, ctx) => {
     agentRunActive = false
-    if (!pending || !isReloadableContext(ctx)) return
+    if (!pending) return
     if (Date.now() - lastChangeAt < SETTLE_MS) return
     await reloadWhenIdle(ctx)
   })
 
   pi.on("agent_settled", async (_event, ctx) => {
     agentRunActive = false
-    if (!pending || !isReloadableContext(ctx)) return
+    if (!pending) return
     await reloadWhenIdle(ctx)
   })
 

@@ -226,6 +226,48 @@ test("structured workflow children receive an explicit JSON-only contract", () =
   assert.match(args.at(-1) ?? "", /\"required\":\[\"findings\"\]/)
 })
 
+test("workflow default resolution crosses to another tier provider when openai is absent", () => {
+  const available = [
+    { provider: "zai", id: "glm-5.3", name: "GLM 5.3" },
+    { provider: "zai", id: "glm-5.3-flash", name: "GLM 5.3 Flash" },
+    {
+      provider: "anthropic",
+      id: "claude-sonnet-4-6",
+      name: "Claude Sonnet 4.6",
+    },
+  ]
+  assert.equal(resolveAgentModel(undefined, "zai", available), "zai/glm-5.3")
+})
+
+test("workflow review focus resolves through the light tier across providers", () => {
+  const available = [
+    { provider: "zai", id: "glm-5.3", name: "GLM 5.3" },
+    { provider: "zai", id: "glm-5.3-flash", name: "GLM 5.3 Flash" },
+  ]
+  assert.equal(
+    resolveAgentModel("fable", "zai", available),
+    "zai/glm-5.3-flash",
+  )
+})
+
+test("workflow children accept an explicit latest-series tier model from any provider", () => {
+  const available = [{ provider: "zai", id: "glm-5.3", name: "GLM 5.3" }]
+  assert.equal(
+    resolveAgentModel("zai/glm-5.3", "zai", [
+      { provider: "zai", id: "glm-5.3", name: "GLM 5.3" },
+    ]),
+    "zai/glm-5.3",
+  )
+  assert.throws(
+    () =>
+      resolveAgentModel("openai-codex/gpt-5.5-mini", "zai", [
+        { provider: "openai-codex", id: "gpt-5.5-mini", name: "GPT 5.5 Mini" },
+        { provider: "zai", id: "glm-5.3", name: "GLM 5.3" },
+      ]),
+    /latest-series tier model/i,
+  )
+})
+
 test("workflow model preflight resolves only authenticated available providers", () => {
   const available = [
     { provider: "openai-codex", id: "gpt-5.6-sol", name: "GPT-5.6 Sol" },
@@ -265,7 +307,7 @@ test("workflow model preflight resolves only authenticated available providers",
             name: "GPT-5.4 Mini",
           },
         ]),
-      /gpt-5\.6 series/i,
+      /latest-series tier model/i,
       "legacy pre-5.6 mini requests must be rejected, not silently remapped",
     )
   }
@@ -320,7 +362,7 @@ test("workflow model preflight resolves only authenticated available providers",
       resolveAgentModel("fable", "openai-codex", [
         { provider: "openai-codex", id: "gpt-5.6-sol" },
       ]),
-    /requires authenticated openai-codex\/gpt-5\.6-luna/i,
+    /No light-tier workflow model is authenticated/i,
   )
   assert.throws(
     () => resolveAgentModel("nonexistent", "openai-codex", available),

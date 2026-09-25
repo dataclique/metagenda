@@ -33,7 +33,7 @@ test("post-reload continuation records consumption only after successful deliver
   )
   assert.match(
     continuation,
-    /pi\.sendMessage\(message, \{ triggerTurn: true, deliverAs \}\)\s*recordDelivery\(\)/,
+    /pi\.sendMessage\(message, \{\s*triggerTurn: true,\s*deliverAs: "followUp",?\s*\}\)\s*recordDelivery\(\)/,
   )
   assert.doesNotMatch(
     continuation,
@@ -53,7 +53,7 @@ test("post-reload continuation waits for a later idle macrotask without owning t
   )
   assert.match(
     source,
-    /pi\.sendMessage\(message, \{ triggerTurn: true, deliverAs \}\)/,
+    /pi\.sendMessage\(message, \{\s*triggerTurn: true,\s*deliverAs: "followUp",?\s*\}\)/,
   )
   assert.match(source, /ctx\.ui\.getEditorText\(\)\.length > 0/)
   assert.match(source, /ctx\.hasPendingMessages\(\)/)
@@ -79,7 +79,6 @@ test("reload degradation is automatically routed as an agentops incident", () =>
   )
   assert.match(source, /"automatic extension reload"/)
   assert.match(source, /Automatic Pi reload failed/)
-  assert.match(source, /reportIncident\("warning", "reload context preflight"/)
   assert.match(
     source,
     /reportIncident\([\s\S]*?"warning",[\s\S]*?"watch managed Pi resources"/,
@@ -118,6 +117,20 @@ test("failed host replacement keeps watchers active and retries without incident
   )
 })
 
+test("automatic reload dispatches through the stock command boundary", () => {
+  assert.match(source, /pi\.registerCommand\("auto-reload-now"/)
+  assert.match(
+    source,
+    /async handler\(_args, ctx\) \{\s*await ctx\.reload\(\)\s*\}/,
+  )
+  assert.match(
+    source,
+    /pi\.sendUserMessage\("\/auto-reload-now", \{\s*deliverAs: "followUp",\s*expandPromptTemplates: true,\s*\}\)/,
+  )
+  assert.doesNotMatch(source, /managed reload-context host patch/)
+  assert.doesNotMatch(source, /isReloadableContext/)
+})
+
 test("failed automatic reload schedules a bounded retry", () => {
   const performReload = source.indexOf("const performReload")
   const reloadWhenIdle = source.indexOf("const reloadWhenIdle", performReload)
@@ -134,10 +147,7 @@ test("pending managed reload re-enters safe idle admission at agent end", () => 
   const agentSettled = source.indexOf('pi.on("agent_settled"')
   assert.ok(agentEnd > 0)
   assert.ok(agentEnd < agentSettled)
-  assert.match(
-    source,
-    /if \(!pending \|\| !isReloadableContext\(ctx\)\) return;?/,
-  )
+  assert.match(source, /if \(!pending\) return;?/)
   assert.match(
     source,
     /if \(Date\.now\(\) - lastChangeAt < SETTLE_MS\) return;?/,

@@ -73,17 +73,13 @@ test("a running old Nix host migrates to the stable verified host in place", () 
     verifiedHostArtifacts({
       launcher: "exec /nix/store/new-pi/bin/.pi-wrapped",
       expectedWrappedEntrypoint: "/nix/store/new-pi/bin/.pi-wrapped",
-      tui: "renderSafely() { this.renderSafely(); }",
-      mainScreen: "const pending = [root];",
     }),
     true,
   )
   assert.equal(
     verifiedHostArtifacts({
-      launcher: "exec /nix/store/new-pi/bin/.pi-wrapped",
+      launcher: "exec /nix/store/old-pi/bin/.pi-wrapped",
       expectedWrappedEntrypoint: "/nix/store/new-pi/bin/.pi-wrapped",
-      tui: "doRender()",
-      mainScreen: "return rootContains(root, target)",
     }),
     false,
   )
@@ -155,10 +151,9 @@ test("auto reload defers in-place host migration until idle and restores the com
     /recordHostMigrationDelivery\(delivery, branch\)[\s\S]{0,500}?pi\.sendMessage\([\s\S]*?auto-reload\.host-migrated/,
   )
   assert.match(extensionSource, /clearTimeout\(hostMigrationTimer\)/)
-  const preflight = extensionSource.indexOf("if (!isReloadableContext(ctx))")
+  assert.doesNotMatch(extensionSource, /isReloadableContext/)
   const migration = extensionSource.indexOf(
     "if (hostMigrationPlan) scheduleHostMigration(ctx, hostMigrationPlan)",
   )
   assert.ok(migration > 0)
-  assert.ok(migration < preflight)
 })

@@ -2,6 +2,12 @@ import { realpathSync, statSync } from "node:fs"
 import { isAbsolute, resolve } from "node:path"
 import { Data, Effect } from "effect"
 import {
+  type ModelTier,
+  MODEL_TIER_PROVIDERS,
+  tierCandidates,
+  tierModel,
+} from "../shared/model-tiers.ts"
+import {
   normalizeAgentTools,
   REQUIRED_SEARCH_EXCLUSIONS,
   type AgentRequest,
@@ -100,19 +106,44 @@ const PROVIDER_ALIASES: Readonly<Record<string, string>> = {
   openai: "openai-codex",
 }
 const LEGACY_REVIEW_FOCUS_ALIASES = new Set(["fable", "sonnet", "opus"])
-const REVIEW_WORKFLOW_MODEL = "openai-codex/gpt-5.6-luna"
-const DEFAULT_WORKFLOW_MODEL = "openai-codex/gpt-5.6-terra"
-const REQUIRED_WORKFLOW_MODEL_PREFIX = "gpt-5.6-"
+
+const providerOf = (model: string): string => {
+  const separator = model.indexOf("/")
+  return separator === -1 ? model : model.slice(0, separator)
+}
+
+const latestSeriesTierModels = (): readonly string[] =>
+  MODEL_TIER_PROVIDERS.flatMap(provider =>
+    (["top", "mid", "light"] as const)
+      .map(tier => tierModel(tier, provider))
+      .filter((reference): reference is string => reference !== undefined),
+  )
+
+const resolveTierDefault = (
+  tier: ModelTier,
+  availableModels: readonly AvailableAgentModel[],
+): Effect.Effect<string | undefined, AgentProcessError> => {
+  const candidates = tierCandidates(tier, { now: () => 0 })
+  for (const candidate of candidates) {
+    const found = availableModels.find(
+      model => modelReference(model).toLowerCase() === candidate,
+    )
+    if (found) return requiredWorkflowModel(found)
+  }
+  return failure(
+    "model_unavailable",
+    `No ${tier}-tier workflow model is authenticated; tried ${candidates.join(", ")}`,
+  )
+}
 
 const requiredWorkflowModel = (
   model: AvailableAgentModel,
 ): Effect.Effect<string, AgentProcessError> =>
-  model.provider.toLowerCase() === "openai-codex" &&
-  model.id.toLowerCase().startsWith(REQUIRED_WORKFLOW_MODEL_PREFIX)
+  latestSeriesTierModels().includes(modelReference(model).toLowerCase())
     ? Effect.succeed(modelReference(model))
     : failure(
         "invalid_input",
-        "Workflow children require the gpt-5.6 series through authenticated OpenAI Codex",
+        "Workflow children require a latest-series tier model from a configured provider",
       )
 
 export const LOCAL_LANE_PROVIDER = "ollama"
@@ -121,7 +152,10 @@ export const resolveWorkflowThinking = (
   requested: AgentRequest["thinking"],
   model: string | undefined,
 ): NonNullable<AgentRequest["thinking"]> =>
-  requested ?? (model === REVIEW_WORKFLOW_MODEL ? "high" : "medium")
+  requested ??
+  (model !== undefined && model === tierModel("light", providerOf(model))
+    ? "high"
+    : "medium")
 
 export const localLaneWorkflowRefusal: (
   parentProvider: string | undefined,
@@ -143,28 +177,11 @@ export const resolveAgentModel = (
           "invalid_input",
           "Workflow children cannot inherit Anthropic API models; use a non-Claude Pi model or an external claude -p subscription lane",
         )
-      const workflowModel = availableModels.find(
-        model => modelReference(model).toLowerCase() === DEFAULT_WORKFLOW_MODEL,
-      )
-      if (!workflowModel)
-        return yield* failure(
-          "model_unavailable",
-          `Default workflow model ${DEFAULT_WORKFLOW_MODEL} is unavailable`,
-        )
-      return yield* requiredWorkflowModel(workflowModel)
+      return yield* resolveTierDefault("mid", availableModels)
     }
     const normalized = requested.toLowerCase()
-    if (LEGACY_REVIEW_FOCUS_ALIASES.has(normalized)) {
-      const reviewModel = availableModels.find(
-        model => modelReference(model).toLowerCase() === REVIEW_WORKFLOW_MODEL,
-      )
-      if (!reviewModel)
-        return yield* failure(
-          "model_unavailable",
-          `Workflow focus label ${requested} requires authenticated ${REVIEW_WORKFLOW_MODEL}`,
-        )
-      return yield* requiredWorkflowModel(reviewModel)
-    }
+    if (LEGACY_REVIEW_FOCUS_ALIASES.has(normalized))
+      return yield* resolveTierDefault("light", availableModels)
     if (/claude|sonnet|opus|fable/.test(normalized))
       return yield* failure(
         "invalid_input",
