@@ -456,7 +456,7 @@ test("GitHub subprocess runner resolves the repository origin without forwarding
     },
   )
 
-  const repositoryRoot = fileURLToPath(new URL("../../../../", import.meta.url))
+  const repositoryRoot = fileURLToPath(new URL("../../../", import.meta.url))
   const origin = await run(
     makeDeclaredBacklogCommandRunner()({
       kind: "git-origin",
@@ -467,7 +467,7 @@ test("GitHub subprocess runner resolves the repository origin without forwarding
       timeoutMs: 1_000,
     }),
   )
-  assert.match(origin, /github\.com[/:]0xgleb\/dotconfig(?:\.git)?/)
+  assert.match(origin, /github\.com[/:]dataclique\/metagenda(?:\.git)?/)
 
   await assert.rejects(
     run(
