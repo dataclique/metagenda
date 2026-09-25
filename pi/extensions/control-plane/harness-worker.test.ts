@@ -16,17 +16,18 @@ import { startControlPlaneServer } from "./server.ts"
 import { makeSqliteJobStore, type SqliteJobStore } from "./sqlite-job-store.ts"
 
 const withServer = async (
-  run: (origin: string, store: SqliteJobStore) => Promise<void>,
+  run: (origin: string, store: SqliteJobStore, home: string) => Promise<void>,
 ): Promise<void> => {
   const root = await mkdtemp(join(tmpdir(), "pi-harness-worker-test-"))
+  const home = join(root, "home")
   const store = await Effect.runPromise(
-    makeSqliteJobStore(join(root, "jobs.sqlite")),
+    makeSqliteJobStore(join(root, "jobs.sqlite"), home),
   )
   const server = await Effect.runPromise(
-    startControlPlaneServer({ host: "127.0.0.1", port: 0, store }),
+    startControlPlaneServer({ host: "127.0.0.1", port: 0, store, home }),
   )
   try {
-    await run(server.origin, store)
+    await run(server.origin, store, home)
   } finally {
     await Effect.runPromise(server.close)
     store.close()
@@ -36,7 +37,7 @@ const withServer = async (
 
 const headSha = "a".repeat(40)
 
-const harnessEnqueueBody = {
+const harnessEnqueueBody = (home: string) => ({
   kind: "harness.review",
   payload: {
     lane: "claude-code-max",
@@ -46,19 +47,22 @@ const harnessEnqueueBody = {
     pullRequest: 7,
     kind: "own",
     inputHeadSha: headSha,
-    repositoryRoot: "/Users/example/code/0xgleb/example",
+    repositoryRoot: `${home}/code/0xgleb/example`,
     isolation: "approved-worktree",
   },
   runAt: 0,
   maxAttempts: 2,
   idempotencyKey: "harness:personal:example:7:head",
-}
+})
 
-const enqueueHarnessJob = async (origin: string): Promise<string> => {
+const enqueueHarnessJob = async (
+  origin: string,
+  home: string,
+): Promise<string> => {
   const response = await fetch(`${origin}/v1/jobs`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify(harnessEnqueueBody),
+    body: JSON.stringify(harnessEnqueueBody(home)),
   })
   assert.equal(response.status, 201)
   return ((await response.json()) as { job: { id: string } }).job.id
@@ -110,12 +114,17 @@ type HarnessExecutionResult =
     }
   | { readonly kind: "spawn_error"; readonly message: string }
 
-const workerOptions = (origin: string, spawner: HarnessSpawner) => ({
+const workerOptions = (
+  origin: string,
+  home: string,
+  spawner: HarnessSpawner,
+) => ({
   origin,
   workerId: "harness-supervisor",
   leaseTtlMs: 90_000,
   retryDelayMs: 0,
-  allowedRoots: ["/Users/example/code/0xgleb/example"],
+  allowedRoots: [`${home}/code/0xgleb/example`],
+  home,
   spawner,
 })
 
@@ -137,12 +146,13 @@ const jobState = async (
 }
 
 test("an empty queue leaves the worker idle without spawning", async () =>
-  withServer(async origin => {
+  withServer(async (origin, store, home) => {
     const calls: HarnessLaunchPlan[] = []
     const outcome = await Effect.runPromise(
       runNextHarnessAttempt(
         workerOptions(
           origin,
+          home,
           stubSpawner(
             () => ({ kind: "spawned", exitCode: 0, stdout: "" }),
             calls,
@@ -155,13 +165,14 @@ test("an empty queue leaves the worker idle without spawning", async () =>
   }))
 
 test("a matching executor handoff completes the claimed harness job", async () =>
-  withServer(async origin => {
-    const jobId = await enqueueHarnessJob(origin)
+  withServer(async (origin, store, home) => {
+    const jobId = await enqueueHarnessJob(origin, home)
     const calls: HarnessLaunchPlan[] = []
     const outcome = await Effect.runPromise(
       runNextHarnessAttempt(
         workerOptions(
           origin,
+          home,
           stubSpawner(
             () => ({
               kind: "spawned",
@@ -182,12 +193,13 @@ test("a matching executor handoff completes the claimed harness job", async () =
   }))
 
 test("blocked handoffs fail the attempt instead of completing the job", async () =>
-  withServer(async origin => {
-    const jobId = await enqueueHarnessJob(origin)
+  withServer(async (origin, store, home) => {
+    const jobId = await enqueueHarnessJob(origin, home)
     const outcome = await Effect.runPromise(
       runNextHarnessAttempt(
         workerOptions(
           origin,
+          home,
           stubSpawner(() => ({
             kind: "spawned",
             exitCode: 0,
@@ -219,12 +231,13 @@ test("mismatched, malformed, and oversized executor output fails the attempt", a
     () => `progress\n${"\u{1F389}".repeat(3_000)}`,
   ]
   for (const buildOutput of cases)
-    await withServer(async origin => {
-      const jobId = await enqueueHarnessJob(origin)
+    await withServer(async (origin, store, home) => {
+      const jobId = await enqueueHarnessJob(origin, home)
       const outcome = await Effect.runPromise(
         runNextHarnessAttempt(
           workerOptions(
             origin,
+            home,
             stubSpawner(() => ({
               kind: "spawned",
               exitCode: 0,
@@ -240,12 +253,13 @@ test("mismatched, malformed, and oversized executor output fails the attempt", a
 })
 
 test("spawn errors and nonzero exits fail the attempt within retry policy", async () =>
-  withServer(async origin => {
-    const jobId = await enqueueHarnessJob(origin)
+  withServer(async (origin, store, home) => {
+    const jobId = await enqueueHarnessJob(origin, home)
     const first = await Effect.runPromise(
       runNextHarnessAttempt(
         workerOptions(
           origin,
+          home,
           stubSpawner(() => ({
             kind: "spawn_error",
             message: "executable is unavailable",
@@ -260,6 +274,7 @@ test("spawn errors and nonzero exits fail the attempt within retry policy", asyn
       runNextHarnessAttempt(
         workerOptions(
           origin,
+          home,
           stubSpawner(() => ({ kind: "spawned", exitCode: 1, stdout: "" })),
         ),
       ),
@@ -269,7 +284,7 @@ test("spawn errors and nonzero exits fail the attempt within retry policy", asyn
   }))
 
 test("non-harness jobs are never claimed or executed by the harness worker", async () =>
-  withServer(async origin => {
+  withServer(async (origin, store, home) => {
     const response = await fetch(`${origin}/v1/jobs`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -289,6 +304,7 @@ test("non-harness jobs are never claimed or executed by the harness worker", asy
       runNextHarnessAttempt(
         workerOptions(
           origin,
+          home,
           stubSpawner(
             () => ({ kind: "spawned", exitCode: 0, stdout: "" }),
             calls,
@@ -302,26 +318,29 @@ test("non-harness jobs are never claimed or executed by the harness worker", asy
   }))
 
 test("payload roots outside the registered workspaces fail before any spawn", async () =>
-  withServer(async origin => {
+  withServer(async (origin, store, home) => {
+    // The enqueue boundary binds harness payloads to checkouts registered
+    // under the stated home, so a root outside them is refused before the
+    // store ever sees a job.
     const response = await fetch(`${origin}/v1/jobs`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        ...harnessEnqueueBody,
+        ...harnessEnqueueBody(home),
         payload: {
-          ...harnessEnqueueBody.payload,
+          ...harnessEnqueueBody(home).payload,
           repositoryRoot: "/tmp/example",
         },
         idempotencyKey: "harness:personal:example:outside",
       }),
     })
-    assert.equal(response.status, 201)
-    const jobId = ((await response.json()) as { job: { id: string } }).job.id
+    assert.equal(response.status, 400)
     const calls: HarnessLaunchPlan[] = []
     const outcome = await Effect.runPromise(
       runNextHarnessAttempt(
         workerOptions(
           origin,
+          home,
           stubSpawner(
             () => ({ kind: "spawned", exitCode: 0, stdout: "" }),
             calls,
@@ -329,9 +348,8 @@ test("payload roots outside the registered workspaces fail before any spawn", as
         ),
       ),
     )
-    assert.equal(outcome.outcome, "failed")
+    assert.equal(outcome.outcome, "idle")
     assert.equal(calls.length, 0)
-    assert.equal((await jobState(origin, jobId)).state, "retry_wait")
   }))
 
 test("malformed control-plane claim responses surface as typed request failures", async () => {

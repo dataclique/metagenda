@@ -6,6 +6,7 @@ import { DatabaseSync } from "node:sqlite"
 import test from "node:test"
 import { Effect, Either } from "effect"
 import { toCommitSha, type CommitSha } from "./harness-protocol.ts"
+import type { RegisteredAgent } from "../agent-registry/registry.ts"
 import {
   jobResult,
   JobRuntimeError,
@@ -28,7 +29,8 @@ const canonical = (value: string): CanonicalPath => {
 
 const commit = (value: string): CommitSha => {
   const sha = toCommitSha(value)
-  if (sha === undefined) throw new Error(`fixture is not a commit sha: ${value}`)
+  if (sha === undefined)
+    throw new Error(`fixture is not a commit sha: ${value}`)
   return sha
 }
 
@@ -42,21 +44,20 @@ const harnessHeadSha = commit("a".repeat(40))
 const home = canonical("/Users/example")
 
 const harnessSpec = (
-  idempotencyKey: string,
-  maxAttempts: number,
+  idempotencyKey = "harness:personal:example:head",
+  maxAttempts = 2,
 ): RegisteredJobSpec => ({
   kind: "harness.review",
   payload: {
-    lane: "cursor-subscription",
-    task: "review-probe",
-    model: "composer-2.5",
+    lane: "claude-code-max",
+    task: "review-loop",
     profile: "personal-review",
     repository: "0xgleb/example",
     pullRequest: 7,
     kind: "own",
     inputHeadSha: harnessHeadSha,
     repositoryRoot: canonical(`${home}/code/0xgleb/example`),
-    isolation: "read-only",
+    isolation: "approved-worktree",
   },
   runAt: 1_000,
   maxAttempts,
@@ -65,9 +66,7 @@ const harnessSpec = (
 
 const reviewSpec = (
   profile:
-    | "st0x-review"
-    | "dataclique-review"
-    | "personal-review" = "st0x-review",
+    "st0x-review" | "dataclique-review" | "personal-review" = "st0x-review",
 ): RegisteredJobSpec => ({
   kind: "review-duty.scan",
   payload: { profile },
@@ -100,10 +99,10 @@ const errorCode = async <A>(
 }
 
 const readableJobs = (stored: readonly StoredJob[]): readonly Job[] =>
-  stored.flatMap((entry) => (entry.outcome === "readable" ? [entry.job] : []))
+  stored.flatMap(entry => (entry.outcome === "readable" ? [entry.job] : []))
 
 const unreadableIds = (stored: readonly StoredJob[]): readonly string[] =>
-  stored.flatMap((entry) => (entry.outcome === "unreadable" ? [entry.id] : []))
+  stored.flatMap(entry => (entry.outcome === "unreadable" ? [entry.id] : []))
 
 /** Replaces a stored document with one the runtime can no longer decode. */
 const poison = (store: SqliteJobStore, id: string): void => {
@@ -133,7 +132,7 @@ const withStore = async (
 }
 
 test("idempotent enqueue returns the persisted job and rejects payload drift", async () =>
-  withStore(async (path) => {
+  withStore(async path => {
     const store = await Effect.runPromise(makeSqliteJobStore(path, home))
     const first = await Effect.runPromise(
       store.enqueue(reviewSpec(), "job-a", 1_000),
@@ -154,7 +153,7 @@ test("idempotent enqueue returns the persisted job and rejects payload drift", a
   }))
 
 test("jobs survive closing and reopening the SQLite adapter", async () =>
-  withStore(async (path) => {
+  withStore(async path => {
     const first = await Effect.runPromise(makeSqliteJobStore(path, home))
     await Effect.runPromise(first.enqueue(reviewSpec(), "job-a", 1_000))
     first.close()
@@ -399,7 +398,7 @@ test("schema version three separates app-server samples from the ChatGPT shared 
   }))
 
 test("atomic due-job claim allows only one worker and fences stale completion", async () =>
-  withStore(async (path) => {
+  withStore(async path => {
     const first = await Effect.runPromise(makeSqliteJobStore(path, home))
     const second = await Effect.runPromise(makeSqliteJobStore(path, home))
     await Effect.runPromise(first.enqueue(reviewSpec(), "job-a", 1_000))
@@ -430,7 +429,7 @@ test("atomic due-job claim allows only one worker and fences stale completion", 
 
 test("kind-filtered claims skip due jobs of other registered kinds", async () =>
   withStore(async path => {
-    const store = await Effect.runPromise(makeSqliteJobStore(path))
+    const store = await Effect.runPromise(makeSqliteJobStore(path, home))
     await Effect.runPromise(store.enqueue(reviewSpec(), "job-a", 1_000))
     await Effect.runPromise(store.enqueue(harnessSpec(), "job-b", 2_000))
 
@@ -457,7 +456,7 @@ test("kind-filtered claims skip due jobs of other registered kinds", async () =>
   }))
 
 test("expired attempts are recovered transactionally and become claimable after delay", async () =>
-  withStore(async (path) => {
+  withStore(async path => {
     const store = await Effect.runPromise(makeSqliteJobStore(path, home))
     await Effect.runPromise(store.enqueue(reviewSpec(), "job-a", 1_000))
     await Effect.runPromise(store.claimDue("worker-a", "lease-a", 1_000, 10))
@@ -486,7 +485,7 @@ test("expired attempts are recovered transactionally and become claimable after 
   }))
 
 test("a cancelled harness attempt stays readable through the store", async () =>
-  withStore(async (path) => {
+  withStore(async path => {
     const store = await Effect.runPromise(makeSqliteJobStore(path, home))
     const spec = harnessSpec("harness:personal:example:7", 2)
     await Effect.runPromise(store.enqueue(spec, "job-h", 1_000))
@@ -509,10 +508,14 @@ test("a cancelled harness attempt stays readable through the store", async () =>
   }))
 
 test("a blocked harness handoff is stored with the attempt it ended", async () =>
-  withStore(async (path) => {
+  withStore(async path => {
     const store = await Effect.runPromise(makeSqliteJobStore(path, home))
     await Effect.runPromise(
-      store.enqueue(harnessSpec("harness:personal:example:8", 1), "job-b", 1_000),
+      store.enqueue(
+        harnessSpec("harness:personal:example:8", 1),
+        "job-b",
+        1_000,
+      ),
     )
     const claimed = await Effect.runPromise(
       store.claimDue("worker-a", "lease-a", 1_000, 90_000),
@@ -523,7 +526,7 @@ test("a blocked harness handoff is stored with the attempt it ended", async () =
       protocolVersion: 1,
       jobId: "job-b",
       attempt: 1,
-      lane: "cursor-subscription",
+      lane: "claude-code-max",
       repository: "0xgleb/example",
       pullRequest: 7,
       inputHeadSha: harnessHeadSha,
@@ -549,14 +552,23 @@ test("a blocked harness handoff is stored with the attempt it ended", async () =
   }))
 
 test("a harness attempt whose last lease expires is stored as failed without evidence", async () =>
-  withStore(async (path) => {
+  withStore(async path => {
     const store = await Effect.runPromise(makeSqliteJobStore(path, home))
     await Effect.runPromise(
-      store.enqueue(harnessSpec("harness:personal:example:9", 1), "job-x", 1_000),
+      store.enqueue(
+        harnessSpec("harness:personal:example:9", 1),
+        "job-x",
+        1_000,
+      ),
     )
     await Effect.runPromise(store.claimDue("worker-a", "lease-a", 1_000, 10))
-    const recovered = await Effect.runPromise(store.recoverExpired(1_010, 60_000))
-    assert.deepEqual(recovered.map(({ state }) => state), ["failed"])
+    const recovered = await Effect.runPromise(
+      store.recoverExpired(1_010, 60_000),
+    )
+    assert.deepEqual(
+      recovered.map(({ state }) => state),
+      ["failed"],
+    )
 
     const reloaded = await Effect.runPromise(store.get("job-x"))
     assert.equal(reloaded.state, "failed")
@@ -566,7 +578,25 @@ test("a harness attempt whose last lease expires is stored as failed without evi
 
 test("usage samples survive agent expiry and update within a bounded time bucket", async () =>
   withStore(async path => {
-    const store = await Effect.runPromise(makeSqliteJobStore(path))
+    const store = await Effect.runPromise(makeSqliteJobStore(path, home))
+    const agent = (
+      id: string,
+      cwd: string,
+      totalTokens: number,
+    ): RegisteredAgent => ({
+      identity: { id, pid: 1, model: "zai/glm-5.3" },
+      cwd,
+      label: id,
+      usage: {
+        input: 0,
+        output: 0,
+        cacheRead: 0,
+        cacheWrite: 0,
+        totalTokens,
+      },
+      heartbeatAt: 0,
+      expiresAt: Number.MAX_SAFE_INTEGER,
+    })
     await Effect.runPromise(
       store.recordUsage(
         [agent("agent-a", "/Users/example/.config", 100)],
@@ -1072,7 +1102,25 @@ test("malformed persisted allowance checkpoints fail closed", async () =>
 
 test("malformed persisted usage samples fail closed", async () =>
   withStore(async path => {
-    const store = await Effect.runPromise(makeSqliteJobStore(path))
+    const store = await Effect.runPromise(makeSqliteJobStore(path, home))
+    const agent = (
+      id: string,
+      cwd: string,
+      totalTokens: number,
+    ): RegisteredAgent => ({
+      identity: { id, pid: 1, model: "zai/glm-5.3" },
+      cwd,
+      label: id,
+      usage: {
+        input: 0,
+        output: 0,
+        cacheRead: 0,
+        cacheWrite: 0,
+        totalTokens,
+      },
+      heartbeatAt: 0,
+      expiresAt: Number.MAX_SAFE_INTEGER,
+    })
     await Effect.runPromise(
       store.recordUsage(
         [agent("agent-a", "/Users/example/.config", 100)],
@@ -1087,7 +1135,7 @@ test("malformed persisted usage samples fail closed", async () =>
   }))
 
 test("malformed persisted state fails closed instead of being coerced", async () =>
-  withStore(async (path) => {
+  withStore(async path => {
     const store = await Effect.runPromise(makeSqliteJobStore(path, home))
     await Effect.runPromise(store.enqueue(reviewSpec(), "job-a", 1_000))
     poison(store, "job-a")
@@ -1096,7 +1144,7 @@ test("malformed persisted state fails closed instead of being coerced", async ()
   }))
 
 test("an unreadable job is quarantined instead of blocking the jobs behind it", async () =>
-  withStore(async (path) => {
+  withStore(async path => {
     const store = await Effect.runPromise(makeSqliteJobStore(path, home))
     await Effect.runPromise(store.enqueue(reviewSpec(), "job-a", 1_000))
     await Effect.runPromise(
@@ -1111,7 +1159,10 @@ test("an unreadable job is quarantined instead of blocking the jobs behind it", 
     assert.equal(stateOf(store, "job-a"), "corrupt")
 
     const listed = await Effect.runPromise(store.list())
-    assert.deepEqual(readableJobs(listed).map(({ id }) => id), ["job-b"])
+    assert.deepEqual(
+      readableJobs(listed).map(({ id }) => id),
+      ["job-b"],
+    )
     assert.deepEqual(unreadableIds(listed), ["job-a"])
 
     const completed = await Effect.runPromise(
@@ -1119,14 +1170,16 @@ test("an unreadable job is quarantined instead of blocking the jobs behind it", 
     )
     assert.equal(completed.state, "succeeded")
     assert.equal(
-      await Effect.runPromise(store.claimDue("worker-b", "lease-b", 3_000, 90_000)),
+      await Effect.runPromise(
+        store.claimDue("worker-b", "lease-b", 3_000, 90_000),
+      ),
       undefined,
     )
     store.close()
   }))
 
 test("an unreadable expired lease is quarantined and the others still recover", async () =>
-  withStore(async (path) => {
+  withStore(async path => {
     const store = await Effect.runPromise(makeSqliteJobStore(path, home))
     await Effect.runPromise(store.enqueue(reviewSpec(), "job-a", 1_000))
     await Effect.runPromise(
@@ -1136,8 +1189,13 @@ test("an unreadable expired lease is quarantined and the others still recover", 
     await Effect.runPromise(store.claimDue("worker-b", "lease-b", 1_000, 10))
     poison(store, "job-a")
 
-    const recovered = await Effect.runPromise(store.recoverExpired(1_010, 60_000))
-    assert.deepEqual(recovered.map(({ id }) => id), ["job-b"])
+    const recovered = await Effect.runPromise(
+      store.recoverExpired(1_010, 60_000),
+    )
+    assert.deepEqual(
+      recovered.map(({ id }) => id),
+      ["job-b"],
+    )
     assert.equal(stateOf(store, "job-a"), "corrupt")
     assert.equal(stateOf(store, "job-b"), "retry_wait")
     store.close()

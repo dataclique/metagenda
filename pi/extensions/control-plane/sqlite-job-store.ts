@@ -16,8 +16,8 @@ import {
   claimJob,
   completeJob,
   createJob,
-  decodeJobSpec,
   decodeStoredJob,
+  decodeStoredJobSpec,
   failJob,
   JobRuntimeError,
   recoverExpiredJob,
@@ -619,7 +619,7 @@ const makeStore = (
     id = randomUUID(),
     now = Date.now(),
   ) =>
-    Effect.flatMap(decodeJobSpec(spec, home), decodedSpec =>
+    Effect.flatMap(decodeStoredJobSpec(spec), decodedSpec =>
       Effect.flatMap(validateId(id), jobId =>
         inTransaction(
           Effect.gen(function* () {
@@ -711,7 +711,13 @@ const makeStore = (
     ttlMs,
     kinds,
   ) => {
-    if (kinds?.length === 0) return Effect.succeed(undefined)
+    if (kinds !== undefined && kinds.length === 0)
+      return Effect.fail(
+        new JobStoreError({
+          code: "invalid_input",
+          message: "kind filter must name at least one registered kind",
+        }),
+      )
     const kindFilter = kinds
       ? ` AND kind IN (${kinds.map(() => "?").join(", ")})`
       : ""

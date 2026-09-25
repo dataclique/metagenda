@@ -10,10 +10,7 @@ export class CodexAllowanceError extends Data.TaggedError(
   "CodexAllowanceError",
 )<{
   readonly code:
-    | "invalid_output"
-    | "missing_weekly_window"
-    | "process_failed"
-    | "timeout"
+    "invalid_output" | "missing_weekly_window" | "process_failed" | "timeout"
   readonly message: string
 }> {}
 

@@ -2,16 +2,18 @@ import { spawn } from "node:child_process"
 import { Data, Effect } from "effect"
 import {
   buildHarnessLaunchPlan,
+  toCanonicalWorkspaceRoot,
   type HarnessLaunchPlan,
 } from "./harness-adapter.ts"
 import {
   decodeHarnessReviewHandoff,
   decodeHarnessReviewPayload,
-  harnessHandoffMatchesAttempt,
-  isSafeHarnessJobId,
+  requireHandoffMatchesAttempt,
+  toJobId,
   type HarnessReviewHandoff,
   type HarnessReviewPayload,
 } from "./harness-protocol.ts"
+import type { CanonicalPath } from "./review-duty-profile.ts"
 
 export interface HarnessExecution {
   readonly exitCode: number
@@ -38,6 +40,8 @@ export interface HarnessWorkerOptions {
   readonly leaseTtlMs: number
   readonly retryDelayMs: number
   readonly allowedRoots: readonly string[]
+  /** Home the harness payloads are bound to at the launch boundary. */
+  readonly home: CanonicalPath
   readonly spawner: HarnessSpawner
 }
 
@@ -60,7 +64,7 @@ export const runNextHarnessAttempt = (
     if (claimed === undefined) return { outcome: "idle" } as const
     if (claimed.kind !== "harness.review")
       return { outcome: "unsupported", jobId: claimed.id } as const
-    const attempt = yield* prepareAttempt(claimed, options.allowedRoots)
+    const attempt = yield* prepareAttempt(claimed, options)
     if (attempt.kind === "rejected")
       return yield* failAttempt(options, claimed, attempt.reason)
     const execution = yield* Effect.either(options.spawner(attempt.plan))
@@ -218,7 +222,7 @@ const claimDueJob = (
       !isRecord(body) ||
       !isRecord(body.job) ||
       typeof body.job.id !== "string" ||
-      !isSafeHarnessJobId(body.job.id) ||
+      toJobId(body.job.id) === undefined ||
       !Number.isSafeInteger(body.job.attempt) ||
       typeof body.job.leaseToken !== "string" ||
       body.job.leaseToken.length < 1 ||
@@ -248,23 +252,28 @@ type PreparedAttempt =
 
 const prepareAttempt = (
   claimed: ClaimedJob,
-  allowedRoots: readonly string[],
+  options: HarnessWorkerOptions,
 ): Effect.Effect<PreparedAttempt, HarnessWorkerError> =>
   Effect.gen(function* () {
     const payload = yield* Effect.either(
-      decodeHarnessReviewPayload(claimed.payload),
+      decodeHarnessReviewPayload(claimed.payload, options.home),
     )
     if (payload._tag === "Left")
       return {
         kind: "rejected",
         reason: "stored harness payload is invalid",
       } as const
+    const registeredRoots = options.allowedRoots
+      .map(toCanonicalWorkspaceRoot)
+      .filter((root): root is NonNullable<typeof root> => root !== undefined)
     const plan = yield* Effect.either(
       buildHarnessLaunchPlan(
         claimed.payload,
         claimed.id,
         claimed.attempt,
-        allowedRoots,
+        registeredRoots,
+        options.home,
+        process.env,
       ),
     )
     if (plan._tag === "Left")
@@ -287,6 +296,9 @@ const extractHandoff = (
   jobId: string,
   attempt: number,
 ): Effect.Effect<HarnessReviewHandoff, HarnessWorkerError> => {
+  const id = toJobId(jobId)
+  if (id === undefined)
+    return executorFailure("executor handoff names an invalid job")
   if (Buffer.byteLength(stdout, "utf8") > MAX_EXECUTOR_STDOUT_BYTES)
     return executorFailure("executor output exceeded bounds")
   const line = stdout
@@ -320,9 +332,17 @@ const extractHandoff = (
             }),
         ),
         handoff =>
-          harnessHandoffMatchesAttempt(handoff, payload, jobId, attempt)
-            ? Effect.succeed(handoff)
-            : executorFailure("executor handoff does not match the attempt"),
+          Effect.flatMap(
+            Effect.mapError(
+              requireHandoffMatchesAttempt(handoff, payload, id, attempt),
+              () =>
+                new HarnessWorkerError({
+                  code: "executor_failed",
+                  message: "executor handoff does not match the attempt",
+                }),
+            ),
+            () => Effect.succeed(handoff),
+          ),
       ),
   )
 }

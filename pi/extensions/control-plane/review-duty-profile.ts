@@ -52,12 +52,12 @@ export const canonicalPath = (value: string): CanonicalPath | undefined =>
   value
     .slice(1)
     .split("/")
-    .every((segment) => segment !== "" && segment !== "." && segment !== "..")
+    .every(segment => segment !== "" && segment !== "." && segment !== "..")
     ? (value as CanonicalPath)
     : undefined
 
 export const pathSegments = (path: string): readonly string[] =>
-  path.split("/").filter((segment) => segment.length > 0)
+  path.split("/").filter(segment => segment.length > 0)
 
 export const repositoryAllowedForProfile = (
   profile: ReviewDutyProfile,
@@ -105,7 +105,7 @@ export const registeredRepositoryRoots = (
 export const repositoryRootIsRegisteredUnder =
   (home: CanonicalPath): RegisteredCheckoutCheck =>
   (profile, repository, root) =>
-    registeredRepositoryRoots(profile, repository).some((registered) => {
+    registeredRepositoryRoots(profile, repository).some(registered => {
       const checkout = `${home}/${registered}`
       return (
         root === checkout ||
@@ -113,7 +113,8 @@ export const repositoryRootIsRegisteredUnder =
       )
     })
 
-const SAFE_REPOSITORY = /^[a-z0-9][a-z0-9._-]{0,63}\/[a-z0-9][a-z0-9._-]{0,99}$/u
+const SAFE_REPOSITORY =
+  /^[a-z0-9][a-z0-9._-]{0,63}\/[a-z0-9][a-z0-9._-]{0,99}$/u
 const CONTROL_CHARACTER = /\p{Cc}/u
 const MAX_PATH_LENGTH = 1_024
 
@@ -148,8 +149,8 @@ const AUTOMATIC_REPOSITORIES: Readonly<
  */
 const OWNER_WORKSPACES: Readonly<Record<string, string>> = {
   "st0x-technology": "code/st0x",
-  rainlanguage: "code/rainlanguage",
-  dataclique: "code/dataclique",
+  "rainlanguage": "code/rainlanguage",
+  "dataclique": "code/dataclique",
   "0xgleb": "code/0xgleb",
 }
 

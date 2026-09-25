@@ -1,10 +1,6 @@
 export type ThrottleDecisionKind = "turn" | "workflow" | "provider-call"
 export type ThrottleDecisionOutcome =
-  | "admitted"
-  | "deferred"
-  | "scaled"
-  | "settled"
-  | "blocked"
+  "admitted" | "deferred" | "scaled" | "settled" | "blocked"
 
 export interface ThrottleDecision {
   readonly at: number

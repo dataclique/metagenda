@@ -19,11 +19,7 @@ const AGENT_ALLOCATION_FLOOR = 0.25
 const AGENT_INTERVENTION_HALF_LIFE_MS = 2 * HOUR_MS
 
 export type UsagePace =
-  | "unverified"
-  | "open"
-  | "guarded"
-  | "critical"
-  | "reserve"
+  "unverified" | "open" | "guarded" | "critical" | "reserve"
 
 export type AllowanceCheckpointInput =
   | {
@@ -65,10 +61,7 @@ export interface AllowanceRunway {
 }
 
 export type AutonomousRole =
-  | "general"
-  | "reviewer"
-  | "yielduck-operator"
-  | "moneymentum-operator"
+  "general" | "reviewer" | "yielduck-operator" | "moneymentum-operator"
 
 export interface RolePollingPolicy {
   readonly role: AutonomousRole
@@ -110,16 +103,16 @@ const usageAt = (
   agentId: string,
   at: number,
 ): number =>
-  samples
+  [...samples]
     .filter(sample => sample.agentId === agentId && sample.capturedAt <= at)
-    .toSorted((left, right) => left.capturedAt - right.capturedAt)
+    .sort((left, right) => left.capturedAt - right.capturedAt)
     .at(-1)?.usage.totalTokens ?? 0
 
 export const calibrateProviderTokens = (
   checkpoints: readonly AllowanceCheckpointInput[],
   samples: readonly ProviderUsagePoint[],
 ): ProviderTokenCalibration | undefined => {
-  const ordered = checkpoints.toSorted(
+  const ordered = [...checkpoints].sort(
     (left, right) => left.capturedAt - right.capturedAt,
   )
   let observedBurnPercent = 0
@@ -348,7 +341,7 @@ export const allowanceRunway = (
   now: number,
   capacityReliefAt?: number,
 ): AllowanceRunway | undefined => {
-  const eligible = checkpoints
+  const eligible = [...checkpoints]
     .filter(checkpoint => {
       const { capturedAt, remainingPercent } = checkpoint
       if (
@@ -364,7 +357,7 @@ export const allowanceRunway = (
           checkpoint.resetAt > capturedAt)
       )
     })
-    .toSorted((left, right) => left.capturedAt - right.capturedAt)
+    .sort((left, right) => left.capturedAt - right.capturedAt)
   const latest = eligible.at(-1)
   if (!latest || now - latest.capturedAt > MAX_ALLOWANCE_CHECKPOINT_AGE_MS)
     return undefined

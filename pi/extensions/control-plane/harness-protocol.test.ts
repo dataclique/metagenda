@@ -26,7 +26,8 @@ const canonical = (value: string): CanonicalPath => {
 
 const commit = (value: string): CommitSha => {
   const sha = toCommitSha(value)
-  if (sha === undefined) throw new Error(`fixture is not a commit sha: ${value}`)
+  if (sha === undefined)
+    throw new Error(`fixture is not a commit sha: ${value}`)
   return sha
 }
 
@@ -82,9 +83,8 @@ const automaticPayload: HarnessReviewPayload = {
 }
 
 const rainlanguagePayload: HarnessReviewPayload = {
-  lane: "cursor-subscription",
-  task: "review-probe",
-  model: "composer-2.5",
+  lane: "claude-code-max",
+  task: "review-pr",
   profile: "st0x-review",
   repository: "rainlanguage/rain.orderbook",
   pullRequest: 12,
@@ -107,13 +107,17 @@ const errorCode = (value: unknown): string | undefined => {
 
 test("registered harness review payloads decode exactly", () => {
   assert.deepEqual(decoded(claudePayload), claudePayload)
-  assert.deepEqual(decoded(cursorPayload), cursorPayload)
+  // The cursor lane is retired: its payloads are rejected at the boundary.
+  assert.equal(errorCode(cursorPayload), "invalid_input")
   const worktreeRoot =
     "/Users/example/code/st0x/example/.worktrees/feat/harness"
-  assert.deepEqual(decoded({ ...claudePayload, repositoryRoot: worktreeRoot }), {
-    ...claudePayload,
-    repositoryRoot: worktreeRoot,
-  })
+  assert.deepEqual(
+    decoded({ ...claudePayload, repositoryRoot: worktreeRoot }),
+    {
+      ...claudePayload,
+      repositoryRoot: worktreeRoot,
+    },
+  )
 })
 
 test("st0x review duty reaches the rainlanguage checkout workspace", () => {
@@ -176,7 +180,10 @@ test("automatic review decodes for its registered repository and checkout", () =
     { ...automaticPayload, repositoryRoot: worktreeRoot },
   )
   assert.equal(
-    errorCode({ ...automaticPayload, repositoryRoot: "/Users/example/dotconfig" }),
+    errorCode({
+      ...automaticPayload,
+      repositoryRoot: "/Users/example/dotconfig",
+    }),
     "invalid_input",
   )
   assert.equal(
@@ -267,11 +274,11 @@ test("credential path segments are recognised whatever their case", () => {
 })
 
 test("head SHAs must be exactly a SHA-1 or SHA-256 commit identifier", () => {
-  const sha256Payload = { ...cursorPayload, inputHeadSha: "b".repeat(64) }
+  const sha256Payload = { ...claudePayload, inputHeadSha: "b".repeat(64) }
   assert.deepEqual(decoded(sha256Payload), sha256Payload)
   for (const length of [39, 41, 50, 63, 65])
     assert.equal(
-      errorCode({ ...cursorPayload, inputHeadSha: "b".repeat(length) }),
+      errorCode({ ...claudePayload, inputHeadSha: "b".repeat(length) }),
       "invalid_input",
     )
 })
@@ -469,7 +476,9 @@ test("fixed findings require a head the review actually moved", () => {
 
 test("a rejected handoff names the invariant it violated", () => {
   const result = Effect.runSync(
-    Effect.either(requireHandoffMatchesAttempt(handoff, claudePayload, jobB, 1)),
+    Effect.either(
+      requireHandoffMatchesAttempt(handoff, claudePayload, jobB, 1),
+    ),
   )
   assert.equal(Either.isLeft(result), true)
   if (Either.isLeft(result)) {
@@ -572,7 +581,12 @@ test("handoff evidence never names a credential-bearing path", () => {
 
 test("only fixed findings hand back a head the review moved", () => {
   const movedHead = commit("d".repeat(40))
-  for (const status of ["clean", "findings_pending", "blocked", "failed"] as const)
+  for (const status of [
+    "clean",
+    "findings_pending",
+    "blocked",
+    "failed",
+  ] as const)
     assert.deepEqual(
       harnessHandoffAttemptMatch(
         {

@@ -7,10 +7,7 @@ import { setTimeout as delay } from "node:timers/promises"
 import { Effect, Either } from "effect"
 import { toJobId, type JobId } from "./harness-protocol.ts"
 import type { Job } from "./job-runtime.ts"
-import {
-  startControlPlaneServer,
-  type ControlPlaneJobStore,
-} from "./server.ts"
+import { startControlPlaneServer, type ControlPlaneJobStore } from "./server.ts"
 import { canonicalPath, type CanonicalPath } from "./review-duty-profile.ts"
 import {
   makeSqliteJobStore,
@@ -57,13 +54,11 @@ const partialStore = (
   ...operations,
 })
 
-const unavailable =
-  (operation: string) =>
-  (): Effect.Effect<never> =>
-    Effect.die(new Error(`the test store does not implement ${operation}`))
+const unavailable = (operation: string) => (): Effect.Effect<never> =>
+  Effect.die(new Error(`the test store does not implement ${operation}`))
 
 const readableJobs = (stored: readonly StoredJob[]): readonly Job[] =>
-  stored.flatMap((entry) => (entry.outcome === "readable" ? [entry.job] : []))
+  stored.flatMap(entry => (entry.outcome === "readable" ? [entry.job] : []))
 
 const withServer = async (
   run: (origin: string, store: SqliteJobStore) => Promise<void>,
@@ -118,7 +113,7 @@ const harnessEnqueueBody = {
     kind: "own",
     inputHeadSha: harnessHeadSha,
     repositoryRoot: registeredCheckout("code/0xgleb/example"),
-    isolation: "read-only",
+    isolation: "approved-worktree",
   },
   runAt: 0,
   maxAttempts: 2,
@@ -133,7 +128,7 @@ const harnessHandoff = (
   protocolVersion: 1,
   jobId,
   attempt,
-  lane: "cursor-subscription",
+  lane: "claude-code-max",
   repository: "0xgleb/example",
   pullRequest: 7,
   inputHeadSha: harnessHeadSha,
@@ -155,9 +150,11 @@ const claimJob = async (
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ workerId, ttlMs: 90_000 }),
   })
-  return ((await claimed.json()) as {
-    job: { leaseToken: string; attempt: number }
-  }).job
+  return (
+    (await claimed.json()) as {
+      job: { leaseToken: string; attempt: number }
+    }
+  ).job
 }
 
 const enqueueJob = async (origin: string, body: unknown): Promise<string> => {
@@ -417,7 +414,7 @@ test("workers claim due jobs with server-issued leases and stale completion is f
   }))
 
 test("harness jobs accept only a matching bounded typed handoff", async () =>
-  withServer(async (origin) => {
+  withServer(async origin => {
     const id = await enqueueJob(origin, harnessEnqueueBody)
     const claimed = await claimJob(origin, "harness-supervisor")
     const endpoint = `${origin}/v1/jobs/${id}/complete`
@@ -490,7 +487,7 @@ test("harness jobs accept only a matching bounded typed handoff", async () =>
   }))
 
 test("the harness completion envelope accepts exactly a lease token and a handoff", async () =>
-  withServer(async (origin) => {
+  withServer(async origin => {
     const id = await enqueueJob(origin, harnessEnqueueBody)
     const claimed = await claimJob(origin, "harness-supervisor")
     const complete = async (body: unknown): Promise<Response> =>
@@ -518,7 +515,7 @@ test("the harness completion envelope accepts exactly a lease token and a handof
   }))
 
 test("a blocked harness attempt with retries left answers with the retrying job", async () =>
-  withServer(async (origin) => {
+  withServer(async origin => {
     const id = await enqueueJob(origin, harnessEnqueueBody)
     const claimed = await claimJob(origin, "harness-supervisor")
 
@@ -556,7 +553,7 @@ test("a blocked harness attempt with retries left answers with the retrying job"
   }))
 
 test("a blocked harness handoff ends the attempt and keeps its evidence", async () =>
-  withServer(async (origin) => {
+  withServer(async origin => {
     const id = await enqueueJob(origin, {
       ...harnessEnqueueBody,
       maxAttempts: 1,
@@ -591,7 +588,7 @@ test("a blocked harness handoff ends the attempt and keeps its evidence", async 
   }))
 
 test("completing a job that does not exist reports it as missing", async () =>
-  withServer(async (origin) => {
+  withServer(async origin => {
     const missing = await fetch(`${origin}/v1/jobs/absent-job/complete`, {
       method: "POST",
       headers: { "content-type": "application/json" },

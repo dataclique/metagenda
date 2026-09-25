@@ -6,16 +6,48 @@ import {
 } from "node:http"
 import { readFile } from "node:fs/promises"
 import { isAbsolute, join } from "node:path"
-import { Clock, Data, Effect } from "effect"
+import { Clock, Data, Effect, Either } from "effect"
+import {
+  governedAllowanceCheckpoints,
+  providerCallAllowanceCheckpoints,
+  type ProviderAllowanceCheckpoint,
+} from "./allowance-pool.ts"
 import { decodeHarnessReviewHandoff } from "./harness-protocol.ts"
-import { decodeJobSpec, JobRuntimeError, type Job } from "./job-runtime.ts"
+import {
+  decodeHarnessResearchHandoff,
+  harnessResearchHandoffMatchesAttempt,
+} from "./harness-research-protocol.ts"
+import {
+  decodeJobSpec,
+  isRegisteredJobKind,
+  JobRuntimeError,
+  type Job,
+} from "./job-runtime.ts"
 import type { CanonicalPath } from "./review-duty-profile.ts"
 import {
-  isRegisteredKindFilter,
   JobStoreError,
   type SqliteJobStore,
   type StoredJob,
 } from "./sqlite-job-store.ts"
+import {
+  allowanceRunway,
+  calibrateProviderTokens,
+  providerTokenPolicy,
+  rolePollingPolicy,
+  usagePolicy,
+  type AutonomousRole,
+  type ProviderUsagePoint,
+} from "./usage-policy.ts"
+import { ThrottleActivity } from "./throttle-activity.ts"
+import { sampleCodexWeeklyAllowance } from "./codex-allowance.ts"
+
+/** Minimal read-only registry snapshot source the usage sampler needs. */
+export interface RegistryUsageSource {
+  readonly snapshot: (
+    now: number,
+  ) => Effect.Effect<{ readonly agents?: readonly RegisteredAgent[] }, unknown>
+}
+import type { RegisteredAgent } from "../agent-registry/registry.ts"
 
 export const CONTROL_PLANE_PROTOCOL_VERSION = 1
 export const CONTROL_PLANE_SCHEMA_VERSION = 6
@@ -59,7 +91,7 @@ const openAiControlSnapshot = (
   activity: ThrottleActivity,
 ) => {
   const controlCheckpoints = openAiControlCheckpoints(checkpoints, now)
-  const latest = controlCheckpoints.toSorted(
+  const latest = [...controlCheckpoints].sort(
     (left, right) => right.capturedAt - left.capturedAt,
   )[0]
   const policy = usagePolicy(controlCheckpoints, now)
@@ -107,9 +139,7 @@ export class ControlPlaneServerError extends Data.TaggedError(
  * without being given a status here.
  */
 export type ControlPlaneFailure =
-  | ControlPlaneServerError
-  | JobRuntimeError
-  | JobStoreError
+  ControlPlaneServerError | JobRuntimeError | JobStoreError
 
 /**
  * The store operations a request can reach. Naming them keeps the routes
@@ -118,7 +148,15 @@ export type ControlPlaneFailure =
  */
 export type ControlPlaneJobStore = Pick<
   SqliteJobStore,
-  "enqueue" | "get" | "list" | "claimDue" | "complete" | "fail"
+  | "enqueue"
+  | "get"
+  | "list"
+  | "claimDue"
+  | "complete"
+  | "fail"
+  | "recoverExpired"
+  | "recordUsage"
+  | "recordAllowanceCheckpoint"
 >
 
 export interface ControlPlaneServerOptions {
@@ -129,6 +167,8 @@ export interface ControlPlaneServerOptions {
   readonly home: CanonicalPath
   readonly dashboardDirectory?: string
   readonly codexExecutable?: string
+  /** Read-only registry snapshot source for usage sampling. */
+  readonly registryStore?: RegistryUsageSource
 }
 
 interface UsageSamplingStatus {
@@ -257,7 +297,8 @@ const sendRequestFailure = (
       sendError(response, 400, "invalid_json", "request body is malformed JSON")
     else if (failure.code === "invalid_payload")
       sendError(response, 400, "invalid_input", "request payload is invalid")
-    else sendError(response, 400, "invalid_request", "request could not be read")
+    else
+      sendError(response, 400, "invalid_request", "request could not be read")
   })
 
 const sendRuntimeFailure = (
@@ -280,10 +321,16 @@ const sendStoreFailure = (
     if (failure.code === "not_found")
       sendError(response, 404, "not_found", "job was not found")
     else if (failure.code === "idempotency_conflict")
-      sendError(response, 409, "idempotency_conflict", "job key conflicts with existing input")
+      sendError(
+        response,
+        409,
+        "idempotency_conflict",
+        "job key conflicts with existing input",
+      )
     else if (failure.code === "capacity")
       sendError(response, 503, "capacity", "job store is at capacity")
-    else sendError(response, 500, "internal_error", "control plane request failed")
+    else
+      sendError(response, 500, "internal_error", "control plane request failed")
   })
 
 /**
@@ -298,7 +345,7 @@ const handleJobs = (
   home: CanonicalPath,
 ): Effect.Effect<void, ControlPlaneFailure> => {
   if (request.method === "GET") {
-    return Effect.flatMap(store.list(), (stored) =>
+    return Effect.flatMap(store.list(), stored =>
       Effect.sync(() =>
         sendJson(response, 200, {
           jobs: stored.flatMap(readableJob),
@@ -325,6 +372,21 @@ const handleJobs = (
     const body = yield* readBody(request)
     const input = yield* parseJson(body)
     const spec = yield* decodeJobSpec(input, home)
+    // Research jobs are scheduled near the present: a runAt far from now is
+    // a stale replay of an already-served plan, not fresh work.
+    if (spec.kind === "harness.research") {
+      const now = yield* Clock.currentTimeMillis
+      if (
+        Math.abs(now - spec.runAt) > MAX_RESEARCH_SCHEDULE_SKEW_MS &&
+        !("recurrence" in spec && spec.recurrence !== undefined)
+      )
+        return yield* Effect.fail(
+          serverError(
+            "invalid_payload",
+            "research job schedule is too far from the present",
+          ),
+        )
+    }
     const result = yield* store.enqueue(spec)
     sendJson(response, result.created ? 201 : 200, { job: result.job })
   })
@@ -384,13 +446,22 @@ const handleClaim = (
       typeof input.workerId !== "string" ||
       typeof input.ttlMs !== "number" ||
       ("kinds" in input &&
-        (!Array.isArray(input.kinds) || !isRegisteredKindFilter(input.kinds)))
+        (!Array.isArray(input.kinds) ||
+          input.kinds.length < 1 ||
+          input.kinds.length > 8 ||
+          new Set(input.kinds).size !== input.kinds.length ||
+          !input.kinds.every(isRegisteredJobKind)))
     ) {
       return yield* Effect.fail(
         serverError("invalid_payload", "worker claim payload is invalid"),
       )
     }
     const now = yield* Clock.currentTimeMillis
+    // Expired leases are recovered inside the claim transaction window so a
+    // worker that died mid-attempt cannot hold the front of the queue. The
+    // retry delay is zero here: an expired lease is not a failed attempt,
+    // and the job stays immediately due for the next claiming worker.
+    yield* store.recoverExpired(now, 0)
     const job = yield* store.claimDue(
       input.workerId,
       randomUUID(),
@@ -398,7 +469,7 @@ const handleClaim = (
       input.ttlMs,
       "kinds" in input &&
         Array.isArray(input.kinds) &&
-        isRegisteredKindFilter(input.kinds)
+        input.kinds.every(isRegisteredJobKind)
         ? input.kinds
         : undefined,
     )
@@ -463,7 +534,14 @@ const handleComplete = (
       const now = yield* Clock.currentTimeMillis
       const publish =
         handoff.status === "blocked" || handoff.status === "failed"
-          ? store.fail(id, leaseToken, now, HARNESS_RETRY_DELAY_MS, summary, result)
+          ? store.fail(
+              id,
+              leaseToken,
+              now,
+              HARNESS_RETRY_DELAY_MS,
+              summary,
+              result,
+            )
           : store.complete(id, leaseToken, now, summary, result)
       const job = yield* publish
       sendJson(response, 200, { job })
@@ -526,8 +604,8 @@ const handleFail = (
   id: string,
   request: IncomingMessage,
   response: ServerResponse,
-  store: SqliteJobStore,
-): Effect.Effect<void, unknown> => {
+  store: ControlPlaneJobStore,
+): Effect.Effect<void, ControlPlaneFailure> => {
   if (request.method !== "POST") {
     sendError(response, 405, "method_not_allowed", "method is not allowed")
     return Effect.void
@@ -608,7 +686,7 @@ const handleRequest = (
     catch: () => serverError("request_failed", "request URL is malformed"),
   })
   return Effect.catchTags(
-    Effect.flatMap(route, (path) => {
+    Effect.flatMap(route, path => {
       if (path === "/v1/health") {
         if (request.method !== "GET") {
           sendError(
@@ -626,8 +704,7 @@ const handleRequest = (
         })
         return Effect.void
       }
-      if (path === "/v1/jobs")
-        return handleJobs(request, response, store, home)
+      if (path === "/v1/jobs") return handleJobs(request, response, store, home)
       if (path === "/v1/worker/claim")
         return handleClaim(request, response, store)
       const completeMatch =
@@ -654,10 +731,9 @@ const handleRequest = (
       return Effect.void
     }),
     {
-      ControlPlaneServerError: (failure) =>
-        sendRequestFailure(response, failure),
-      JobRuntimeError: (failure) => sendRuntimeFailure(response, failure),
-      JobStoreError: (failure) => sendStoreFailure(response, failure),
+      ControlPlaneServerError: failure => sendRequestFailure(response, failure),
+      JobRuntimeError: failure => sendRuntimeFailure(response, failure),
+      JobStoreError: failure => sendStoreFailure(response, failure),
     },
   )
 }
