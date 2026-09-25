@@ -61,8 +61,10 @@ document the package source and integration boundaries.
 ## Development
 
 `flake.nix` declares the toolchain, including Node 26 and GitButler from the
-pinned [`dataclique/but.nix`](https://github.com/dataclique/but.nix) input. Use
-`but` in the main checkout and plain Git in linked worktrees. Bun manages
+pinned [`dataclique/but.nix`](https://github.com/dataclique/but.nix) input. Prefer
+`but` in the main checkout and use plain Git in linked worktrees. When GitButler
+blocks authorized work, use plain Git for recovery, preserve existing work, and
+return to GitButler afterward; see [AGENTS.md](./AGENTS.md). Bun manages
 JavaScript dependencies through `bun.lock`; `bun.nix` supplies Nix builds.
 
 From a configured development shell:
