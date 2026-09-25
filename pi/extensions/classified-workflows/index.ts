@@ -725,7 +725,14 @@ async function classify(
   try {
     let lastClassifierFailure = "no classifier process result"
     const candidates = classifierCandidates(ctx)
-    for (let attempt = 0; attempt < candidates.length; attempt += 1) {
+    // One extra attempt beyond the distinct candidates retries the final
+    // candidate — the session model — so a single transient provider failure
+    // cannot exhaust the whole classification budget.
+    const attempts = candidates.length + (candidates.length > 1 ? 1 : 0)
+    // Attempts that actually started, for honest failure reporting when
+    // cancellation stops the loop before the configured budget is spent.
+    let attemptsStarted = 0
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
       const controller = new AbortController()
       const abort = () => controller.abort(signal?.reason)
       if (signal?.aborted) abort()
@@ -741,6 +748,7 @@ async function classify(
       )
 
       try {
+        attemptsStarted += 1
         const result = await runPi(
           [
             "--mode",
@@ -753,7 +761,12 @@ async function classify(
             "--no-prompt-templates",
             "--no-themes",
             "--no-context-files",
-            ...(candidates[attempt] ? ["--model", candidates[attempt]] : []),
+            ...(candidates[Math.min(attempt, candidates.length - 1)]
+              ? [
+                  "--model",
+                  candidates[Math.min(attempt, candidates.length - 1)],
+                ]
+              : []),
             "--thinking",
             "low",
             "--system-prompt",
@@ -770,8 +783,11 @@ async function classify(
         ) {
           const decision = parseClassifierDecision(result.output)
           if (decision.reason !== "Classifier returned an invalid decision") {
-            if (candidates[attempt])
-              markPreferredProvider(candidates[attempt], () => Date.now())
+            if (candidates[Math.min(attempt, candidates.length - 1)])
+              markPreferredProvider(
+                candidates[Math.min(attempt, candidates.length - 1)],
+                () => Date.now(),
+              )
             return decision
           }
           lastClassifierFailure = "classifier returned an invalid decision"
@@ -797,7 +813,7 @@ async function classify(
       }
 
       if (signal?.aborted) break
-      if (attempt + 1 < candidates.length) {
+      if (attempt + 1 < attempts) {
         try {
           await classifierBackoff(attempt, signal)
         } catch {
@@ -807,7 +823,7 @@ async function classify(
     }
     return {
       verdict: "block",
-      reason: `Classifier was unavailable after ${candidates.length} attempts; last failure: ${lastClassifierFailure}`,
+      reason: `Classifier was unavailable after ${attemptsStarted} attempts; last failure: ${lastClassifierFailure}`,
       source: "classifier",
     }
   } finally {
