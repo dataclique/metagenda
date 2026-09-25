@@ -577,16 +577,29 @@ export const formatTodoList: (todos: ReadonlyArray<Todo>) => string = todos => {
     return `${todoStatusMark(todo.status)} #${todo.id}: ${todo.text}${detail}${replies}`
   }
   // Active work must survive result truncation: render it first, then a
-  // bounded tail of completed history with an explicit omission count.
-  const active = todos.filter(todo => todo.status !== "completed")
-  const completed = todos.filter(todo => todo.status === "completed")
-  const visibleCompleted = completed.slice(-COMPLETED_HISTORY_LIMIT)
-  const omittedCompleted = completed.length - visibleCompleted.length
+  // bounded tail of closed history (completed and cancelled), most recent
+  // by statusChangedAt with array position as the legacy fallback.
+  const isClosed = (todo: Todo): boolean =>
+    todo.status === "completed" || todo.status === "cancelled"
+  const active = todos.filter(todo => !isClosed(todo))
+  const closed = todos.filter(isClosed)
+  const visibleClosed = closed
+    .map((todo, index) => ({ todo, index }))
+    .sort(
+      (left, right) =>
+        (left.todo.statusChangedAt ?? -Infinity) -
+          (right.todo.statusChangedAt ?? -Infinity) || left.index - right.index,
+    )
+    .map(({ todo }) => todo)
+    .slice(-COMPLETED_HISTORY_LIMIT)
+  const omittedClosed = closed.length - visibleClosed.length
   return [
     ...active.map(formatTodo),
-    ...visibleCompleted.map(formatTodo),
-    ...(omittedCompleted > 0
-      ? [`… ${omittedCompleted} earlier completed todos omitted`]
+    ...visibleClosed.map(formatTodo),
+    ...(omittedClosed > 0
+      ? [
+          `… ${omittedClosed} earlier closed ${omittedClosed === 1 ? "todo" : "todos"} omitted`,
+        ]
       : []),
   ].join("\n")
 }

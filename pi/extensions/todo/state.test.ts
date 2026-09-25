@@ -403,7 +403,7 @@ test("list output keeps active todos first and caps completed history", () => {
   const result = formatTodoList(todos)
   const lines = result.split("\n")
   assert.match(lines[0] ?? "", /^\[\/\] #31: active verification work/)
-  assert.match(result, /20 earlier completed todos omitted/)
+  assert.match(result, /20 earlier closed todos omitted/)
   assert.doesNotMatch(result, /done task 1\b/)
   assert.match(result, /done task 30\b/)
 })
