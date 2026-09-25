@@ -119,16 +119,35 @@ test("failed host replacement keeps watchers active and retries without incident
 
 test("automatic reload dispatches through the stock command boundary", () => {
   assert.match(source, /pi\.registerCommand\("auto-reload-now"/)
-  assert.match(
-    source,
-    /async handler\(_args, ctx\) \{\s*await ctx\.reload\(\)\s*\}/,
-  )
+  const register = source.indexOf('pi.registerCommand("auto-reload-now"')
+  const handler = source.slice(register, source.indexOf("})", register))
+  assert.match(handler, /await ctx\.reload\(\)/)
   assert.match(
     source,
     /pi\.sendUserMessage\("\/auto-reload-now", \{\s*deliverAs: "followUp",\s*expandPromptTemplates: true,\s*\}\)/,
   )
   assert.doesNotMatch(source, /managed reload-context host patch/)
   assert.doesNotMatch(source, /isReloadableContext/)
+})
+
+test("a failed command-boundary reload restores the pending retry", () => {
+  const register = source.indexOf('pi.registerCommand("auto-reload-now"')
+  const handler = source.slice(register, source.indexOf("})", register))
+
+  assert.match(handler, /try \{[\s\S]*?await ctx\.reload\(\)/)
+  assert.match(
+    handler,
+    /catch \(error\) \{[\s\S]*?"automatic extension reload"[\s\S]*?Automatic Pi reload failed/,
+  )
+  assert.match(
+    handler,
+    /if \(!pending\) pendingSince = Date\.now\(\)\s*pending = true/,
+  )
+  assert.match(handler, /"reload:retrying"/)
+  assert.match(
+    handler,
+    /timer = setTimeout\(\(\) => void reloadWhenIdle\(ctx\), IDLE_RETRY_MS\)/,
+  )
 })
 
 test("failed automatic reload schedules a bounded retry", () => {

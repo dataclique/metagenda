@@ -592,7 +592,27 @@ const autoReload: (pi: ExtensionAPI) => void = pi => {
   pi.registerCommand("auto-reload-now", {
     description: "Reload Pi resources now (automatic reload dispatch)",
     async handler(_args, ctx) {
-      await ctx.reload()
+      try {
+        await ctx.reload()
+      } catch (error) {
+        // performReload has already cleared `pending`, and its synchronous
+        // try/catch cannot observe this command-boundary rejection: the
+        // dispatcher reports handler errors separately. Restore the
+        // pending-reload path so automatic reload retries instead of
+        // stalling until the next file change schedules it.
+        reportIncident(
+          "error",
+          "automatic extension reload",
+          `Automatic Pi reload failed: ${error instanceof Error ? error.message : "unknown error"}`,
+        )
+        if (!pending) pendingSince = Date.now()
+        pending = true
+        composerSafeSince = undefined
+        ctx.ui.setStatus(STATUS_KEY, "reload:retrying")
+        if (timer) clearTimeout(timer)
+        timer = setTimeout(() => void reloadWhenIdle(ctx), IDLE_RETRY_MS)
+        timer.unref?.()
+      }
     },
   })
 
