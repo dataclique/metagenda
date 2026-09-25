@@ -75,6 +75,38 @@ test("quoted Git grep patterns are data, not shell operators", () => {
   }
 })
 
+test("quoted prose naming Git commands never trips the location gate", () => {
+  for (const command of [
+    "rg -ln 'Deterministic policy verdict|Git commands require' /repo/pi/extensions | lines | first 6",
+    "gh api repos/owner/repo/issues/7/comments -f body='use git push -u origin HEAD now'",
+    'echo "run git status and report"',
+    "printf '%s' 'the manual says git rebase origin/master here' | wc -c",
+  ]) {
+    assert.equal(
+      unsafeRuntimeCommandLocationBlockReason(process.cwd(), {
+        toolName: "bash",
+        input: { command },
+      }),
+      undefined,
+      `prose command must not be gated: ${command}`,
+    )
+  }
+  for (const unsafe of [
+    "git status | cat",
+    "git -C /other/repo status",
+    "git status; pwd",
+    "g\\it status --short",
+  ]) {
+    assert.ok(
+      unsafeRuntimeCommandLocationBlockReason(process.cwd(), {
+        toolName: "bash",
+        input: { command: unsafe },
+      }),
+      `real Git composition must stay gated: ${unsafe}`,
+    )
+  }
+})
+
 test("path-qualified Git commands fail closed without executable provenance", () => {
   for (const command of [
     "/usr/bin/git status --short",

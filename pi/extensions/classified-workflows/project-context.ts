@@ -557,6 +557,49 @@ export const runtimeCommandLocationForSubject = (
   return directory ? { ...directory, command, directoryTransition } : undefined
 }
 
+// Only text outside quotes can form an executable Git invocation. Quoted
+// content is data — prose naming Git commands must never trip this gate,
+// while a Git token in unquoted position stays gated however deep the
+// composition. An unquoted backslash escapes the next character, so
+// shell-escaped Git spellings stay gated too.
+const unquotedCommandSegments = (command: string): string => {
+  let result = ""
+  let quote: "single" | "double" | undefined
+  let escaped = false
+  let escapedInDouble = false
+  for (const character of command) {
+    if (escaped) {
+      escaped = false
+      result += character
+      continue
+    }
+    if (quote === "double" && escapedInDouble) {
+      escapedInDouble = false
+      continue
+    }
+    if (quote === "single") {
+      if (character === "'") quote = undefined
+      continue
+    }
+    if (quote === "double") {
+      if (character === "\\") {
+        escapedInDouble = true
+        continue
+      }
+      if (character === '"') quote = undefined
+      continue
+    }
+    if (character === "\\") {
+      escaped = true
+      continue
+    }
+    if (character === "'") quote = "single"
+    else if (character === '"') quote = "double"
+    else result += character
+  }
+  return result
+}
+
 export const unsafeRuntimeCommandLocationBlockReason = (
   cwd: string,
   subject: unknown,
@@ -564,10 +607,10 @@ export const unsafeRuntimeCommandLocationBlockReason = (
   if (!isRecord(subject) || subject.toolName !== "bash") return undefined
   const input = isRecord(subject.input) ? subject.input : undefined
   if (typeof input?.command !== "string") return undefined
-  const normalized = input.command
-    .replace(/\\\r?\n/g, "")
-    .replace(/["'\\]/g, "")
-  const hasGit = [normalized, normalized.replace(/\$/g, "")].some(command =>
+  const unquoted = unquotedCommandSegments(
+    input.command.replace(/\\\r?\n/g, ""),
+  )
+  const hasGit = [unquoted, unquoted.replace(/\$/g, "")].some(command =>
     /(?:^|[\s;&|($`])\^?(?:git|(?:[^\s;&|$()]+\/)+git)(?=[\s;&|$()]|$)/i.test(
       command,
     ),
