@@ -270,7 +270,7 @@ test("workflow children accept an explicit latest-series tier model from any pro
 
 test("workflow model preflight resolves only authenticated available providers", () => {
   const available = [
-    { provider: "openai-codex", id: "gpt-5.6-sol", name: "GPT-5.6 Sol" },
+    { provider: "openai-codex", id: "gpt-6.1-sol", name: "GPT-6.1 Sol" },
     { provider: "openai-codex", id: "gpt-5.6-luna", name: "GPT-5.6 Luna" },
     { provider: "openai-codex", id: "gpt-5.6-terra", name: "GPT-5.6 Terra" },
     {
@@ -285,12 +285,12 @@ test("workflow model preflight resolves only authenticated available providers",
     },
   ]
   assert.equal(
-    resolveAgentModel("gpt-5.6-sol", "openai-codex", available),
-    "openai-codex/gpt-5.6-sol",
+    resolveAgentModel("gpt-6.1-sol", "openai-codex", available),
+    "openai-codex/gpt-6.1-sol",
   )
   assert.equal(
-    resolveAgentModel("openai/gpt-5.6-sol", "openai-codex", available),
-    "openai-codex/gpt-5.6-sol",
+    resolveAgentModel("openai/gpt-6.1-sol", "openai-codex", available),
+    "openai-codex/gpt-6.1-sol",
   )
   for (const legacyMini of [
     "gpt-5.4-mini",
