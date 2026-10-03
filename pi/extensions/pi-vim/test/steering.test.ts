@@ -25,10 +25,9 @@ const route = (
     isCtrlEnter: key === "ctrl+enter",
   })
 
-test("ordinary Enter follows up while streaming", () => {
-  assert.equal(route("also check the docs", true, "enter"), "followUp")
-  assert.match(editorSource, /submissionMode === "followUp"/)
-  assert.match(extensionSource, /deliverAs: "followUp"/)
+test("ordinary Enter steers while streaming (owner never uses follow-up)", () => {
+  assert.equal(route("also check the docs", true, "enter"), "steer")
+  assert.equal(route("stop and inspect this", true, "ctrl+enter"), "steer")
 })
 
 test("Ctrl+Enter steers while streaming", () => {

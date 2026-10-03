@@ -1,8 +1,5 @@
 export type StreamingSubmissionMode =
-  | "pass"
-  | "immediate"
-  | "steer"
-  | "followUp"
+  "pass" | "immediate" | "steer" | "followUp"
 
 export const isSlashCommandInput = (text: string): boolean =>
   text.trimStart().startsWith("/")
@@ -23,5 +20,7 @@ export const streamingSubmissionMode = (input: {
   if (!input.isStreaming) return input.isCtrlEnter ? "immediate" : "pass"
   if (isSlashCommandInput(input.text))
     return input.isCtrlEnter ? "immediate" : "pass"
-  return input.isCtrlEnter ? "steer" : "followUp"
+  // Both Enter and Ctrl+Enter steer while streaming: the owner never uses
+  // follow-up, and an ambiguous submit loop is worse than an interrupt.
+  return "steer"
 }
