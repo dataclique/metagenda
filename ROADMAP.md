@@ -200,3 +200,27 @@ Ship tooling improvements with the release that needs them.
 - [ ] Improve image presentation and TSX highlighting -
       [#14](https://github.com/dataclique/metagenda/issues/14),
       [#19](https://github.com/dataclique/metagenda/issues/19).
+
+### v0.7 - Harness reliability and agent discipline
+
+The harness itself must not block authorized work, silently lose state, or
+require the owner in the loop for routine operations.
+
+- [ ] Stop the deterministic policy from blocking routine Git inspection
+      outside the session directory —
+      [#42](https://github.com/dataclique/metagenda/issues/42).
+- [ ] Make classifier decisions enforce the assigned task and explicit
+      exceptions instead of blocking legitimate work —
+      [#38](https://github.com/dataclique/metagenda/issues/38).
+- [ ] Restore live auto-reload with a disable switch so fleet reactivation
+      cannot be broken by it —
+      [#72](https://github.com/dataclique/metagenda/issues/72).
+- [ ] Replace host dist patching with supported extension surfaces —
+      [#56](https://github.com/dataclique/metagenda/issues/56).
+- [ ] Require classifier rejection of fix claims without reproduction
+      evidence —
+      [#57](https://github.com/dataclique/metagenda/issues/57).
+- [ ] Prevent file writes when uncommitted additions exceed the work limit —
+      [#26](https://github.com/dataclique/metagenda/issues/26).
+- [ ] Correct false classifier refusals of authorized development work —
+      [#27](https://github.com/dataclique/metagenda/issues/27).
