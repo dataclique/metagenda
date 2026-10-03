@@ -62,6 +62,7 @@
       "./image-summary/index.ts",
       "./local-models/index.ts",
       "./lsp/index.ts",
+      "./time-tick/index.ts",
       "./pi-vim/index.ts",
       "./questions/index.ts",
       "./release-cadence/index.ts",
