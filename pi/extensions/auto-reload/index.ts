@@ -72,6 +72,8 @@ const MODEL_REFRESH_TIMEOUT_MS = 10_000
 const HOST_MIGRATION_RETRY_MS = 250
 const HOST_MIGRATION_FAILURE_RETRY_MS = 30_000
 const STATUS_KEY = "auto-reload"
+/** Owner-set fleet safety switch: "disabled" makes the extension inert. */
+const AUTO_RELOAD_DISABLED = process.env.PI_AUTO_RELOAD === "disabled"
 
 interface HostMigrationPlan {
   readonly stableEntrypoint: string
@@ -707,6 +709,11 @@ const autoReload: (pi: ExtensionAPI) => void = pi => {
   }
 
   pi.on("session_start", async (event, ctx) => {
+    if (AUTO_RELOAD_DISABLED) {
+      sessionStartActive = false
+      ctx.ui.setStatus(STATUS_KEY, "reload:disabled")
+      return
+    }
     closeWatchers()
     sessionStartActive = true
     restoreHostMigration(ctx)

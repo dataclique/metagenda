@@ -465,3 +465,12 @@ test("per-process managed generation detects nested in-place changes missed by d
     rmSync(root, { recursive: true, force: true })
   }
 })
+
+test("PI_AUTO_RELOAD=disabled makes the extension inert", () => {
+  assert.match(source, /PI_AUTO_RELOAD\s*===\s*"disabled"/)
+  assert.match(source, /AUTO_RELOAD_DISABLED/)
+  const sessionStart = source.indexOf('pi.on("session_start"')
+  assert.ok(sessionStart > 0)
+  const handlerBody = source.slice(sessionStart)
+  assert.match(handlerBody, /if \(AUTO_RELOAD_DISABLED\) \{[\s\S]*?return\s*\}/)
+})
