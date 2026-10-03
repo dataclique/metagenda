@@ -407,3 +407,19 @@ test("list output keeps active todos first and caps completed history", () => {
   assert.doesNotMatch(result, /done task 1\b/)
   assert.match(result, /done task 30\b/)
 })
+
+test("reply chains are bounded in list output with an omission indicator", () => {
+  const manyReplies = Array.from({ length: 12 }, (_, i) => `reply ${i + 1}`)
+  const todo: Todo = {
+    id: 1,
+    text: "task with long reply history",
+    status: "in_progress",
+    replies: manyReplies,
+  }
+  const result = formatTodoList([todo])
+  assert.match(result, /reply 12/)
+  assert.match(result, /reply 11/)
+  assert.match(result, /reply 10/)
+  assert.doesNotMatch(result, /reply 9\b/)
+  assert.match(result, /9 earlier replies omitted/)
+})
