@@ -24,11 +24,13 @@ test("zai has no mid-tier model, so mid reuses the top-tier model", () => {
 
 test("models come only from the latest series of their provider", () => {
   assert.match(tierModel("top", "openai-codex") ?? "", /gpt-6\.1-sol/)
-  assert.match(tierModel("mid", "openai-codex") ?? "", /gpt-5\.6-/)
-  assert.match(tierModel("light", "openai-codex") ?? "", /gpt-5\.6-/)
+  assert.equal(tierModel("mid", "openai-codex"), "openai-codex/gpt-6.1-sol")
+  assert.equal(tierModel("light", "openai-codex"), "openai-codex/gpt-6.1-sol")
   assert.equal(tierModel("top", "zai"), "zai/glm-5.3")
   assert.equal(tierModel("light", "zai"), "zai/glm-5.3-flash")
   assert.ok(!JSON.stringify(MODEL_TIER_PROVIDERS).includes("gpt-5.4"))
+  assert.ok(!String(tierModel("mid", "openai-codex")).includes("gpt-5.6"))
+  assert.ok(!String(tierModel("light", "openai-codex")).includes("gpt-5.6"))
 })
 
 test("tier candidates end with the session model as the guaranteed last resort", () => {
