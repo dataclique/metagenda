@@ -206,8 +206,8 @@ Ship tooling improvements with the release that needs them.
 The harness itself must not block authorized work, silently lose state, or
 require the owner in the loop for routine operations.
 
-- [ ] Stop the deterministic policy from blocking routine Git inspection
-      outside the session directory —
+- [ ] Stop the deterministic policy from blocking routine Git inspection outside
+      the session directory —
       [#42](https://github.com/dataclique/metagenda/issues/42).
 - [ ] Make classifier decisions enforce the assigned task and explicit
       exceptions instead of blocking legitimate work —
@@ -217,8 +217,7 @@ require the owner in the loop for routine operations.
       [#72](https://github.com/dataclique/metagenda/issues/72).
 - [ ] Replace host dist patching with supported extension surfaces —
       [#56](https://github.com/dataclique/metagenda/issues/56).
-- [ ] Require classifier rejection of fix claims without reproduction
-      evidence —
+- [ ] Require classifier rejection of fix claims without reproduction evidence —
       [#57](https://github.com/dataclique/metagenda/issues/57).
 - [ ] Prevent file writes when uncommitted additions exceed the work limit —
       [#26](https://github.com/dataclique/metagenda/issues/26).
@@ -226,3 +225,5 @@ require the owner in the loop for routine operations.
       [#27](https://github.com/dataclique/metagenda/issues/27).
 - [ ] Extend eslint coverage to TypeScript pi extensions —
       [#75](https://github.com/dataclique/metagenda/issues/75).
+- [ ] Add a time-awareness polling tick to the harness —
+      [#76](https://github.com/dataclique/metagenda/issues/76).
