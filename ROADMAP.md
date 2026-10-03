@@ -224,3 +224,5 @@ require the owner in the loop for routine operations.
       [#26](https://github.com/dataclique/metagenda/issues/26).
 - [ ] Correct false classifier refusals of authorized development work —
       [#27](https://github.com/dataclique/metagenda/issues/27).
+- [ ] Extend eslint coverage to TypeScript pi extensions —
+      [#75](https://github.com/dataclique/metagenda/issues/75).
