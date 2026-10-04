@@ -17,9 +17,12 @@
   },
   "devDependencies": {
     "@effect/language-service": "^0.87.2",
+    "@eslint/js": "^10.0.1",
     "@types/ws": "^8.18.1",
+    "eslint": "^10.12.0",
     "prettier": "3.9.6",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.71.0"
   },
   "dependencies": {
     "@effect/experimental": "0.61.1",

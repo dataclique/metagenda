@@ -1,24 +1,74 @@
 import assert from "node:assert/strict"
-import { readFileSync } from "node:fs"
 import test from "node:test"
 
-const source = readFileSync(new URL("../eslint.config.mjs", import.meta.url), "utf8")
+const config = (await import("../eslint.config.mjs")).default
 
-test("root eslint config preserves the strict 2024 preset stack", () => {
-  assert.match(source, /eslint\.configs\.recommended/)
-  assert.match(source, /strictTypeChecked/)
-  assert.match(source, /stylisticTypeChecked/)
+const isConfigEntry = entry =>
+  typeof entry === "object" && entry !== null
+
+test("the exported config is a flat array of entries", () => {
+  assert.ok(Array.isArray(config))
+  assert.ok(config.length > 0)
+  for (const entry of config) assert.ok(isConfigEntry(entry))
 })
 
-test("both original rule relaxations are preserved", () => {
-  assert.match(source, /"@typescript-eslint\/no-non-null-assertion": "off"/)
-  assert.match(source, /"@typescript-eslint\/restrict-template-expressions": "off"/)
+test("the pi override applies both original rule relaxations", () => {
+  const override = config.find(
+    entry =>
+      isConfigEntry(entry) &&
+      Array.isArray(entry.files) &&
+      entry.files.includes("pi/**/*.ts"),
+  )
+  assert.ok(override, "expected a pi/**/*.ts override entry")
+  assert.equal(override.rules["@typescript-eslint/no-non-null-assertion"], "off")
+  assert.equal(
+    override.rules["@typescript-eslint/restrict-template-expressions"],
+    "off",
+  )
 })
 
-test("parser project points at the extension tsconfig", () => {
-  assert.match(source, /project: \["pi\/extensions\/tsconfig\.json"\]/)
+test("the pi override binds type-checking to the extension tsconfig", () => {
+  const override = config.find(
+    entry =>
+      isConfigEntry(entry) &&
+      Array.isArray(entry.files) &&
+      entry.files.includes("pi/**/*.ts"),
+  )
+  assert.ok(override)
+  assert.deepEqual(override.languageOptions.parserOptions.project, [
+    "pi/extensions/tsconfig.json",
+  ])
 })
 
-test("type-checked linting is scoped to the pi tree", () => {
-  assert.match(source, /files: \["pi\/\*\*\/\*\.ts"\]/)
+test("the strict preset stack is present", () => {
+  assert.ok(
+    config.some(
+      entry =>
+        isConfigEntry(entry) &&
+        entry.name === "typescript-eslint/strict-type-checked",
+    ),
+  )
+  assert.ok(
+    config.some(
+      entry =>
+        isConfigEntry(entry) &&
+        entry.name === "typescript-eslint/stylistic-type-checked",
+    ),
+  )
+})
+
+test("generated and out-of-scope trees are ignored", () => {
+  const ignoreEntry = config.find(
+    entry => isConfigEntry(entry) && Array.isArray(entry.ignores),
+  )
+  assert.ok(ignoreEntry)
+  for (const expected of [
+    "dist/",
+    "test/",
+    "packages/",
+    "tooling/",
+    "eslint.config.mjs",
+  ]) {
+    assert.ok(ignoreEntry.ignores.includes(expected), `missing ignore: ${expected}`)
+  }
 })
