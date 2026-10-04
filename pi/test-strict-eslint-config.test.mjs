@@ -1,34 +1,32 @@
 import assert from "node:assert/strict"
 import test from "node:test"
+import { fileURLToPath } from "node:url"
 
-const config = await import("../eslint.config.mjs").then(
-  m => m.default,
-  error => {
-    const message = error instanceof Error ? error.message : String(error)
-    if (
-      error?.code === "ERR_MODULE_NOT_FOUND" &&
-      /@eslint\/js|typescript-eslint|eslint/.test(message)
-    ) {
-      return null
-    }
-    throw error
-  },
-)
+const dependenciesPresent = await Promise.all([
+  import("eslint"),
+  import("@eslint/js"),
+  import("typescript-eslint"),
+])
+  .then(() => true)
+  .catch(() => false)
 
 const isConfigEntry = entry => typeof entry === "object" && entry !== null
 
-if (config === null) {
+if (!dependenciesPresent) {
   test(
     "strict eslint config contract (skipped: dependencies not installed)",
     { skip: true },
     () => {},
   )
 } else {
+  const config = (await import("../eslint.config.mjs")).default
   const { ESLint } = await import("eslint")
-  const eslint = new ESLint()
-  const effective = await eslint.calculateConfigForFile(
-    "pi/extensions/todo/state.ts",
+  const root = fileURLToPath(new URL("../", import.meta.url))
+  const target = fileURLToPath(
+    new URL("../pi/extensions/todo/state.ts", import.meta.url),
   )
+  const eslint = new ESLint({ cwd: root })
+  const effective = await eslint.calculateConfigForFile(target)
 
   test("the exported config is a flat array of entries", () => {
     assert.ok(Array.isArray(config))
