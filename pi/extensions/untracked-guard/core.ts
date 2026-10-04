@@ -21,10 +21,25 @@ const STATUS_KEY = "untracked-guard"
 const WRITE_TOOLS: ReadonlySet<string> = new Set(["write", "edit"])
 const VIOLATING_PATHS_LIMIT = 5
 
+const unquote = (path: DirtyPath): DirtyPath =>
+  path.startsWith('"') && path.endsWith('"') && path.length >= 2
+    ? path.slice(1, -1)
+    : path
+
 export const parseStatusLines = (
   lines: ReadonlyArray<string>,
 ): Array<DirtyPath> =>
-  lines.filter(line => line.trim().length > 0).map(line => line.slice(3))
+  lines
+    .filter(line => line.trim().length > 0)
+    .map(line => line.slice(3))
+    .map(entry => {
+      const arrow = entry.indexOf(" -> ")
+      const current = arrow === -1 ? entry : entry.slice(arrow + 4)
+      return unquote(current)
+    })
+
+export const resolveInterval = (raw: number): number =>
+  Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_INTERVAL_MS
 
 export const trackFirstSeen = (
   paths: ReadonlyArray<DirtyPath>,
@@ -95,32 +110,41 @@ const runGuard: (pi: ExtensionAPI) => void = pi => {
   }
 
   let timer: ReturnType<typeof setInterval> | undefined
+  let pollInFlight = false
 
   const observe = (ctx: ExtensionContext): void => {
+    if (pollInFlight) return
+    pollInFlight = true
     void (async () => {
-      const proc = Bun.spawn(["git", "status", "--porcelain"], {
-        stdout: "pipe",
-        stderr: "pipe",
-      })
-      const output = await new Response(proc.stdout).text()
-      const exitCode = await proc.exited
-      if (exitCode !== 0) {
+      try {
+        const proc = Bun.spawn(["git", "status", "--porcelain"], {
+          stdout: "pipe",
+          stderr: "pipe",
+        })
+        const output = await new Response(proc.stdout).text()
+        const exitCode = await proc.exited
+        if (exitCode !== 0) {
+          ctx.ui.setStatus(STATUS_KEY, "untracked-guard: status unavailable")
+          return
+        }
+        const paths = parseStatusLines(output.split("\n"))
+        const now = Date.now()
+        const firstSeen = trackFirstSeen(paths, state.firstSeen, now)
+        const report = accumulate(paths, firstSeen, now)
+        state = { report, firstSeen }
+        ctx.ui.setStatus(STATUS_KEY, formatStatusLabel(report))
+      } catch {
         ctx.ui.setStatus(STATUS_KEY, "untracked-guard: status unavailable")
-        return
+      } finally {
+        pollInFlight = false
       }
-      const paths = parseStatusLines(output.split("\n"))
-      const now = Date.now()
-      const firstSeen = trackFirstSeen(paths, state.firstSeen, now)
-      const report = accumulate(paths, firstSeen, now)
-      state = { report, firstSeen }
-      ctx.ui.setStatus(STATUS_KEY, formatStatusLabel(report))
     })()
   }
 
   pi.on("session_start", (_event, ctx) => {
     if (timer) clearInterval(timer)
     const raw = Number(process.env.PI_UNTRACKED_GUARD_INTERVAL_MS)
-    const interval = raw > 0 ? raw : DEFAULT_INTERVAL_MS
+    const interval = resolveInterval(raw)
     timer = setInterval(() => observe(ctx), interval)
     timer.unref?.()
     observe(ctx)

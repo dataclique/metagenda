@@ -24,6 +24,16 @@ test("empty status yields no paths", () => {
   assert.deepEqual(mod.parseStatusLines([""]), [])
 })
 
+test("rename entries resolve to the current path after the arrow", () => {
+  const paths = mod.parseStatusLines(["R  old/name.ts -> new/name.ts"])
+  assert.deepEqual(paths, ["new/name.ts"])
+})
+
+test("quoted porcelain paths are unwrapped", () => {
+  const paths = mod.parseStatusLines(['?? "src/quoted name.ts"'])
+  assert.deepEqual(paths, ["src/quoted name.ts"])
+})
+
 test("first-seen entries are created for new paths and dropped for gone paths", () => {
   const now = Date.now()
   const firstSeen = new Map([["old.ts", now - 1_000_000]])
@@ -130,6 +140,14 @@ test("wiring polls on an interval with env override and cleans up", () => {
   assert.match(source, /setInterval/)
   assert.match(source, /clearInterval/)
   assert.match(source, /session_shutdown/)
+})
+
+test("interval resolution rejects non-finite and non-positive values", () => {
+  assert.equal(mod.resolveInterval(Number("abc")), 60_000)
+  assert.equal(mod.resolveInterval(Number("Infinity")), 60_000)
+  assert.equal(mod.resolveInterval(0), 60_000)
+  assert.equal(mod.resolveInterval(-5), 60_000)
+  assert.equal(mod.resolveInterval(120_000), 120_000)
 })
 
 test("wiring blocks write-class tool calls when violated and passes otherwise", () => {
