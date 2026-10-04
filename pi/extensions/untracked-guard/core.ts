@@ -26,14 +26,18 @@ const unquote = (path: DirtyPath): DirtyPath =>
     ? path.slice(1, -1)
     : path
 
+const isRenameCode = (code: string): boolean =>
+  code.includes("R") || code.includes("C")
+
 export const parseStatusLines = (
   lines: ReadonlyArray<string>,
 ): Array<DirtyPath> =>
   lines
     .filter(line => line.trim().length > 0)
-    .map(line => line.slice(3))
-    .map(entry => {
-      const arrow = entry.indexOf(" -> ")
+    .map(line => {
+      const code = line.slice(0, 2)
+      const entry = line.slice(3)
+      const arrow = isRenameCode(code) ? entry.indexOf(" -> ") : -1
       const current = arrow === -1 ? entry : entry.slice(arrow + 4)
       return unquote(current)
     })
@@ -111,6 +115,7 @@ const runGuard: (pi: ExtensionAPI) => void = pi => {
 
   let timer: ReturnType<typeof setInterval> | undefined
   let pollInFlight = false
+  let shutdown = false
 
   const observe = (ctx: ExtensionContext): void => {
     if (pollInFlight) return
@@ -123,8 +128,9 @@ const runGuard: (pi: ExtensionAPI) => void = pi => {
         })
         const output = await new Response(proc.stdout).text()
         const exitCode = await proc.exited
-        if (exitCode !== 0) {
-          ctx.ui.setStatus(STATUS_KEY, "untracked-guard: status unavailable")
+        if (exitCode !== 0 || shutdown) {
+          if (!shutdown)
+            ctx.ui.setStatus(STATUS_KEY, "untracked-guard: status unavailable")
           return
         }
         const paths = parseStatusLines(output.split("\n"))
@@ -134,7 +140,8 @@ const runGuard: (pi: ExtensionAPI) => void = pi => {
         state = { report, firstSeen }
         ctx.ui.setStatus(STATUS_KEY, formatStatusLabel(report))
       } catch {
-        ctx.ui.setStatus(STATUS_KEY, "untracked-guard: status unavailable")
+        if (!shutdown)
+          ctx.ui.setStatus(STATUS_KEY, "untracked-guard: status unavailable")
       } finally {
         pollInFlight = false
       }
@@ -151,6 +158,7 @@ const runGuard: (pi: ExtensionAPI) => void = pi => {
   })
 
   pi.on("session_shutdown", (_event, ctx) => {
+    shutdown = true
     if (timer) clearInterval(timer)
     timer = undefined
     ctx.ui.setStatus(STATUS_KEY, undefined)

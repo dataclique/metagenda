@@ -34,6 +34,11 @@ test("quoted porcelain paths are unwrapped", () => {
   assert.deepEqual(paths, ["src/quoted name.ts"])
 })
 
+test("arrow inside an untracked filename is not a rename separator", () => {
+  const paths = mod.parseStatusLines(['?? "docs/one -> two"'])
+  assert.deepEqual(paths, ["docs/one -> two"])
+})
+
 test("first-seen entries are created for new paths and dropped for gone paths", () => {
   const now = Date.now()
   const firstSeen = new Map([["old.ts", now - 1_000_000]])
