@@ -227,3 +227,5 @@ require the owner in the loop for routine operations.
       [#75](https://github.com/dataclique/metagenda/issues/75).
 - [ ] Add a time-awareness polling tick to the harness —
       [#76](https://github.com/dataclique/metagenda/issues/76).
+- [ ] Bound task history in agent context and task views —
+      [#30](https://github.com/dataclique/metagenda/issues/30).
