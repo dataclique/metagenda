@@ -5,6 +5,7 @@ import {
   decodeTodoDetails,
   decodeTodoState,
   emptyTodoState,
+  formatTodoDetail,
   formatTodoList,
   nextDeferredReminderAt,
   parseTodoAction,
@@ -422,4 +423,57 @@ test("reply chains are bounded in list output with an omission indicator", () =>
   assert.match(result, /reply 10/)
   assert.doesNotMatch(result, /reply 9\b/)
   assert.match(result, /9 earlier replies omitted/)
+})
+
+test("detail view shows a single todo with full reply history and metadata", () => {
+  const todo: Todo = {
+    id: 7,
+    text: "ship the guard",
+    status: "in_progress",
+    replies: ["first", "second", "third", "fourth"],
+  }
+  const result = formatTodoDetail(todo)
+  assert.match(result, /#7: ship the guard/)
+  assert.match(result, /first/)
+  assert.match(result, /fourth/)
+  assert.doesNotMatch(result, /omitted/)
+  const blocked: Todo = {
+    id: 8,
+    text: "gated work",
+    status: "blocked",
+    reason: "awaiting owner merge",
+  }
+  const blockedResult = formatTodoDetail(blocked)
+  assert.match(blockedResult, /blocked: awaiting owner merge/)
+})
+
+test("detail view returns a not-found line for undefined todo", () => {
+  const result = formatTodoDetail(undefined)
+  assert.equal(result, "todo not found")
+})
+
+test("detail action parses and renders a single todo through the transition", async () => {
+  const state = emptyTodoState
+  const added = await Effect.runPromise(
+    transitionTodoState(
+      state,
+      { action: "add", text: "inspect me" } as const,
+      1_000,
+    ),
+  )
+  const withReplies = await Effect.runPromise(
+    transitionTodoState(
+      added.state,
+      { action: "reply", id: 1, text: "note" } as const,
+      2_000,
+    ),
+  )
+  const parsed = await Effect.runPromise(
+    parseTodoAction({ action: "detail", id: 1 } as const),
+  )
+  const detail = await Effect.runPromise(
+    transitionTodoState(withReplies.state, parsed, 3_000),
+  )
+  assert.match(detail.message, /#1: inspect me/)
+  assert.match(detail.message, /reply: note/)
 })

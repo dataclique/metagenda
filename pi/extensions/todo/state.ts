@@ -42,9 +42,11 @@ export type TodoRequest =
   | { readonly action: "reply"; readonly id?: number; readonly text?: string }
   | { readonly action: "unblock"; readonly id?: number }
   | { readonly action: "clear"; readonly id?: number }
+  | { readonly action: "detail"; readonly id?: number }
 
 export type TodoAction =
   | { readonly action: "list" }
+  | { readonly action: "detail"; readonly id: number }
   | { readonly action: "add"; readonly text: string }
   | { readonly action: "toggle"; readonly id: number }
   | {
@@ -83,7 +85,7 @@ export class TodoInputError extends Data.TaggedError("TodoInputError")<{
 }> {}
 
 export class TodoNotFoundError extends Data.TaggedError("TodoNotFoundError")<{
-  action: "toggle" | "status" | "block" | "reply" | "unblock"
+  action: "toggle" | "status" | "block" | "reply" | "unblock" | "detail"
   message: string
 }> {}
 
@@ -128,6 +130,7 @@ const TodoStateSchema = Schema.Struct({
 
 const TodoActionSchema = Schema.Literal(
   "list",
+  "detail",
   "add",
   "toggle",
   "status",
@@ -199,6 +202,23 @@ export const transitionTodoState: (
         state,
         message: formatTodoList(state.todos),
       })
+
+    case "detail": {
+      const target = state.todos.find(({ id }) => id === action.id)
+      if (!target) {
+        return Effect.fail(
+          new TodoNotFoundError({
+            action: "detail",
+            message: `Todo #${action.id} not found`,
+          }),
+        )
+      }
+      return Effect.succeed({
+        action: "detail",
+        state,
+        message: formatTodoDetail(target),
+      })
+    }
 
     case "add": {
       const todo: Todo = {
@@ -416,6 +436,17 @@ export const parseTodoAction: (
   switch (request.action) {
     case "list":
       return Effect.succeed(request)
+    case "detail": {
+      const id = request.id
+      return id !== undefined
+        ? Effect.succeed({ action: "detail", id })
+        : Effect.fail(
+            new TodoInputError({
+              action: "detail",
+              message: "id required for detail",
+            }),
+          )
+    }
     case "add": {
       const text = request.text?.trim()
       return text
@@ -613,5 +644,21 @@ export const formatTodoList: (todos: ReadonlyArray<Todo>) => string = todos => {
           `… ${omittedClosed} earlier closed ${omittedClosed === 1 ? "todo" : "todos"} omitted`,
         ]
       : []),
+  ].join("\n")
+}
+
+export const formatTodoDetail: (todo: Todo | undefined) => string = todo => {
+  if (todo === undefined) return "todo not found"
+  const detail =
+    todo.status === "blocked"
+      ? ` — blocked: ${todo.reason}`
+      : todo.status === "deferred" && todo.remindAt !== undefined
+        ? ` — deferred until ${new Date(todo.remindAt).toISOString()}`
+        : ""
+  const replies =
+    todo.replies?.map(reply => `  ↳ reply: ${reply}`).join("\n") ?? ""
+  return [
+    `${todoStatusMark(todo.status)} #${todo.id}: ${todo.text}${detail}`,
+    ...(replies.length > 0 ? [replies] : []),
   ].join("\n")
 }
