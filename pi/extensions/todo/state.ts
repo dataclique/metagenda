@@ -85,7 +85,7 @@ export class TodoInputError extends Data.TaggedError("TodoInputError")<{
 }> {}
 
 export class TodoNotFoundError extends Data.TaggedError("TodoNotFoundError")<{
-  action: "toggle" | "status" | "block" | "reply" | "unblock"
+  action: "toggle" | "status" | "block" | "reply" | "unblock" | "detail"
   message: string
 }> {}
 
