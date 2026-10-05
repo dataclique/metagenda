@@ -167,6 +167,16 @@ Research, issue creation, assignment, execution, and publication have distinct
 permissions. A conversation fragment is not an instruction to execute. Team
 members act through authenticated identities and configured permissions.
 
+Execution keeps the repository working tree bounded. The harness observes the
+plain working-tree status at the repository root, tracks how long each
+uncommitted addition has existed, and reports the addition count and oldest age
+visibly. The work limit is fifteen minutes. When any uncommitted addition
+exceeds the limit, the harness blocks further file-writing tools until the
+accumulated state is committed or cleaned up. If the status cannot be read, the
+harness reports the unavailability instead of a clean result. The observation
+relies on the version control status alone, works the same under any worktree
+manager, and never blocks the commands needed to commit or clean.
+
 One product-owner function maintains priorities across projects. Weekly
 direction requires human approval before work is allocated to human or agent
 capacity. Engineering assignments can include parallel research without making
