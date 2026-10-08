@@ -409,7 +409,7 @@ test("list output keeps active todos first and caps completed history", () => {
   assert.match(result, /done task 30\b/)
 })
 
-test("reply chains are bounded in list output with an omission indicator", () => {
+test("list view reports total reply count without bodies", () => {
   const manyReplies = Array.from({ length: 12 }, (_, i) => `reply ${i + 1}`)
   const todo: Todo = {
     id: 1,
@@ -418,11 +418,9 @@ test("reply chains are bounded in list output with an omission indicator", () =>
     replies: manyReplies,
   }
   const result = formatTodoList([todo])
-  assert.match(result, /reply 12/)
-  assert.match(result, /reply 11/)
-  assert.match(result, /reply 10/)
-  assert.doesNotMatch(result, /reply 9\b/)
-  assert.match(result, /9 earlier replies omitted/)
+  assert.doesNotMatch(result, /reply 12/)
+  assert.doesNotMatch(result, /↳/)
+  assert.match(result, /12 replies/)
 })
 
 test("detail view shows a single todo with full reply history and metadata", () => {
@@ -476,4 +474,17 @@ test("detail action parses and renders a single todo through the transition", as
   )
   assert.match(detail.message, /#1: inspect me/)
   assert.match(detail.message, /reply: note/)
+})
+
+test("list view shows reply counts without reply bodies", () => {
+  const todo: Todo = {
+    id: 5,
+    text: "compact listing",
+    status: "in_progress",
+    replies: ["first reply body", "second reply body"],
+  }
+  const result = formatTodoList([todo])
+  assert.doesNotMatch(result, /first reply body/)
+  assert.doesNotMatch(result, /↳/)
+  assert.match(result, /2 replies/)
 })

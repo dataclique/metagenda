@@ -177,6 +177,11 @@ harness reports the unavailability instead of a clean result. The observation
 relies on the version control status alone, works the same under any worktree
 manager, and never blocks the commands needed to commit or clean.
 
+Task views stay compact. List output reports each task's status, text, and
+follow-up count without rendering reply bodies; full history is retrieved on
+demand for a single task. Status lines and counts use fixed-width glyphs so the
+list stays scannable at a glance.
+
 One product-owner function maintains priorities across projects. Weekly
 direction requires human approval before work is allocated to human or agent
 capacity. Engineering assignments can include parallel research without making
