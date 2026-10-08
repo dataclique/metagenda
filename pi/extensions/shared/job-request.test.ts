@@ -31,6 +31,14 @@ const expectMalformed = async (input: unknown) => {
   }
 }
 
+test("exposes the decode boundary as a callable export", () => {
+  assert.equal(
+    typeof contract.decodeJobRequest,
+    "function",
+    "decodeJobRequest must be exported as a function",
+  )
+})
+
 test("decodes a resolved request into a deeply frozen value", async () => {
   const input = validRequest()
   const request = await Effect.runPromise(contract.decodeJobRequest(input))
@@ -176,6 +184,20 @@ const decodeSync = (input: unknown) =>
 const expectSchemaRejection = (input: unknown) => {
   assert.throws(() => decodeSync(input))
 }
+
+test("a valid request decoded through the committed surface is not yet preserved frozen", () => {
+  const request = decodeSync(validRequest())
+  assert.ok(Object.isFrozen(request), "decoded request must be deeply frozen")
+  assert.ok(
+    Object.isFrozen(request.execution),
+    "execution metadata must be frozen",
+  )
+  assert.ok(Object.isFrozen(request.budget), "budget must be frozen")
+  assert.ok(
+    Object.isFrozen(request.allowedTools),
+    "allowed tools must be frozen",
+  )
+})
 
 test("the declared schema itself rejects unresolved tool spellings and bounds", () => {
   const base = validRequest()
