@@ -5,8 +5,9 @@
   "author": "Data Clique Software Design FZCO",
   "scripts": {
     "build": "bun run --filter '*' build",
-    "test": "bun run test:fj && bun run --cwd packages/work-core test && bun run test:work-core-consumer && bun run test:job-attempt",
+    "test": "bun run test:fj && bun run --cwd packages/work-core test && bun run test:work-core-consumer && bun run test:job-attempt && bun run test:job-request",
     "test:job-attempt": "node --test pi/extensions/shared/job-attempt.test.ts pi/extensions/shared/job-attempt-boundary.test.mjs",
+    "test:job-request": "node --test pi/extensions/shared/job-request.test.ts",
     "test:work-core-consumer": "bun run --cwd packages/work-core build && nu --no-config-file --no-history packages/work-core/test-consumer.nu .tmp/work-core-tests",
     "test:fj": "nu --no-config-file --no-history tooling/fj/tests/run.nu .tmp/fj-tests",
     "typecheck": "bun run --filter '*' typecheck && bun run typecheck:job-attempt",
