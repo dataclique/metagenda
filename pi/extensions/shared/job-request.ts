@@ -38,6 +38,26 @@ export const MIN_JOB_TIMEOUT_MS = 180_000
 export const MAX_JOB_TIMEOUT_MS = 900_000
 export const MAX_JOB_RETRIES = 3
 
+const Counter = Schema.Number.pipe(
+  Schema.int(),
+  Schema.greaterThanOrEqualTo(0),
+  Schema.lessThanOrEqualTo(Number.MAX_SAFE_INTEGER),
+)
+
+const ToolName = Schema.String.pipe(
+  Schema.minLength(1),
+  Schema.maxLength(MAX_JOB_TOOL_NAME_CHARACTERS),
+)
+const allowedToolsMessage =
+  "allowed tools must be a resolved, duplicate-free, non-empty set of bounded tool names"
+const AllowedTools = Schema.Array(ToolName)
+  .pipe(
+    Schema.minItems(1),
+    Schema.maxItems(MAX_JOB_TOOLS),
+    Schema.filter(tools => new Set(tools).size === tools.length),
+  )
+  .annotations({ message: () => allowedToolsMessage })
+
 const ReasoningEffort = Schema.Literal(
   "off",
   "minimal",
@@ -49,24 +69,40 @@ const ReasoningEffort = Schema.Literal(
 )
 
 export const JobExecutionMetadata = Schema.Struct({
-  cwd: Schema.String,
-  model: Schema.String,
+  cwd: Schema.String.pipe(
+    Schema.minLength(1),
+    Schema.maxLength(MAX_JOB_CWD_CHARACTERS),
+    Schema.pattern(/^\//),
+  ),
+  model: Schema.String.pipe(
+    Schema.minLength(1),
+    Schema.maxLength(MAX_JOB_MODEL_CHARACTERS),
+  ),
   reasoning: ReasoningEffort,
 })
 export type JobExecutionMetadata = typeof JobExecutionMetadata.Type
 
 export const JobBudget = Schema.Struct({
-  tokenBudget: Schema.Number,
-  timeoutMs: Schema.Number,
-  retries: Schema.Number,
+  tokenBudget: Counter.pipe(
+    Schema.greaterThanOrEqualTo(MIN_JOB_TOKEN_BUDGET),
+    Schema.lessThanOrEqualTo(MAX_JOB_TOKEN_BUDGET),
+  ),
+  timeoutMs: Counter.pipe(
+    Schema.greaterThanOrEqualTo(MIN_JOB_TIMEOUT_MS),
+    Schema.lessThanOrEqualTo(MAX_JOB_TIMEOUT_MS),
+  ),
+  retries: Counter.pipe(Schema.lessThanOrEqualTo(MAX_JOB_RETRIES)),
 })
 export type JobBudget = typeof JobBudget.Type
 
 export const JobRequest = Schema.Struct({
   version: Schema.Literal(1),
   jobId: JobId,
-  prompt: Schema.String,
-  allowedTools: Schema.Array(Schema.String),
+  prompt: Schema.String.pipe(
+    Schema.minLength(1),
+    Schema.maxLength(MAX_JOB_PROMPT_CHARACTERS),
+  ),
+  allowedTools: AllowedTools,
   execution: JobExecutionMetadata,
   budget: JobBudget,
 })
