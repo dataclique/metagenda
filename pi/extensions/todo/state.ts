@@ -593,7 +593,6 @@ export const todoStatusMark: (status: TodoStatus) => string = status =>
   })[status]
 
 const COMPLETED_HISTORY_LIMIT = 10
-const REPLY_HISTORY_LIMIT = 3
 
 export const formatTodoList: (todos: ReadonlyArray<Todo>) => string = todos => {
   if (todos.length === 0) return "No todos"
@@ -604,20 +603,12 @@ export const formatTodoList: (todos: ReadonlyArray<Todo>) => string = todos => {
         : todo.status === "deferred" && todo.remindAt !== undefined
           ? ` — deferred until ${new Date(todo.remindAt).toISOString()}`
           : ""
+    const replyCount = todo.replies?.length ?? 0
     const replies =
-      (todo.replies?.length ?? 0) > 0
-        ? [
-            ...((todo.replies?.length ?? 0) > REPLY_HISTORY_LIMIT
-              ? [
-                  `    … ${(todo.replies?.length ?? 0) - REPLY_HISTORY_LIMIT} earlier ${(todo.replies?.length ?? 0) - REPLY_HISTORY_LIMIT === 1 ? "reply" : "replies"} omitted`,
-                ]
-              : []),
-            ...(todo.replies ?? [])
-              .slice(-REPLY_HISTORY_LIMIT)
-              .map(reply => `    ↳ reply: ${reply}`),
-          ].join("\n")
+      replyCount > 0
+        ? ` · ${replyCount} ${replyCount === 1 ? "reply" : "replies"}`
         : ""
-    return `${todoStatusMark(todo.status)} #${todo.id}: ${todo.text}${detail}${replies ? "\n" + replies : ""}`
+    return `${todoStatusMark(todo.status)} #${todo.id}: ${todo.text}${detail}${replies}`
   }
   // Active work must survive result truncation: render it first, then a
   // bounded tail of closed history (completed and cancelled), most recent
