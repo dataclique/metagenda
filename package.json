@@ -11,8 +11,9 @@
     "test:session-event": "node --test pi/extensions/shared/session-event.test.ts",
     "test:work-core-consumer": "bun run --cwd packages/work-core build && nu --no-config-file --no-history packages/work-core/test-consumer.nu .tmp/work-core-tests",
     "test:fj": "nu --no-config-file --no-history tooling/fj/tests/run.nu .tmp/fj-tests",
-    "typecheck": "bun run --filter '*' typecheck && bun run typecheck:job-attempt",
+    "typecheck": "bun run --filter '*' typecheck && bun run typecheck:job-attempt && bun run typecheck:session-event",
     "typecheck:job-attempt": "tsc --noEmit --strict --noUncheckedIndexedAccess --target es2022 --module NodeNext --moduleResolution NodeNext --allowImportingTsExtensions --types node pi/extensions/shared/job-attempt.ts pi/extensions/shared/job-attempt.test.ts",
+    "typecheck:session-event": "tsc --noEmit --strict --noUncheckedIndexedAccess --target es2022 --module NodeNext --moduleResolution NodeNext --allowImportingTsExtensions --types node pi/extensions/shared/session-event.ts pi/extensions/shared/session-event.test.ts",
     "lint": "bun run --filter '*' lint",
     "lint:fix": "bun run --filter '*' lint:fix",
     "verify": "bun run typecheck && bun run lint && bun run test && bun run build"
