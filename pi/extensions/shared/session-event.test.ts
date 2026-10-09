@@ -1,7 +1,12 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { Schema } from "effect"
-import { SessionEvent } from "./session-event.ts"
+import { Effect, Schema } from "effect"
+import * as contract from "./session-event.ts"
+import {
+  SessionEvent,
+  SessionIdentity,
+  SessionSnapshot,
+} from "./session-event.ts"
 
 const uuid = (n: number) =>
   `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`
@@ -133,4 +138,202 @@ test("assignment linkage must reference committed job and attempt identities", (
 
 test("terminal session events carry no execution fields", () => {
   assert.throws(() => decodeSync({ ...ownerLost(), attemptId: uuid(11) }))
+})
+
+const ownership = Schema.decodeUnknownSync(SessionIdentity)({
+  sessionId: uuid(1),
+})
+const snapshot = (changes: Readonly<Record<string, unknown>> = {}) =>
+  Schema.decodeUnknownSync(SessionSnapshot)({
+    sessionId: uuid(1),
+    status: "registered",
+    sequence: 1,
+    ...changes,
+  })
+const eventAt = (sequence: number, fields: Readonly<Record<string, unknown>>) =>
+  decodeSync({
+    version: 1,
+    sessionId: uuid(1),
+    eventId: uuid(200 + sequence),
+    sequence,
+    occurredAt: sequence * 100,
+    ...fields,
+  })
+const registration = () =>
+  eventAt(1, {
+    kind: "registered",
+    role: "worker",
+    capabilities: registered().capabilities,
+  })
+const absent = { kind: "absent" as const }
+
+const expectSessionError = async (args: readonly unknown[], code: string) => {
+  const result = await Effect.runPromise(
+    Effect.either(
+      Reflect.apply(contract.decideSessionEvent, undefined, args) as ReturnType<
+        import("./session-event.ts").DecideSessionEvent
+      >,
+    ),
+  )
+  assert.equal(result._tag, "Left")
+  if (result._tag === "Left") assert.equal(result.left.code, code)
+}
+
+test("exposes session acceptance as a callable export", () => {
+  assert.equal(
+    typeof contract.decideSessionEvent,
+    "function",
+    "decideSessionEvent must be exported as a function",
+  )
+})
+
+test("registers a pending session and keeps its assignment linkage", async () => {
+  const pending = snapshot({ status: "pending", sequence: 0 })
+  const registeredResult = await Effect.runPromise(
+    contract.decideSessionEvent(pending, ownership, absent, registration()),
+  )
+  assert.equal(registeredResult.kind, "appended")
+
+  const assignment = eventAt(2, { kind: "assigned", jobId: uuid(10) })
+  const assignedResult = await Effect.runPromise(
+    contract.decideSessionEvent(snapshot(), ownership, absent, assignment),
+  )
+  assert.equal(assignedResult.kind, "appended")
+  if (assignedResult.kind === "appended")
+    assert.equal(assignedResult.snapshot.status, "assigned")
+})
+
+test("executes an assigned attempt and releases back to assigned", async () => {
+  const started = eventAt(3, {
+    kind: "attempt-started",
+    jobId: uuid(10),
+    attemptId: uuid(11),
+  })
+  const startedResult = await Effect.runPromise(
+    contract.decideSessionEvent(
+      snapshot({ status: "assigned", sequence: 2, jobId: uuid(10) }),
+      ownership,
+      absent,
+      started,
+    ),
+  )
+  assert.equal(startedResult.kind, "appended")
+
+  const released = eventAt(4, {
+    kind: "attempt-released",
+    jobId: uuid(10),
+    attemptId: uuid(11),
+  })
+  const releasedResult = await Effect.runPromise(
+    contract.decideSessionEvent(
+      snapshot({
+        status: "executing",
+        sequence: 3,
+        jobId: uuid(10),
+        attemptId: uuid(11),
+      }),
+      ownership,
+      absent,
+      released,
+    ),
+  )
+  assert.equal(releasedResult.kind, "appended")
+})
+
+test("a terminal receipt is idempotent and a changed payload conflicts", async () => {
+  const closed = eventAt(2, { kind: "closed" })
+  const finished = snapshot({
+    status: "closed",
+    sequence: 2,
+    terminalEventId: closed.eventId,
+  })
+  assert.deepEqual(
+    await Effect.runPromise(
+      contract.decideSessionEvent(finished, ownership, absent, closed),
+    ),
+    { kind: "duplicate" },
+  )
+})
+
+test("rejects a foreign session or attempt without replacing state", async () => {
+  await expectSessionError(
+    [
+      snapshot(),
+      ownership,
+      absent,
+      eventAt(2, {
+        kind: "assigned",
+        sessionId: uuid(99),
+        jobId: uuid(10),
+      }),
+    ],
+    "stale-session",
+  )
+  await expectSessionError(
+    [
+      snapshot({ status: "assigned", sequence: 2, jobId: uuid(10) }),
+      ownership,
+      absent,
+      eventAt(3, {
+        kind: "attempt-started",
+        jobId: uuid(20),
+        attemptId: uuid(11),
+      }),
+    ],
+    "foreign-attempt",
+  )
+})
+
+test("rejects missing or reordered sequence numbers", async () => {
+  await expectSessionError(
+    [
+      snapshot(),
+      ownership,
+      absent,
+      eventAt(3, { kind: "assigned", jobId: uuid(40) }),
+    ],
+    "out-of-order",
+  )
+  await expectSessionError(
+    [snapshot(), ownership, absent, registration()],
+    "out-of-order",
+  )
+})
+
+test("rejects impossible transitions for the session lifecycle", async () => {
+  await expectSessionError(
+    [
+      snapshot({ status: "pending", sequence: 0 }),
+      ownership,
+      absent,
+      eventAt(1, { kind: "assigned", jobId: uuid(10) }),
+    ],
+    "invalid-transition",
+  )
+  await expectSessionError(
+    [
+      snapshot(),
+      ownership,
+      absent,
+      eventAt(2, {
+        kind: "attempt-started",
+        jobId: uuid(10),
+        attemptId: uuid(11),
+      }),
+    ],
+    "invalid-transition",
+  )
+  await expectSessionError(
+    [
+      snapshot({
+        status: "closed",
+        sequence: 2,
+        terminalEventId: uuid(202),
+      }),
+      ownership,
+      absent,
+      eventAt(3, { kind: "assigned", jobId: uuid(30) }),
+    ],
+    "invalid-transition",
+  )
 })

@@ -1,4 +1,4 @@
-import { Schema } from "effect"
+import { Data, Schema } from "effect"
 import { AttemptId, JobId } from "./job-attempt.ts"
 
 // Session-side half of the v0.1 shared job and session event contract
@@ -101,3 +101,77 @@ export const SessionEvent = Schema.Union(
   }),
 )
 export type SessionEvent = typeof SessionEvent.Type
+
+// Session-level acceptance state. The persistence owner reads the current
+// snapshot and event receipt, then applies the acceptance decision in the
+// same transaction, mirroring the merged attempt-event contract.
+export const SessionIdentity = Schema.Struct({ sessionId: SessionId })
+export type SessionIdentity = typeof SessionIdentity.Type
+
+export const SessionSnapshot = Schema.Union(
+  Schema.Struct({
+    sessionId: SessionId,
+    status: Schema.Literal("pending"),
+    sequence: Schema.Literal(0),
+  }),
+  Schema.Struct({
+    sessionId: SessionId,
+    status: Schema.Literal("registered"),
+    sequence: Sequence,
+  }),
+  Schema.Struct({
+    sessionId: SessionId,
+    status: Schema.Literal("assigned"),
+    sequence: Sequence,
+    jobId: JobId,
+  }),
+  Schema.Struct({
+    sessionId: SessionId,
+    status: Schema.Literal("executing"),
+    sequence: Sequence,
+    jobId: JobId,
+    attemptId: AttemptId,
+  }),
+  Schema.Struct({
+    sessionId: SessionId,
+    status: Schema.Literal("closed", "owner-lost"),
+    sequence: Sequence,
+    terminalEventId: SessionEventId,
+  }),
+)
+export type SessionSnapshot = typeof SessionSnapshot.Type
+
+export const SessionEventReceipt = Schema.Union(
+  Schema.Struct({ kind: Schema.Literal("absent") }),
+  Schema.Struct({ kind: Schema.Literal("recorded"), event: SessionEvent }),
+)
+export type SessionEventReceipt = typeof SessionEventReceipt.Type
+
+export class SessionEventError extends Data.TaggedError("SessionEventError")<{
+  readonly code:
+    | "malformed"
+    | "stale-session"
+    | "receipt-conflict"
+    | "out-of-order"
+    | "invalid-transition"
+    | "foreign-attempt"
+}> {}
+
+export type SessionEventDecision =
+  | { readonly kind: "duplicate" }
+  | {
+      readonly kind: "appended"
+      readonly snapshot: SessionSnapshot
+      readonly event: SessionEvent
+    }
+
+// Planned acceptance entry point: pure decision over the current snapshot,
+// session ownership, prior event receipt, and the incoming event. It grants
+// no claim, dispatch, or persistence authority; the store applies it in one
+// transaction.
+export type DecideSessionEvent = (
+  snapshot: SessionSnapshot,
+  ownership: SessionIdentity,
+  receipt: SessionEventReceipt,
+  event: SessionEvent,
+) => import("effect").Effect.Effect<SessionEventDecision, SessionEventError>
